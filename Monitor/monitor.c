@@ -52,9 +52,10 @@ typedef struct {									//estrutura para passar as threads
 DWORD WINAPI ThreadProdutor(LPVOID param) {
 	DadosThread* dados = (DadosThread*)param;
 	CelulaBuffer celula;
-	TCHAR comando[MAX];
-	TCHAR* delim = " ";	//delimitador para string tokenizer
-	TCHAR *prox_tok;	//A char* stores the starting memory location of a C-string
+	TCHAR comando[] = _T("");
+	TCHAR* prox_tok;	//A char* stores the starting memory location of a C-string
+	TCHAR* delim = _T(" ");	//delimitador para string tokenizer
+	
 	unsigned int cont = 0;
 
 	while (dados->terminar == 0) {
@@ -62,14 +63,13 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 
 		WaitForSingleObject(dados->hSemEscrita, INFINITE);
 		WaitForSingleObject(dados->hMutex, INFINITE);
-
+		
 		//inicializa dados celula
 		celula.comando = NULL;
 		for (int i = 0; i < N_STR; i++)
 		{
 			celula.args[i] = NULL;
 		}
-		prox_tok = NULL;
 		
 		//fica a espera dos comandos
 
@@ -98,11 +98,13 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 					celula.args[cont] = ptr;
 				cont++;
 			}
-			//_tprintf(TEXT("TOKENS %s .\n"),ptr);
+			_tprintf(TEXT("celula.comando %s .\n"),celula.comando);
+			for (int i = 0; i < N_STR; i++)
+			{
+				_tprintf(TEXT("celula.args[%d] %s .\n"), i,celula.args[i]);
+			}
 
 		}
-
-
 
 		ReleaseMutex(dados->hMutex);
 		ReleaseSemaphore(dados->hSemLeitura, 1, NULL); //o que vai fazer a leitura vai ter oportunidade de ler 1 bloco

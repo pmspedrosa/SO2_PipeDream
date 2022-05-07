@@ -15,8 +15,6 @@
 #define SEM_LEITURA _T("SEM_LEITURA")				//nome do semaforo de leitura
 #define SEM_SV _T("SEM_SV")							//nome do semaforo de servidor
 
-
-
 /*comandos*/
 #define PFAGUA _T("PFAGUA")							//nome do semaforo de leitura
 #define BARR _T("BARR")								//nome do semaforo de leitura
@@ -31,9 +29,11 @@ typedef struct {									//estrutura que vai criar cada celula do buffer circula
 }CelulaBuffer;
 
 typedef struct {
-	int nP;											//numero de produtores
-	int posE;										//posicao de escrita
-	int	posL;										//posicao de leitura
+	unsigned int nP;								//numero de produtores
+	unsigned int posE;								//posicao de escrita
+	unsigned int posL;								//posicao de leitura
+	unsigned int* tabuleiro;						//tabuleiro jogo
+	unsigned int posX, posY;						//posição da água
 	CelulaBuffer buffer[TAM_BUFFER];
 }MemPartilhada;
 
@@ -161,10 +161,10 @@ BOOL initMemAndSync(DadosThread* dados) {
 
 
 int _tmain(int argc, LPTSTR argv[]) {
-    
 	HANDLE hThread;
 	DadosThread dados;
 	TCHAR comando[100];
+	//unsigned int tab[20][20];
 
 #ifdef UNICODE
 	_setmode(_fileno(stdin), _O_WTEXT);
@@ -174,6 +174,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 
 	/*Semaforo para garantir a existência de apenas 1 servidor ativo*/
 	dados.hSemServidor = CreateSemaphore(NULL, NUM_SV, NUM_SV, SEM_SV);
+	
 	if (dados.hSemServidor == NULL) {
 		_tprintf(TEXT("Erro no CreateSemaphore\n"));
 		return -1;
@@ -185,6 +186,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 	}
 
 	dados.terminar = 0;
+	//dados.memPar->tabuleiro = *tab;
 	if (!initMemAndSync(&dados)) {
 		_tprintf(_T("Erro ao criar/abrir a memoria partilhada e mecanismos sincronos.\n"));
 		exit(1);
@@ -216,4 +218,132 @@ int _tmain(int argc, LPTSTR argv[]) {
 	
 
 	return 0;
+}
+
+
+
+
+
+BOOL verifica(DadosThread* dados) {
+	MemPartilhada* mem = dados->memPar;
+	unsigned int tab = mem->tabuleiro;
+	int* x = mem->posX;
+	int* y = mem->posY;
+	int max = 19;
+
+	/*****************************/
+	/*verifica se peça horizontal*/
+	/*****************************/
+	if (tab[x][y] == 1) {	
+		//verificar se bate contra a barreira do jogo[horizontal]
+		if ((x == 0 && tab[x+1][y] == 8) || (x == max && tab[x - 1][y] == 8)) {	
+			return FALSE;
+		}
+		//verifica peça direita [agua esquerda]
+		else if (x==0 || (tab[x-1][y] == 8)) {		
+			if (tab[x + 1][y] == 1 || tab[x + 1][y] == 4 || tab[x + 1][y] == 5)
+				return TRUE;
+		}
+		//verifica peça esquerda [agua direita]
+		else if (x == max || (tab[x + 1][y] == 8)) {
+			if (tab[x - 1][y] == 1 || tab[x - 1][y] == 3 || tab[x - 1][y] == 6)
+				return TRUE;
+		}	
+
+	/***************************/
+	/*verifica se peça vertical*/
+	/***************************/
+	}else if (tab[x][y] == 2) {	
+		//verificar se bate contra a barreira do jogo[vertical]
+		if ((y == 0 && tab[x][y+1] == 8) || (y == max && tab[x][y-1] == 8)) {
+			return FALSE;
+		}
+		//verificar peça baixo[agua cima]
+		else if (y==0 || (tab[x][y-1] == 8)) {		
+		if (tab[x][y+1] == 2 || tab[x][y+1] == 5 || tab[x][y+1] == 6)
+			return TRUE;
+		}
+		//verificar peça cima[agua baixo]
+		else if (y == max || (tab[x][y + 1] == 8)) {
+			if (tab[x][y - 1] == 2 || tab[x][y - 1] == 3 || tab[x][y - 1] == 4)
+				return TRUE;
+		}
+
+	/************************************/
+	/*verifica se peça 90º direita baixo*/
+	/************************************/
+	}else if (tab[x][y] == 3) {	
+		//verificar se bate contra a barreira do jogo[direita, baixo]
+		if ((x == max && y == max) || (x == max && tab[x][y+1] == 8) || (y == max && tab[x+1][y] == 8)) {
+			return FALSE;
+		}
+		//verificar peça direita[agua baixo]
+		else if (y==max || (tab[x][y+1] == 8)) {		
+			if (tab[x+1][y] == 1 || tab[x+1][y] == 4 || tab[x+1][y] == 5)
+				return TRUE;
+		}
+		//verificar peça baixo[agua direita]
+		else if (x == max || (tab[x+1][y] == 8)) {
+			if (tab[x][y + 1] == 2 || tab[x][y + 1] == 5 || tab[x][y + 1] == 6)
+				return TRUE;
+		}
+
+	/*************************************/
+	/*verifica se peça 90º esquerda baixo*/
+	/*************************************/
+	}else if (tab[x][y] == 4) {	
+		//verificar se bate contra a barreira do jogo[esquerda, baixo]
+		if ((x == 0 && y == max) || (x == 0 && tab[x][y+1] == 8) || (y == max && tab[x-1][y] == 8)) {
+			return FALSE;
+		}
+		//verificar peça esquerda[agua baixo]
+		else if (y == max || (tab[x][y+1] == 8)) {
+			if (tab[x - 1][y] == 1 || tab[x - 1][y] == 3 || tab[x - 1][y] == 6)
+				return TRUE;
+		}
+		//verificar peça baixo[agua esquerda]
+		else if (x == 0 || (tab[x - 1][y] == 8)) {
+			if (tab[x][y + 1] == 2 || tab[x][y + 1] == 5 || tab[x][y + 1] == 6)
+				return TRUE;
+		}
+
+	/*************************************/
+	/*verifica se peça 90º esquerda cima*/
+	/*************************************/
+	}else if (tab[x][y] == 5) {
+		//verificar se bate contra a barreira do jogo[esquerda, cima]
+		if ((x == 0 && y == 0) || (x == 0 && tab[x][y - 1] == 8) || (y == 0 && tab[x - 1][y] == 8)) {
+			return FALSE;
+		}
+		//verificar peça esquerda[agua cima]
+		else if (x == 0 || (tab[x][y-1] == 8)) {
+			if (tab[x - 1][y] == 1 || tab[x - 1][y] == 3 || tab[x - 1][y] == 6)
+				return TRUE;
+		}
+		//verificar peça cima[agua esquerda]
+		else if (y == 0 || (tab[x-1][y] == 8)) {
+			if (tab[x][y - 1] == 2 || tab[x][y - 1] == 3 || tab[x][y - 1] == 4)
+				return TRUE;
+		}
+
+	/************************************/
+	/*verifica se peça 90º direita cima*/
+	/************************************/
+	}else if (tab[x][y] == 6) {	
+		//verificar se bate contra a barreira do jogo[direita, cima]
+		if ((x == max && y == 0) || (x == max && tab[x][y - 1] == 8) || (y == 0 && tab[x + 1][y] == 8)) {
+			return FALSE;
+		}
+		//verificar peça direita[agua cima]
+		else if (y==0 || (tab[x][y-1] == 8)) {		
+			if (tab[x + 1][y] == 1 || tab[x + 1][y] == 4 || tab[x + 1][y] == 5)
+				return TRUE;
+		}
+		//verificar peça cima[agua direita]
+		else if (x = max || (tab[x + 1][y] == 8)) {
+			if (tab[x][y - 1] == 2 || tab[x][y - 1] == 3 || tab[x][y - 1] == 4)
+				return TRUE;
+		}
+	}
+	return FALSE;
 }
