@@ -7,26 +7,27 @@
 #define MAX 256
 #define N_STR 5
 #define TAM_BUFFER 10
+#define NUM_SV 1
 
 #define MEM_PARTILHADA _T("MEM_PARTILHADA")			//nome da mem partilhada
 #define MUTEX _T("MUTEX")							//nome da mutex
 #define SEM_ESCRITA _T("SEM_ESCRITA")				//nome do semaforo de escrita
 #define SEM_LEITURA _T("SEM_LEITURA")				//nome do semaforo de leitura
+#define SEM_SV _T("SEM_SV")							//nome do semaforo de servidor
 
 
 
 /*comandos*/
-#define PFAGUA _T("pfagua")							//nome do semaforo de leitura
-#define BARR _T("barr")								//nome do semaforo de leitura
+#define PFAGUA _T("PFAGUA")							//nome do semaforo de leitura
+#define BARR _T("BARR")								//nome do semaforo de leitura
 
 
 
-//━ = 1,┃ = 2, ┏ = 3, ┓ = 4, ┛ = 5, ┗ = 6
 
 typedef struct {									//estrutura que vai criar cada celula do buffer circular
 	int id;											//id do produtor 
-	char comando[MAX];								//comando produzido
-	char args[N_STR][MAX];							//argumentos caso existam (args[NUM_STRINGS][MAX_TAM])
+	TCHAR comando[MAX];								//comando produzido
+	TCHAR args[N_STR][MAX];							//argumentos caso existam (args[NUM_STRINGS][MAX_TAM])
 }CelulaBuffer;
 
 typedef struct {
@@ -40,6 +41,7 @@ typedef struct {									//estrutura para passar as threads
 	MemPartilhada* memPar;
 	HANDLE hSemEscrita;								//semaforo que controla as escritas
 	HANDLE hSemLeitura;								//semaforo que controla as leituras
+	HANDLE hSemServidor;							//semaforo para controlo do número de svs ativos
 	HANDLE hMutex;									//mutex
 	HANDLE hMapFile;								//map file
 	int terminar;									//flag para indicar a thread para terminar -> 1 para sair, 0 caso contrario
@@ -144,7 +146,7 @@ BOOL initMemAndSync(DadosThread* dados) {
 		CloseHandle(dados->hMapFile);
 	}
 
-	dados->hSemLeitura = CreateSemaphore(NULL, 0, TAM_BUFFER, SEM_LEITURA);
+	dados->hSemLeitura = CreateSemaphore(NULL, 0, 1, SEM_LEITURA);
 
 	if (dados->hSemLeitura == NULL) {
 		_tprintf(_T("Erro: CreateSemaphore (%d)\n", GetLastError()));
@@ -170,6 +172,18 @@ int _tmain(int argc, LPTSTR argv[]) {
 	_setmode(_fileno(stderr), _O_WTEXT);
 #endif
 
+	/*Semaforo para garantir a existência de apenas 1 servidor ativo*/
+	dados.hSemServidor = CreateSemaphore(NULL, NUM_SV, NUM_SV, SEM_SV);
+	if (dados.hSemServidor == NULL) {
+		_tprintf(TEXT("Erro no CreateSemaphore\n"));
+		return -1;
+	}
+	if (WaitForSingleObject(dados.hSemServidor, MAX) == WAIT_TIMEOUT) {
+		_tprintf(TEXT("Já existe um servidor ativo ... \n"));
+		CloseHandle(dados.hSemServidor);
+		return 0;
+	}
+
 	dados.terminar = 0;
 	if (!initMemAndSync(&dados)) {
 		_tprintf(_T("Erro ao criar/abrir a memoria partilhada e mecanismos sincronos.\n"));
@@ -179,8 +193,15 @@ int _tmain(int argc, LPTSTR argv[]) {
 	hThread = CreateThread(NULL, 0, ThreadConsumidor, &dados, 0, NULL);
 
 	if (hThread != NULL) {
-		_tprintf(_T("Escreva 'exit' para sair.\n"));
-		do { _getts_s(comando, 100); } while (_tcscmp(comando, _T("exit")) != 0);
+		_tprintf(_T("Escreva 'SAIR' para sair.\n"));
+		do { 
+			fflush(stdin);
+			_fgetts(comando, MAX, stdin);
+			//Retirar \n
+			comando[_tcslen(comando) - 1] = '\0';
+			for (int j = 0; j < _tcslen(comando); j++)
+				comando[j] = _totupper(comando[j]);
+		} while (_tcscmp(comando, _T("SAIR")) != 0);
 		dados.terminar = 1;
 		WaitForSingleObject(hThread, INFINITE);
 	}
