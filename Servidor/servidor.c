@@ -50,6 +50,45 @@ typedef struct {									//estrutura para passar as threads
 	int id;											//id do produtor
 }DadosThread;
 
+
+
+
+
+TCHAR** divideString(TCHAR* comando, unsigned int* tam) {
+	TCHAR delim = _T(" \0");
+	TCHAR* proxToken = NULL, ** temp, ** array = NULL;
+	TCHAR* token = _tcstok_s(comando, delim, &proxToken);
+
+	if (comando == NULL || _tcslen(comando) == 0) {		//verifica string vazia
+		_ftprintf(stderr, TEXT("[ERRO] String vazia!"));
+		return NULL;
+	}
+
+	*tam = 0;
+
+	while (token != NULL) {
+		temp = realloc(array, sizeof(TCHAR*) * (*tam + 1));
+
+		if (temp == NULL) {
+			_ftprintf(stderr, TEXT("[ERRO] Impossível alocar memória para string!"));
+			return NULL;
+		}
+
+		array = temp;
+		array[(*tam)++] = token;
+
+		token = _tcstok_s(NULL, delim, &proxToken);
+	}
+
+	return array;
+}
+
+
+
+
+
+
+
 /*THREAD CONSUMIDOR*/
 /*
 Consome os comandos lançados pelo Produtor
