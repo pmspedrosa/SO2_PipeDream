@@ -14,13 +14,13 @@
 #define TAM_V_OMISSAO 7L
 #define TEMPO_AGUA_OMISSAO 10L
 
-DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeValorRegistry[], DWORD valorOmissao, DWORD* varGuardar) {
+DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeValorRegistry[], DWORD valorOmissao, DWORD* varGuardar, DWORD min, DWORD max) {
 	DWORD valorNum = 0;
 	DWORD sizeValor;
 	if(valorString != NULL){	
 		valorNum = atoi(valorString);
 	}
-	if (valorNum < 3 || valorNum > 20) {
+	if (valorNum < min || valorNum > max) {
 		sizeValor = sizeof(valorNum);
 		if (RegQueryValueEx(hChaveRegistry, nomeValorRegistry, NULL, NULL, &valorNum, &sizeValor) == ERROR_SUCCESS) {
 			*varGuardar = valorNum;
@@ -60,14 +60,14 @@ int _tmain(int argc, LPTSTR argv[]) {
 		return -1;
 	}
 	if (argc >= 4) {
-		carregaValorConfig(argv[1], hChaveRegistry, REGISTRY_TAM_H, TAM_H_OMISSAO, &tamHorizontal);
-		carregaValorConfig(argv[2], hChaveRegistry, REGISTRY_TAM_V, TAM_V_OMISSAO, &tamVertical);
-		carregaValorConfig(argv[3], hChaveRegistry, REGISTRY_TEMPO, TEMPO_AGUA_OMISSAO, &tempoInicioAgua);
+		carregaValorConfig(argv[1], hChaveRegistry, REGISTRY_TAM_H, TAM_H_OMISSAO, &tamHorizontal, 3, 20);
+		carregaValorConfig(argv[2], hChaveRegistry, REGISTRY_TAM_V, TAM_V_OMISSAO, &tamVertical, 3, 20);
+		carregaValorConfig(argv[3], hChaveRegistry, REGISTRY_TEMPO, TEMPO_AGUA_OMISSAO, &tempoInicioAgua, 5, 45);
 	}
 	else {
-		carregaValorConfig(NULL, hChaveRegistry, REGISTRY_TAM_H, TAM_H_OMISSAO, &tamHorizontal);
-		carregaValorConfig(NULL, hChaveRegistry, REGISTRY_TAM_V, TAM_V_OMISSAO, &tamVertical);
-		carregaValorConfig(NULL, hChaveRegistry, REGISTRY_TEMPO, TEMPO_AGUA_OMISSAO, &tempoInicioAgua);
+		carregaValorConfig(NULL, hChaveRegistry, REGISTRY_TAM_H, TAM_H_OMISSAO, &tamHorizontal, 3, 20);
+		carregaValorConfig(NULL, hChaveRegistry, REGISTRY_TAM_V, TAM_V_OMISSAO, &tamVertical, 3, 20);
+		carregaValorConfig(NULL, hChaveRegistry, REGISTRY_TEMPO, TEMPO_AGUA_OMISSAO, &tempoInicioAgua, 5, 45);
 	}
 
 	_tprintf(TEXT("tam_h -> %d  \ntam_v -> %ld\ntempo -> %ld\n"), tamHorizontal, tamVertical, tempoInicioAgua);
