@@ -10,8 +10,8 @@
 #define REGISTRY_TAM_H TEXT("TAM_HORIZONTAL")
 #define REGISTRY_TAM_V TEXT("TAM_VERTICAL")
 #define REGISTRY_TEMPO TEXT("TEMPO_AGUA")
-#define TAM_H_OMISSAO 10L
-#define TAM_V_OMISSAO 7L
+#define TAM_H_OMISSAO 10
+#define TAM_V_OMISSAO 7
 #define TEMPO_AGUA_OMISSAO 10L
 
 #define MAX 256
@@ -124,7 +124,7 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 
 
 
-BOOL initMemAndSync(DadosThread* dados) {
+BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 	BOOL primeiroProcesso = FALSE;
 	dados->hMapFile = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, MEM_PARTILHADA); //verificar se ja existe, senao existir, pomos as variaveis a 0
 	if (dados->hMapFile == NULL)
@@ -144,6 +144,9 @@ BOOL initMemAndSync(DadosThread* dados) {
 		UnmapViewOfFile(dados->hMapFile);
 		return FALSE;
 	}
+
+	dados->memPar->tamX = tamH;
+	dados->memPar->tamY = tamV;
 
 	if (primeiroProcesso) {
 		dados->memPar->nP = 0;
@@ -179,11 +182,11 @@ BOOL initMemAndSync(DadosThread* dados) {
 }
 
 
-DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeValorRegistry[], DWORD valorOmissao, DWORD* varGuardar, DWORD min, DWORD max) {
-	DWORD valorNum = 0;
-	DWORD sizeValor;
+DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeValorRegistry[], unsigned int valorOmissao, unsigned int* varGuardar, unsigned int min, unsigned int max) {
+	unsigned int valorNum = 0;
+	unsigned int sizeValor;
 	if(valorString != NULL){	
-		valorNum = atoi(valorString);
+		valorNum = _ttoi(valorString);
 	}
 	if (valorNum < min || valorNum > max) {
 		sizeValor = sizeof(valorNum);
@@ -193,13 +196,13 @@ DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeVal
 		}
 		else {
 			*varGuardar = valorOmissao;
-			RegSetValueEx(hChaveRegistry, nomeValorRegistry, 0, REG_DWORD, varGuardar, sizeof(DWORD));
+			RegSetValueEx(hChaveRegistry, nomeValorRegistry, 0, REG_DWORD, varGuardar, sizeof(unsigned int));
 			return 2;
 		}
 	}
 	else {
 		*varGuardar = valorNum;
-		RegSetValueEx(hChaveRegistry, nomeValorRegistry, 0, REG_DWORD, varGuardar, sizeof(DWORD));
+		RegSetValueEx(hChaveRegistry, nomeValorRegistry, 0, REG_DWORD, varGuardar, sizeof(unsigned int));
 		return 3;
 	}
 }
@@ -260,7 +263,7 @@ int _tmain(int argc, LPTSTR argv[]) {
   
 	dados.terminar = 0;
 	//dados.memPar->tabuleiro = *tab;
-	if (!initMemAndSync(&dados)) {
+	if (!initMemAndSync(&dados, tamHorizontal, tamVertical)) {
 		_tprintf(_T("Erro ao criar/abrir a memoria partilhada e mecanismos sincronos.\n"));
 		exit(1);
 	}
