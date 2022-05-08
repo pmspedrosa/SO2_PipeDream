@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <io.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #define MAX 256
 #define N_STR 5
@@ -26,14 +27,16 @@
 
 typedef struct {									//estrutura que vai criar cada celula do buffer circular
 	int id;											//id do produtor 
-	TCHAR* comando;									//comando produzido
-	TCHAR* args[N_STR];								//argumentos caso existam (args[NUM_STRINGS][MAX_TAM])
+	TCHAR comando[MAX];								//comando produzido
 }CelulaBuffer;
 
 typedef struct {
-	int nP;											//numero de produtores
-	int posE;										//posicao de escrita
-	int	posL;										//posicao de leitura
+	unsigned int nP;								//numero de produtores
+	unsigned int posE;								//posicao de escrita
+	unsigned int posL;								//posicao de leitura
+	int tabuleiro[20][20];							//tabuleiro jogo
+	unsigned int tamX, tamY;						//tam tabuleiro
+	unsigned int posX, posY;						//posição da água
 	CelulaBuffer buffer[TAM_BUFFER];
 }MemPartilhada;
 
@@ -52,9 +55,9 @@ typedef struct {									//estrutura para passar as threads
 DWORD WINAPI ThreadProdutor(LPVOID param) {
 	DadosThread* dados = (DadosThread*)param;
 	CelulaBuffer celula;
-	TCHAR comando[] = _T("");
-	TCHAR* prox_tok;	//A char* stores the starting memory location of a C-string
-	TCHAR* delim = _T(" ");	//delimitador para string tokenizer
+	TCHAR comando[MAX];
+	//TCHAR* prox_tok;	//A char* stores the starting memory location of a C-string
+	//TCHAR* delim = _T(" ");	//delimitador para string tokenizer
 	
 	unsigned int cont = 0;
 
@@ -63,15 +66,6 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 
 		WaitForSingleObject(dados->hSemEscrita, INFINITE);
 		WaitForSingleObject(dados->hMutex, INFINITE);
-		
-		//inicializa dados celula
-		celula.comando = NULL;
-		for (int i = 0; i < N_STR; i++)
-		{
-			celula.args[i] = NULL;
-		}
-		
-		//fica a espera dos comandos
 
 		fflush(stdin);
 		_fgetts(comando, MAX, stdin);
@@ -85,31 +79,19 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 			dados->terminar = 1;
 			continue;
 		}
-		if (_tcslen(comando) != 0 || comando == NULL) {
-			//comando geral
-			TCHAR* ptr = wcstok_s(comando, delim, &prox_tok);
-			if (ptr != NULL)
-				celula.comando = ptr;
-			//args
-			while (ptr != NULL || cont <= N_STR)	//se cont == N_STR, argumentos a mais são ignorados
-			{
-				ptr = wcstok_s(NULL, delim, &prox_tok);
-				if (ptr != NULL)
-					celula.args[cont] = ptr;
-				cont++;
-			}
-			_tprintf(TEXT("celula.comando %s .\n"),celula.comando);
-			for (int i = 0; i < N_STR; i++)
-			{
-				_tprintf(TEXT("celula.args[%d] %s .\n"), i,celula.args[i]);
-			}
 
-		}
+		_tcscpy_s(celula.comando,MAX, comando);
+
+
+		CopyMemory(&dados->memPar->buffer[dados->memPar->posE], &celula, sizeof(CelulaBuffer));
+		dados->memPar->posE++;
+		if (dados->memPar->posE == TAM_BUFFER) //chegou ao limite? Sim, volta a 0
+			dados->memPar->posE = 0;
 
 		ReleaseMutex(dados->hMutex);
 		ReleaseSemaphore(dados->hSemLeitura, 1, NULL); //o que vai fazer a leitura vai ter oportunidade de ler 1 bloco
 
-		_tprintf(TEXT("P%d produziu .\n"), dados->id);
+		_tprintf(TEXT("P%d produziu %s.\n"), dados->id, celula.comando);
 		//Sleep(4 * 1000); //pedido pelo ex
 	}
 	ReleaseMutex(dados->hMutex);

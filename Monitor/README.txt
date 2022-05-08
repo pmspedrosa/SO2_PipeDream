@@ -3,9 +3,10 @@
 Produtor/Consumidor - Consumidor: Consome dados que o Servidor produz e mostra no ecrâ os dados 
 do jogo(tabuleiro, tubos, água, inicio, fim jogo[ganhou, perdeu])
 
-━ ┃ ┏ ┓ ┛ ┗	   B	A-água(por onde já passou a agua)
+━ ┃ ┏ ┓ ┛ ┗				 B	A-água(por onde já passou a agua)
 
-1 2 3 4 5 6    7	8
+1 2 3 4 5 6				7	8
+-1 -2 -3 -4 -5 -6			--> água
 
   0   1   2   3   4   5   6   7   8
   __ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___
@@ -13,7 +14,7 @@ do jogo(tabuleiro, tubos, água, inicio, fim jogo[ganhou, perdeu])
   __ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___
 1|	|	|	|	|	|	|	|	|	|	|	|	|	|	|	|	|	|	|	|	|
   __ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___
-2| ━	| ━	| ━	| ━	| ┓	|	|	|	|	|	|	|	|	|	|	|	|	|	|	|	|
+2| ━| ━	| ━	| ━	| ┓	|	|	|	|	|	|	|	|	|	|	|	|	|	|	|	|
   __ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___
 3|	|	|	|	| ┃	|	|	|	|	|	|	|	|	|	|	|	|	|	|	|	|
   __ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ___

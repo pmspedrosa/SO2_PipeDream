@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <io.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #define MAX 256
 #define N_STR 5
@@ -15,24 +16,25 @@
 #define SEM_LEITURA _T("SEM_LEITURA")				//nome do semaforo de leitura
 #define SEM_SV _T("SEM_SV")							//nome do semaforo de servidor
 
+
+
 /*comandos*/
 #define PFAGUA _T("PFAGUA")							//nome do semaforo de leitura
 #define BARR _T("BARR")								//nome do semaforo de leitura
-
-
+#define SAIR _T("SAIR")
 
 
 typedef struct {									//estrutura que vai criar cada celula do buffer circular
 	int id;											//id do produtor 
 	TCHAR comando[MAX];								//comando produzido
-	TCHAR args[N_STR][MAX];							//argumentos caso existam (args[NUM_STRINGS][MAX_TAM])
 }CelulaBuffer;
 
 typedef struct {
 	unsigned int nP;								//numero de produtores
 	unsigned int posE;								//posicao de escrita
 	unsigned int posL;								//posicao de leitura
-	unsigned int* tabuleiro;						//tabuleiro jogo
+	int tabuleiro[20][20];							//tabuleiro jogo
+	unsigned int tamX, tamY;						//tam tabuleiro
 	unsigned int posX, posY;						//posição da água
 	CelulaBuffer buffer[TAM_BUFFER];
 }MemPartilhada;
@@ -69,14 +71,24 @@ mensagem debug com o que consumiu
 DWORD WINAPI ThreadConsumidor(LPVOID param) {
 	DadosThread* dados = (DadosThread*)param;
 	CelulaBuffer celula;
-	char cmd[MAX];
+	TCHAR cmd[MAX];
 
 	while (dados->terminar == 0) {	//termina quando dados.terminar != 0
 
 		WaitForSingleObject(dados->hSemLeitura, INFINITE);	//bloqueia à espera que o semaforo fique assinalado
 		WaitForSingleObject(dados->hMutex, INFINITE);		//bloqueia à espera do unlock do mutex
 		
-		_tcscpy_s(cmd, 100,celula.comando);				//(destination, sizeinwords,source)
+
+		CopyMemory(&celula, &dados->memPar->buffer[dados->memPar->posL], sizeof(CelulaBuffer)); 
+		dados->memPar->posL++; 
+		if (dados->memPar->posL == TAM_BUFFER) 
+			dados->memPar->posL = 0; 
+
+
+		_tprintf(_T("P%d consumiu %s.\n"), celula.id, celula.comando);
+		_tcscpy_s(cmd,MAX ,celula.comando);				//(destination, sizeinwords,source)
+		
+
 		
 		if (_tcscmp(cmd, PFAGUA) == 0)						//comando para fluxo agua por determinado tempo
 		{
@@ -94,7 +106,7 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 		ReleaseMutex(dados->hMutex);						//liberta mutex
 		ReleaseSemaphore(dados->hSemEscrita, 1, NULL);		//liberta semaforo
 
-		_tprintf(_T("Servidor consumiu comando [%s] de monitor [%d]\n", celula.comando, celula.id));
+		//_tprintf(_T("Servidor consumiu comando [%s] de monitor [%d]\n", celula.comando, celula.id));
 
 	}//while
 	return 0;
@@ -198,14 +210,16 @@ int _tmain(int argc, LPTSTR argv[]) {
 		_tprintf(_T("Escreva 'SAIR' para sair.\n"));
 		do { 
 			fflush(stdin);
-			_fgetts(comando, MAX, stdin);
+			_fgetts(comando, MAX-1, stdin);
 			//Retirar \n
 			comando[_tcslen(comando) - 1] = '\0';
-			for (int j = 0; j < _tcslen(comando); j++)
-				comando[j] = _totupper(comando[j]);
-		} while (_tcscmp(comando, _T("SAIR")) != 0);
+			//Maiúsculas
+			for (int i = 0; i < _tcslen(comando); i++)
+				comando[i] = _totupper(comando[i]);
+			_tprintf(TEXT("Comando : %s\n"), comando);
+		} while (_tcscmp(comando, SAIR) != 0);
 		dados.terminar = 1;
-		WaitForSingleObject(hThread, INFINITE);
+		WaitForSingleObject(hThread, 100);
 	}
 
 	UnmapViewOfFile(dados.memPar);
@@ -229,14 +243,14 @@ BOOL verifica(DadosThread* dados) {
 	unsigned int tab = mem->tabuleiro;
 	int* x = mem->posX;
 	int* y = mem->posY;
-	int max = 19;
+	int maxX = dados->memPar->tamX, maxY = dados->memPar->tamY;
 
 	/*****************************/
 	/*verifica se peça horizontal*/
 	/*****************************/
 	if (tab[x][y] == 1) {	
 		//verificar se bate contra a barreira do jogo[horizontal]
-		if ((x == 0 && tab[x+1][y] == 8) || (x == max && tab[x - 1][y] == 8)) {	
+		if ((x == 0 && tab[x+1][y] == 8) || (x == maxX && tab[x - 1][y] == 8)) {	
 			return FALSE;
 		}
 		//verifica peça direita [agua esquerda]
@@ -245,7 +259,7 @@ BOOL verifica(DadosThread* dados) {
 				return TRUE;
 		}
 		//verifica peça esquerda [agua direita]
-		else if (x == max || (tab[x + 1][y] == 8)) {
+		else if (x == maxX || (tab[x + 1][y] == 8)) {
 			if (tab[x - 1][y] == 1 || tab[x - 1][y] == 3 || tab[x - 1][y] == 6)
 				return TRUE;
 		}	
@@ -255,7 +269,7 @@ BOOL verifica(DadosThread* dados) {
 	/***************************/
 	}else if (tab[x][y] == 2) {	
 		//verificar se bate contra a barreira do jogo[vertical]
-		if ((y == 0 && tab[x][y+1] == 8) || (y == max && tab[x][y-1] == 8)) {
+		if ((y == 0 && tab[x][y+1] == 8) || (y == maxY && tab[x][y-1] == 8)) {
 			return FALSE;
 		}
 		//verificar peça baixo[agua cima]
@@ -264,7 +278,7 @@ BOOL verifica(DadosThread* dados) {
 			return TRUE;
 		}
 		//verificar peça cima[agua baixo]
-		else if (y == max || (tab[x][y + 1] == 8)) {
+		else if (y == maxY || (tab[x][y + 1] == 8)) {
 			if (tab[x][y - 1] == 2 || tab[x][y - 1] == 3 || tab[x][y - 1] == 4)
 				return TRUE;
 		}
@@ -274,16 +288,16 @@ BOOL verifica(DadosThread* dados) {
 	/************************************/
 	}else if (tab[x][y] == 3) {	
 		//verificar se bate contra a barreira do jogo[direita, baixo]
-		if ((x == max && y == max) || (x == max && tab[x][y+1] == 8) || (y == max && tab[x+1][y] == 8)) {
+		if ((x == maxX && y == maxY) || (x == maxX && tab[x][y+1] == 8) || (y == maxY && tab[x+1][y] == 8)) {
 			return FALSE;
 		}
 		//verificar peça direita[agua baixo]
-		else if (y==max || (tab[x][y+1] == 8)) {		
+		else if (y==maxY || (tab[x][y+1] == 8)) {		
 			if (tab[x+1][y] == 1 || tab[x+1][y] == 4 || tab[x+1][y] == 5)
 				return TRUE;
 		}
 		//verificar peça baixo[agua direita]
-		else if (x == max || (tab[x+1][y] == 8)) {
+		else if (x == maxX || (tab[x+1][y] == 8)) {
 			if (tab[x][y + 1] == 2 || tab[x][y + 1] == 5 || tab[x][y + 1] == 6)
 				return TRUE;
 		}
@@ -293,11 +307,11 @@ BOOL verifica(DadosThread* dados) {
 	/*************************************/
 	}else if (tab[x][y] == 4) {	
 		//verificar se bate contra a barreira do jogo[esquerda, baixo]
-		if ((x == 0 && y == max) || (x == 0 && tab[x][y+1] == 8) || (y == max && tab[x-1][y] == 8)) {
+		if ((x == 0 && y == maxY) || (x == 0 && tab[x][y+1] == 8) || (y == maxY && tab[x-1][y] == 8)) {
 			return FALSE;
 		}
 		//verificar peça esquerda[agua baixo]
-		else if (y == max || (tab[x][y+1] == 8)) {
+		else if (y == maxY || (tab[x][y+1] == 8)) {
 			if (tab[x - 1][y] == 1 || tab[x - 1][y] == 3 || tab[x - 1][y] == 6)
 				return TRUE;
 		}
@@ -331,7 +345,7 @@ BOOL verifica(DadosThread* dados) {
 	/************************************/
 	}else if (tab[x][y] == 6) {	
 		//verificar se bate contra a barreira do jogo[direita, cima]
-		if ((x == max && y == 0) || (x == max && tab[x][y - 1] == 8) || (y == 0 && tab[x + 1][y] == 8)) {
+		if ((x == maxX && y == 0) || (x == maxX && tab[x][y - 1] == 8) || (y == 0 && tab[x + 1][y] == 8)) {
 			return FALSE;
 		}
 		//verificar peça direita[agua cima]
@@ -340,7 +354,7 @@ BOOL verifica(DadosThread* dados) {
 				return TRUE;
 		}
 		//verificar peça cima[agua direita]
-		else if (x = max || (tab[x + 1][y] == 8)) {
+		else if (x = maxX || (tab[x + 1][y] == 8)) {
 			if (tab[x][y - 1] == 2 || tab[x][y - 1] == 3 || tab[x][y - 1] == 4)
 				return TRUE;
 		}
