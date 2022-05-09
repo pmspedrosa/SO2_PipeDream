@@ -39,13 +39,15 @@ typedef struct {									//estrutura que vai criar cada celula do buffer circula
 }CelulaBuffer;
 
 typedef struct {
-	unsigned int nP;								//numero de produtores
+	unsigned int nP;								//numero de produtores		//acho que isto não tem de estar em memória partilhada
 	unsigned int posE;								//posicao de escrita
 	unsigned int posL;								//posicao de leitura
-	int tabuleiro[20][20];							//tabuleiro jogo
+	int tabuleiro1[20][20];							//tabuleiro jogador 1
+	int tabuleiro2[20][20];							//tabuleiro jogador 2
 	unsigned int tamX, tamY;						//tam tabuleiro
-	unsigned int posX, posY;						//posição da água
+	unsigned int posX, posY;						//posição da água			//acho que isto não deve estar em memória partilhada (apenas o servidor tem de saber qual a posição "ativa")
 	CelulaBuffer buffer[TAM_BUFFER];
+	unsigned int dirAgua;							//direção da água	// 0 > cima , 1 > direita, 2 > baixo, 3 > esquerda		//também não deve estar em memória partilhada (temos que ver como guardar estes dados do servidor // provavelmente sao dados da thread que trata de cada jogador)
 }MemPartilhada;
 
 typedef struct {									//estrutura para passar as threads
@@ -121,6 +123,105 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 	return 0;
 }
 
+void carregaMapaPreDefinido(int[][] tabuleiro) {
+	tabuleiro[0][2] = 1;
+	tabuleiro[1][2] = 1;
+	tabuleiro[2][2] = 1;
+	tabuleiro[3][2] = 1;
+	tabuleiro[4][2] = 4;
+	tabuleiro[4][3] = 2;
+	tabuleiro[4][4] = 5;
+	tabuleiro[3][4] = 3;
+	tabuleiro[3][5] = 2;
+	tabuleiro[3][6] = 6;
+	tabuleiro[4][6] = 1;
+	tabuleiro[5][6] = 1;
+	tabuleiro[6][6] = 1;
+	tabuleiro[7][6] = 1;
+	tabuleiro[8][6] = 5;
+	tabuleiro[8][5] = 3;
+	tabuleiro[9][5] = 1;
+}
+
+BOOL definirInicioFim(DadosThread* dados) {
+	srand(time(0));
+	
+	int parede = (rand() % (4));				//define em que parede vai estar :  0 - cima // 1 - direita //2 - baixo // 3 - esquerda
+	int min = 0, max, tipoTubo, posInicio, posFim;
+
+	switch (parede){
+	case 0:										//se estiver em cima ou em baixo, o limite máximo da sua posição é tamH, e o tubo inicial é vertical
+	case 2:
+		max = dados->memPar->tamH;
+		tipoTubo = 2;
+		break;
+	case 1:										//se estiver à direita ou esquerda, o limite máximo da sua posição é tamV, e o tubo inicial é horizontal
+	case 3:
+		max = dados->memPar->tamV;
+		tipoTubo = 1;
+		break;
+	default:									//se o valor aleatorio não for um dos esperados, retorna FALSE (apenas se ocorrer algum erro)
+		return FALSE;
+	}
+
+	posInicio = (rand() % max);						//posição a ocupar, na parede 
+	
+	if (max%2 == 0){								//se max par
+		if (posInicio >= max / 2) {						//e posInicio maior que metade, posFim tem de estar na primeira metade da parede
+			min = max / 2;
+		}
+		else {											//e posInicio menor que metade, posFim tem de estar na segunda metade da parede
+			max = max / 2;
+		}
+	}
+	else {											//se max impar
+		if (posInicio > max / 2) {						//e posInicio maior que metade inteira, posFim tem de estar na primeira metade da parede
+			min = (max / 2) + 1;
+		}
+		else if (posInicio < max / 2) {					//e posInicio menor que metade inteira, posFim tem de estar na primeira metade da parede
+			max = max / 2;						
+		}												//se max impar e posInicio igual à metade inteira, posInicio está na posição do meio, logo posFim pode estar em qualquer posição da parede
+	}
+
+	posFim = ((rand() % (max - min))+min);
+
+	switch (parede) {							
+	case 0:																				//Parede de cima
+		dados->memPar->tabuleiro1[posInicio][0] = tipoTubo;									//mete tubo correto na posição de inicio
+		dados->memPar->posX = posInicio;													//posição de agua ativa = posição de inicio
+		dados->memPar->posY = 0;
+		dados->memPar->tabuleiro1[posFim][dados->memPar->tamV - 1] = tipoTubo;		//posFim -> Parede contrária ao inicio			//devemos querer guardar esta posição também nos dados do servidor
+		dados->memPar->dirAgua = 2;
+		break;
+	case 1:
+		int ultimaPos = dados->memPar->tamH - 1;
+		dados->memPar->tabuleiro1[ultimaPos][posInicio] = tipoTubo;
+		dados->memPar->posX = ultimaPos;
+		dados->memPar->posY = posInicio;
+		dados->memPar->tabuleiro1[0][posFim] = tipoTubo;
+		dados->memPar->dirAgua = 3;
+		break;
+	case 2:
+		int ultimaPos = dados->memPar->tamV - 1;
+		dados->memPar->tabuleiro1[posInicio][ultimaPos] = tipoTubo;
+		dados->memPar->posX = posInicio;
+		dados->memPar->posY = ultimaPos;
+		dados->memPar->tabuleiro1[posFim][0] = tipoTubo;
+		dados->memPar->dirAgua = 0;
+		break;
+	case 3:
+		dados->memPar->tabuleiro1[0][posInicio] = tipoTubo;
+		dados->memPar->posX = 0;
+		dados->memPar->posY = posInicio;
+		dados->memPar->tabuleiro1[dados->memPar->tamH - 1][posFim] = tipoTubo;
+		dados->memPar->dirAgua = 1;
+		break;
+	default:
+		return FALSE;
+	}
+	return TRUE;
+}
+
 
 
 
@@ -145,14 +246,34 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 		return FALSE;
 	}
 
-	dados->memPar->tamX = tamH;
-	dados->memPar->tamY = tamV;
-
-	if (primeiroProcesso) {
+	//if (primeiroProcesso) {		//desnecessário porque o servidor é sempre o primeiro programa lançado
 		dados->memPar->nP = 0;
 		dados->memPar->posE = 0;
 		dados->memPar->posL = 0;
-	}
+	//}
+		
+		//	Comentado por causa do mapa pré-definido da meta 1
+		//dados->memPar->tamX = tamH;
+		//dados->memPar->tamY = tamV;
+		
+		dados->memPar->tamX = 10;
+		dados->memPar->tamY = 7;
+
+		for (int i = 0; i < tamH; i++) {
+			for (int j = 0; j < tamV; j++) {
+				dados->memPar->tabuleiro1[i][j] = 0;
+
+				dados->memPar->tabuleiro2[i][j] = 0;		//apenas meta 1. Depois será feito -> tabuleiro2 = tabuleiro1
+			}
+		}
+
+		//	MAPA PRÉ-DEFINIDO
+		carregaMapaPreDefinido(dados->memPar->tabuleiro1);
+
+		// Define início e fim
+		definirInicioFim(dados);	//meta 2 -> alterar para tabuleiro1
+
+
 	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX);
 	if (dados->hMutex == NULL) {
 		_tprintf(_T("Erro: CreateMutex (%d)\n", GetLastError()));

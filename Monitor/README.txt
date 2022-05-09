@@ -3,9 +3,9 @@
 Produtor/Consumidor - Consumidor: Consome dados que o Servidor produz e mostra no ecrâ os dados 
 do jogo(tabuleiro, tubos, água, inicio, fim jogo[ganhou, perdeu])
 
-━ ┃ ┏ ┓ ┛ ┗				 B	A-água(por onde já passou a agua)
+━ ┃ ┏ ┓ ┛ ┗				 B		INICIO	FIM
 
-1 2 3 4 5 6				7	8
+1 2 3 4 5 6				 7		  8		 9
 -1 -2 -3 -4 -5 -6			--> água
 
   0   1   2   3   4   5   6   7   8
