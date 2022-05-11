@@ -52,65 +52,45 @@ typedef struct {									//estrutura para passar as threads
 
 
 
-
-
-TCHAR** divideString(TCHAR* comando, unsigned int* tam) {
-	TCHAR delim = _T(" \0");
-	TCHAR* proxToken = NULL, ** temp, ** array = NULL;
+TCHAR** divideString(TCHAR * comando, const TCHAR * delim, unsigned int* tam) {
+	TCHAR* proxToken = NULL, ** temp, ** arrayCmd = NULL;
 	TCHAR* token = _tcstok_s(comando, delim, &proxToken);
 
-	if (comando == NULL || _tcslen(comando) == 0) {		//verifica string vazia
-		_ftprintf(stderr, TEXT("[ERRO] String vazia!"));
+	if (comando == NULL || _tcslen(comando) == 0) {
+		_ftprintf(stderr, TEXT("[ERRO] String comando vazia!"));
 		return NULL;
 	}
 
 	*tam = 0;
 
 	while (token != NULL) {
-		temp = realloc(array, sizeof(TCHAR*) * (*tam + 1));
+		//realocar a memória para integrar mais um argumento
+		//realloc returna um ponteiro para a nova memoria alocada, ou NULL quando falha
+		temp = realloc(arrayCmd, sizeof(TCHAR*) * (*tam + 1));		
 
 		if (temp == NULL) {
-			_ftprintf(stderr, TEXT("[ERRO] Impossível alocar memória para string!"));
+			_ftprintf(stderr, TEXT("[ERRO] Falha ao alocar memoria!"));
 			return NULL;
 		}
-
-		array = temp;
-		array[(*tam)++] = token;
+		arrayCmd = temp;						//apontar para a nova memoria alocada				
+		arrayCmd[(*tam)++] = token;
 
 		token = _tcstok_s(NULL, delim, &proxToken);
 	}
 
-	return array;
+	return arrayCmd;
 }
 
 
 
 
 
-
-
-/*THREAD CONSUMIDOR*/
-/*
-Consome os comandos lançados pelo Produtor
-Monitor = M, Cliente = C
-Comandos possiveis:
-	- Parar água por periode de tempo	 [pfagua arg1 ...]	(M)
-	- Adicionar barreira intransponivel	 [barr arg1 ...]	(M)
-	- 
-
-
-semaforo
-mutex
-processamento de comandos -> lançamento de funções especificas
-releasemutex
-releasesemaforo
-mensagem debug com o que consumiu
-*/
-
 DWORD WINAPI ThreadConsumidor(LPVOID param) {
 	DadosThread* dados = (DadosThread*)param;
 	CelulaBuffer celula;
-	TCHAR cmd[MAX];
+	TCHAR comando[MAX], ** arrayComandos = NULL;
+	const TCHAR delim[2] = _T(" ");
+	unsigned int nrArgs = 0;
 
 	while (dados->terminar == 0) {	//termina quando dados.terminar != 0
 
@@ -123,28 +103,43 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 		if (dados->memPar->posL == TAM_BUFFER) 
 			dados->memPar->posL = 0; 
 
-
+		_tcscpy_s(comando, MAX, celula.comando);
 		_tprintf(_T("P%d consumiu %s.\n"), celula.id, celula.comando);
-		_tcscpy_s(cmd,MAX ,celula.comando);				//(destination, sizeinwords,source)
+
+		free(arrayComandos);												//libertar a memoria de args
+
+		arrayComandos = divideString(comando, delim, &nrArgs);
 		
 
 		
-		if (_tcscmp(cmd, PFAGUA) == 0)						//comando para fluxo agua por determinado tempo
-		{
-			// func pfagua com args ...
+		if (arrayComandos != NULL ) {
+			_tprintf(_T("\ncomando: %s.\n"), arrayComandos[0]);
+			for (int i = 0; i < nrArgs; i++)
+			{
+				_tprintf(_T("arg[%d]: %s.\n"), i, arrayComandos[i]);
+			}
+			if (_tcscmp(arrayComandos[0], PFAGUA) == 0)						//comando para fluxo agua por determinado tempo
+			{
+				if (nrArgs < 1)
+					continue;
+				// func pfagua com args ...
+			}
+			else if (_tcscmp(arrayComandos[0], BARR) == 0)					//comando adicionar barreira
+			{
+				_tprintf(_T("barrrrrr\n"));// func barr com args ...
+				if (nrArgs < 2)
+					continue;
+			}
+			else //comando nao encontrado
+			{
+				_tprintf(_T("Comando desconhecido!\n"));// func barr com args ...
+				// comando desconhecido
+			}
 		}
-		else if (_tcscmp(cmd, BARR) == 0)					//comando adicionar barreira
-		{
-			// func barr com args ...
-		}
-		else //comando nao encontrado
-		{
-			// comando desconhecido
-		}
+
 
 		ReleaseMutex(dados->hMutex);						//liberta mutex
 		ReleaseSemaphore(dados->hSemEscrita, 1, NULL);		//liberta semaforo
-
 		//_tprintf(_T("Servidor consumiu comando [%s] de monitor [%d]\n", celula.comando, celula.id));
 
 	}//while
@@ -182,7 +177,7 @@ BOOL initMemAndSync(DadosThread* dados) {
 	}
 	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX);
 	if (dados->hMutex == NULL) {
-		_tprintf(_T("Erro: CreateMutex (%d)\n", GetLastError()));
+		_tprintf(_T("Erro: CreateMutex (%d)\n"), GetLastError());
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
@@ -191,7 +186,7 @@ BOOL initMemAndSync(DadosThread* dados) {
 	dados->hSemEscrita = CreateSemaphore(NULL, TAM_BUFFER, TAM_BUFFER, SEM_ESCRITA);
 
 	if (dados->hSemEscrita == NULL) {
-		_tprintf(_T("Erro: CreateSemaphore (%d)\n", GetLastError()));
+		_tprintf(_T("Erro: CreateSemaphore (%d)\n"), GetLastError());
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
@@ -200,7 +195,7 @@ BOOL initMemAndSync(DadosThread* dados) {
 	dados->hSemLeitura = CreateSemaphore(NULL, 0, 1, SEM_LEITURA);
 
 	if (dados->hSemLeitura == NULL) {
-		_tprintf(_T("Erro: CreateSemaphore (%d)\n", GetLastError()));
+		_tprintf(_T("Erro: CreateSemaphore (%d)\n"), GetLastError());
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
