@@ -55,7 +55,7 @@ typedef struct {
 }MemPartilhada;
 
 typedef struct {
-	int (*tabuleiro)[20][20];
+	int (*tabuleiro)[20][20];						//ponteiro para o tabuleiro referente na memória partilhada // TER CUIDADO QUANDO SE DESMAPEAR A MEMÓRIA VIRTUAL
 	int posX, posY;									//posição da água
 	unsigned int dirAgua;							//direção da água	// 0 > cima , 1 > direita, 2 > baixo, 3 > esquerda
 }DadosTabuleiro;
