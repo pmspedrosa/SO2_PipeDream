@@ -116,7 +116,7 @@ BOOL initMemAndSync(DadosThread* dados) {
 	dados->memPar = (MemPartilhada*)MapViewOfFile(dados->hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
 	if (dados->memPar == NULL) {
-		_tprintf(_T("Erro: MapViewOfFile (%d)\n", GetLastError()));
+		_tprintf(_T("Erro: MapViewOfFile (%d)\n"), GetLastError());
 		UnmapViewOfFile(dados->hMapFile);
 		return FALSE;
 	}
@@ -128,7 +128,7 @@ BOOL initMemAndSync(DadosThread* dados) {
 	}
 	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX);
 	if (dados->hMutex == NULL) {
-		_tprintf(_T("Erro: CreateMutex (%d)\n", GetLastError()));
+		_tprintf(_T("Erro: CreateMutex (%d)\n"), GetLastError());
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
@@ -137,7 +137,7 @@ BOOL initMemAndSync(DadosThread* dados) {
 	dados->hSemEscrita = CreateSemaphore(NULL, TAM_BUFFER, TAM_BUFFER, SEM_ESCRITA);
 
 	if (dados->hSemEscrita == NULL) {
-		_tprintf(_T("Erro: CreateSemaphore (%d)\n", GetLastError()));
+		_tprintf(_T("Erro: CreateSemaphore (%d)\n"), GetLastError());
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
@@ -146,7 +146,7 @@ BOOL initMemAndSync(DadosThread* dados) {
 	dados->hSemLeitura = CreateSemaphore(NULL, 0, 1, SEM_LEITURA);
 
 	if (dados->hSemLeitura == NULL) {
-		_tprintf(_T("Erro: CreateSemaphore (%d)\n", GetLastError()));
+		_tprintf(_T("Erro: CreateSemaphore (%d)\n"), GetLastError());
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
