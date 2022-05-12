@@ -19,9 +19,10 @@
 
 
 /*comandos*/
-#define PFAGUA _T("PFAGUA")							//nome do semaforo de leitura
-#define BARR _T("BARR")								//nome do semaforo de leitura
-#define SAIR _T("SAIR")
+#define PFAGUA _T("PFAGUA")							//nome comando para fluxo agua durante um periodo de tempo
+#define BARR _T("BARR")								//nome comando adiciona barreira á grelha de jogo		
+#define MODO _T("MODO")								//nome comando modo sequencia de peças/tubos
+#define SAIR _T("SAIR")								//sair
 
 
 typedef struct {									//estrutura que vai criar cada celula do buffer circular
@@ -126,9 +127,15 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 			}
 			else if (_tcscmp(arrayComandos[0], BARR) == 0)					//comando adicionar barreira
 			{
-				_tprintf(_T("barrrrrr\n"));// func barr com args ...
+				_tprintf(_T("barrrrrr\n"));
+				// func barr com args ...
 				if (nrArgs < 2)
 					continue;
+			}
+			else if (_tcscmp(arrayComandos[0], MODO) == 0)					//comando alterar modo sequencia tubos
+			{
+				_tprintf(_T("modooooooo\n"));
+				// func mudar modo sequencia peças/tubos ...
 			}
 			else //comando nao encontrado
 			{
@@ -149,6 +156,8 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 
 
 
+
+
 BOOL initMemAndSync(DadosThread* dados) {
 	BOOL primeiroProcesso = FALSE;
 	dados->hMapFile = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, MEM_PARTILHADA); //verificar se ja existe, senao existir, pomos as variaveis a 0
@@ -165,7 +174,7 @@ BOOL initMemAndSync(DadosThread* dados) {
 	dados->memPar = (MemPartilhada*)MapViewOfFile(dados->hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(MemPartilhada));
 
 	if (dados->memPar == NULL) {
-		_tprintf(_T("Erro: MapViewOfFile (%d)\n", GetLastError()));
+		_tprintf(_T("Erro: MapViewOfFile (%d)\n"), GetLastError());
 		UnmapViewOfFile(dados->hMapFile);
 		return FALSE;
 	}
