@@ -72,8 +72,6 @@ typedef struct {									//estrutura para passar as threads
 	int id;											//id do produtor
 	DWORD tempoInicioAgua;							//tempo até água começar a fluir
 	DadosTabuleiro tabuleiro1, tabuleiro2;
-	//unsigned int dirAgua;							//direção da água	// 0 > cima , 1 > direita, 2 > baixo, 3 > esquerda
-	//int posX, posY;									//posição da água
 }DadosThread;
 
 
