@@ -27,6 +27,10 @@
 #define SEM_LEITURA _T("SEM_LEITURA")				//nome do semaforo de leitura
 #define SEM_SV _T("SEM_SV")							//nome do semaforo de servidor
 
+#define CIMA 0
+#define DIREITA 1
+#define BAIXO 2
+#define ESQUERDA 3
 
 
 /*comandos*/
@@ -47,9 +51,7 @@ typedef struct {
 	int tabuleiro1[20][20];							//tabuleiro jogador 1
 	int tabuleiro2[20][20];							//tabuleiro jogador 2
 	unsigned int tamX, tamY;						//tam tabuleiro
-	unsigned int posX, posY;						//posição da água			//acho que isto não deve estar em memória partilhada (apenas o servidor tem de saber qual a posição "ativa")
 	CelulaBuffer buffer[TAM_BUFFER];
-	unsigned int dirAgua;							//direção da água	// 0 > cima , 1 > direita, 2 > baixo, 3 > esquerda		//também não deve estar em memória partilhada (temos que ver como guardar estes dados do servidor // provavelmente sao dados da thread que trata de cada jogador)
 }MemPartilhada;
 
 typedef struct {									//estrutura para passar as threads
@@ -62,6 +64,8 @@ typedef struct {									//estrutura para passar as threads
 	int terminar;									//flag para indicar a thread para terminar -> 1 para sair, 0 caso contrario
 	int id;											//id do produtor
 	DWORD tempoInicioAgua;							//tempo até água começar a fluir
+	unsigned int dirAgua;							//direção da água	// 0 > cima , 1 > direita, 2 > baixo, 3 > esquerda
+	int posX, posY;									//posição da água
 }DadosThread;
 
 /*THREAD CONSUMIDOR*/
@@ -126,7 +130,7 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 	return 0;
 }
 
-void carregaMapaPreDefinido(int tabuleiro[10][7]) {
+void carregaMapaPreDefinido(DadosThread* dados, int tabuleiro[20][20]) {
 	tabuleiro[0][2] = 1;
 	tabuleiro[1][2] = 1;
 	tabuleiro[2][2] = 1;
@@ -144,6 +148,10 @@ void carregaMapaPreDefinido(int tabuleiro[10][7]) {
 	tabuleiro[8][6] = 5;
 	tabuleiro[8][5] = 3;
 	tabuleiro[9][5] = 1;
+
+	dados->posX = 0;
+	dados->posY = 2;
+	dados->dirAgua = DIREITA;
 }
 
 BOOL definirInicioFim(DadosThread* dados) {
@@ -191,34 +199,34 @@ BOOL definirInicioFim(DadosThread* dados) {
 
 	switch (parede) {							
 	case 0:																				//Parede de cima
-		dados->memPar->tabuleiro1[posInicio][0] = tipoTubo;									//mete tubo correto na posição de inicio
-		dados->memPar->posX = posInicio;													//posição de agua ativa = posição de inicio
-		dados->memPar->posY = 0;
-		dados->memPar->tabuleiro1[posFim][dados->memPar->tamY - 1] = tipoTubo;		//posFim -> Parede contrária ao inicio			//devemos querer guardar esta posição também nos dados do servidor
-		dados->memPar->dirAgua = 2;
+		dados->memPar->tabuleiro2[posInicio][0] = tipoTubo;									//mete tubo correto na posição de inicio
+		dados->posX = posInicio;													//posição de agua ativa = posição de inicio
+		dados->posY = 0;
+		dados->memPar->tabuleiro2[posFim][dados->memPar->tamY - 1] = tipoTubo;		//posFim -> Parede contrária ao inicio			//devemos querer guardar esta posição também nos dados do servidor
+		//dados->dirAgua = BAIXO;
 		break;
 	case 1:
 		ultimaPos = dados->memPar->tamX - 1;
-		dados->memPar->tabuleiro1[ultimaPos][posInicio] = tipoTubo;
-		dados->memPar->posX = ultimaPos;
-		dados->memPar->posY = posInicio;
-		dados->memPar->tabuleiro1[0][posFim] = tipoTubo;
-		dados->memPar->dirAgua = 3;
+		dados->memPar->tabuleiro2[ultimaPos][posInicio] = tipoTubo;
+		dados->posX = ultimaPos;
+		dados->posY = posInicio;
+		dados->memPar->tabuleiro2[0][posFim] = tipoTubo;
+		//dados->dirAgua = ESQUERDA;
 		break;
 	case 2:
 		ultimaPos = dados->memPar->tamY - 1;
-		dados->memPar->tabuleiro1[posInicio][ultimaPos] = tipoTubo;
-		dados->memPar->posX = posInicio;
-		dados->memPar->posY = ultimaPos;
-		dados->memPar->tabuleiro1[posFim][0] = tipoTubo;
-		dados->memPar->dirAgua = 0;
+		dados->memPar->tabuleiro2[posInicio][ultimaPos] = tipoTubo;
+		dados->posX = posInicio;
+		dados->posY = ultimaPos;
+		dados->memPar->tabuleiro2[posFim][0] = tipoTubo;
+		//dados->dirAgua = CIMA;
 		break;
 	case 3:
-		dados->memPar->tabuleiro1[0][posInicio] = tipoTubo;
-		dados->memPar->posX = 0;
-		dados->memPar->posY = posInicio;
-		dados->memPar->tabuleiro1[dados->memPar->tamX - 1][posFim] = tipoTubo;
-		dados->memPar->dirAgua = 1;
+		dados->memPar->tabuleiro2[0][posInicio] = tipoTubo;
+		dados->posX = 0;
+		dados->posY = posInicio;
+		dados->memPar->tabuleiro2[dados->memPar->tamX - 1][posFim] = tipoTubo;
+		//dados->dirAgua = DIREITA;
 		break;
 	default:
 		return FALSE;
@@ -227,6 +235,98 @@ BOOL definirInicioFim(DadosThread* dados) {
 }
 
 BOOL fluirAgua(DadosThread* dados) {
+	switch(dados->dirAgua){
+	case CIMA:
+		if (dados->posY - 1 < 0) {
+			return FALSE;
+		}
+		switch (dados->memPar->tabuleiro1[dados->posX][dados->posY - 1]) {
+		case 2:				// peça ┃
+			_tprintf(_T("encontrei peça |, direcao: CIMA\n"));
+			break;
+		case 3:				// peça ┏
+			dados->dirAgua = DIREITA;
+			_tprintf(_T("encontrei peça r, direcao: DIREITA\n"));
+			break;
+		case 4:				// peça ┓
+			dados->dirAgua = ESQUERDA;
+			_tprintf(_T("encontrei peça q, direcao: ESQUERDA\n"));
+			break;
+		default:			//encontra peça inutilizável ou vazio ou barreira
+			return FALSE;
+		}
+		dados->posY--;															//avança a posição ativa da água na direção de fluxo
+		dados->memPar->tabuleiro1[dados->posX][dados->posY] *= -1;				//coloca a peça ativa como tendo água
+		break;
+	case DIREITA:
+		if (dados->posX + 1 >= dados->memPar->tamX) {
+			return FALSE;
+		}
+		switch (dados->memPar->tabuleiro1[dados->posX+1][dados->posY]) {
+		case 1:				// peça ━
+			_tprintf(_T("encontrei peça -, direcao: DIREITA\n"));
+			break;
+		case 4:				// peça ┓
+			dados->dirAgua = BAIXO;
+			_tprintf(_T("encontrei peça q, direcao: BAIXO\n"));
+			break;
+		case 5:				// peça ┛
+			dados->dirAgua = CIMA;
+			_tprintf(_T("encontrei peça d, direcao: CIMA\n"));
+			break;
+		default:			//encontra peça inutilizável ou vazio ou barreira
+			return FALSE;
+		}
+		dados->posX++;															//avança a posição ativa da água na direção de fluxo
+		dados->memPar->tabuleiro1[dados->posX][dados->posY] *= -1;				//coloca a peça ativa como tendo água
+		break;
+	case BAIXO:
+		if (dados->posY + 1 >= dados->memPar->tamY) {
+			return FALSE;
+		}
+		switch (dados->memPar->tabuleiro1[dados->posX][dados->posY + 1]) {
+		case 2:				// peça ┃
+			_tprintf(_T("encontrei peça |, direcao: BAIXO\n"));
+			break;
+		case 5:				// peça ┛
+			dados->dirAgua = ESQUERDA;
+			_tprintf(_T("encontrei peça d, direcao: ESQUERDA\n"));
+			break;
+		case 6:				// peça ┗
+			dados->dirAgua = DIREITA;
+			_tprintf(_T("encontrei peça L, direcao: DIREITA\n"));
+			break;
+		default:			//encontra peça inutilizável ou vazio ou barreira
+			return FALSE;
+		}
+		dados->posY++;															//avança a posição ativa da água na direção de fluxo
+		dados->memPar->tabuleiro1[dados->posX][dados->posY] *= -1;				//coloca a peça ativa como tendo água
+		break;
+	case ESQUERDA:
+		if (dados->posX - 1 < 0) {
+			return FALSE;
+		}
+		switch (dados->memPar->tabuleiro1[dados->posX - 1][dados->posY]) {
+		case 1:				// peça ━
+			_tprintf(_T("encontrei peça -, direcao: ESQUERDA\n"));
+			break;
+		case 3:				// peça ┏
+			dados->dirAgua = BAIXO;
+			_tprintf(_T("encontrei peça r, direcao: BAIXO\n"));
+			break;
+		case 6:				// peça ┗
+			dados->dirAgua = CIMA;
+			_tprintf(_T("encontrei peça L, direcao: CIMA\n"));
+			break;
+		default:			//encontra peça inutilizável ou vazio ou barreira
+			return FALSE;
+		}
+		dados->posX--;															//avança a posição ativa da água na direção de fluxo
+		dados->memPar->tabuleiro1[dados->posX][dados->posY] *= -1;				//coloca a peça ativa como tendo água
+		break;
+	default:
+		return FALSE;
+	}
 	return TRUE;
 }
 
@@ -240,10 +340,11 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 			_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
 			Sleep(TIMER_FLUIR * 1000);
 		}else {
-			_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"), TIMER_FLUIR * 1000);
+			_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"));
+			break;
 		}
 	}
-	
+	_tprintf(_T("SAIR DA THREAD"));
 }
 
 BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
@@ -289,10 +390,10 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 		}
 
 		//	MAPA PRÉ-DEFINIDO
-		carregaMapaPreDefinido(dados->memPar->tabuleiro1);
+		carregaMapaPreDefinido(dados, dados->memPar->tabuleiro1);
 
 		// Define início e fim
-		definirInicioFim(dados);	//meta 2 -> alterar para tabuleiro1
+		//definirInicioFim(dados);	//meta 2 -> alterar para tabuleiro1
 
 
 	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX);
@@ -448,8 +549,8 @@ int _tmain(int argc, LPTSTR argv[]) {
 BOOL verifica(DadosThread* dados) {
 	MemPartilhada* mem = dados->memPar;
 	unsigned int tab = mem->tabuleiro1;
-	int* x = mem->posX;
-	int* y = mem->posY;
+	int* x = dados->posX;
+	int* y = dados->posY;
 	int maxX = dados->memPar->tamX, maxY = dados->memPar->tamY;
 
 	/*****************************/
