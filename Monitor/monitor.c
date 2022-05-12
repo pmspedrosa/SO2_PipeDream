@@ -31,13 +31,15 @@ typedef struct {									//estrutura que vai criar cada celula do buffer circula
 }CelulaBuffer;
 
 typedef struct {
-	unsigned int nP;								//numero de produtores
+	unsigned int nP;								//numero de produtores		//acho que isto não tem de estar em memória partilhada
 	unsigned int posE;								//posicao de escrita
 	unsigned int posL;								//posicao de leitura
-	int tabuleiro[20][20];							//tabuleiro jogo
+	int tabuleiro1[20][20];							//tabuleiro jogador 1
+	int tabuleiro2[20][20];							//tabuleiro jogador 2
 	unsigned int tamX, tamY;						//tam tabuleiro
-	unsigned int posX, posY;						//posição da água
+	unsigned int posX, posY;						//posição da água			//acho que isto não deve estar em memória partilhada (apenas o servidor tem de saber qual a posição "ativa")
 	CelulaBuffer buffer[TAM_BUFFER];
+	unsigned int dirAgua;							//direção da água	// 0 > cima , 1 > direita, 2 > baixo, 3 > esquerda		//também não deve estar em memória partilhada (temos que ver como guardar estes dados do servidor // provavelmente sao dados da thread que trata de cada jogador)
 }MemPartilhada;
 
 typedef struct {									//estrutura para passar as threads
