@@ -1,4 +1,4 @@
-#include <windows.h>
+﻿#include <windows.h>
 #include <tchar.h>
 #include <fcntl.h>
 #include <io.h>
@@ -26,6 +26,8 @@
 #define SEM_ESCRITA _T("SEM_ESCRITA")				//nome do semaforo de escrita
 #define SEM_LEITURA _T("SEM_LEITURA")				//nome do semaforo de leitura
 #define SEM_SV _T("SEM_SV")							//nome do semaforo de servidor
+
+#define EVENT_TABULEIRO _T("EVENT_TABULEIRO")
 
 #define CIMA 0
 #define DIREITA 1
@@ -72,6 +74,7 @@ typedef struct {									//estrutura para passar as threads
 	int id;											//id do produtor
 	DWORD tempoInicioAgua;							//tempo até água começar a fluir
 	DadosTabuleiro tabuleiro1, tabuleiro2;
+	HANDLE hEventUpdateTabuleiro;					//evento que indica aos monitores que houve alterações nos tabuleiros
 }DadosThread;
 
 
@@ -84,7 +87,7 @@ TCHAR** divideString(TCHAR * comando, const TCHAR * delim, unsigned int* tam) {
 		_ftprintf(stderr, TEXT("[ERRO] String comando vazia!"));
 		return NULL;
 	}
-
+	
 	*tam = 0;
 
 	while (token != NULL) {
@@ -177,7 +180,7 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 }
 
 void carregaMapaPreDefinido(DadosThread* dados, int tabuleiro[20][20]) {
-	tabuleiro[0][2] = 1;
+	tabuleiro[0][2] = -1;
 	tabuleiro[1][2] = 1;
 	tabuleiro[2][2] = 1;
 	tabuleiro[3][2] = 1;
@@ -245,8 +248,8 @@ BOOL definirInicioFim(DadosThread* dados) {
 
 	switch (parede) {							
 	case 0:																				//Parede de cima
-		//dados->tabuleiro1.tabuleiro[posInicio][0] = tipoTubo;									//mete tubo correto na posição de inicio
-		(*dados->tabuleiro2.tabuleiro)[posInicio][0] = tipoTubo;									//mete tubo correto na posição de inicio
+		//dados->tabuleiro1.tabuleiro[posInicio][0] = tipoTubo * -1;									//mete tubo correto na posição de inicio
+		(*dados->tabuleiro2.tabuleiro)[posInicio][0] = tipoTubo * -1;							//mete tubo com água correto na posição de inicio
 
 		//dados->tabuleiro1.posX = posInicio;													//posição de agua ativa = posição de inicio
 		//dados->tabuleiro1.posY = 0;
@@ -262,8 +265,8 @@ BOOL definirInicioFim(DadosThread* dados) {
 		break;
 	case 1:
 		ultimaPos = dados->memPar->tamX - 1;
-		//dados->tabuleiro1.tabuleiro[ultimaPos][posInicio] = tipoTubo;
-		(*dados->tabuleiro2.tabuleiro)[ultimaPos][posInicio] = tipoTubo;
+		//dados->tabuleiro1.tabuleiro[ultimaPos][posInicio] = tipoTubo * -1;
+		(*dados->tabuleiro2.tabuleiro)[ultimaPos][posInicio] = tipoTubo * -1;
 
 		//dados->tabuleiro1.posX = ultimaPos;
 		//dados->tabuleiro1.posY = posInicio;
@@ -279,8 +282,8 @@ BOOL definirInicioFim(DadosThread* dados) {
 		break;
 	case 2:
 		ultimaPos = dados->memPar->tamY - 1;
-		//dados->tabuleiro1.tabuleiro[posInicio][ultimaPos] = tipoTubo;
-		(*dados->tabuleiro2.tabuleiro)[posInicio][ultimaPos] = tipoTubo;
+		//dados->tabuleiro1.tabuleiro[posInicio][ultimaPos] = tipoTubo * -1;
+		(*dados->tabuleiro2.tabuleiro)[posInicio][ultimaPos] = tipoTubo * -1;
 
 		//dados->tabuleiro1.posX = posInicio;
 		//dados->tabuleiro1.posY = ultimaPos;
@@ -295,8 +298,8 @@ BOOL definirInicioFim(DadosThread* dados) {
 		
 		break;
 	case 3:
-		//dados->tabuleiro1.tabuleiro[0][posInicio] = tipoTubo;
-		(*dados->tabuleiro2.tabuleiro)[0][posInicio] = tipoTubo;
+		//dados->tabuleiro1.tabuleiro[0][posInicio] = tipoTubo * -1;
+		(*dados->tabuleiro2.tabuleiro)[0][posInicio] = tipoTubo * -1;
 
 		//dados->tabuleiro1.posX = 0;
 		//dados->tabuleiro1.posY = posInicio;
@@ -325,15 +328,15 @@ BOOL fluirAgua(DadosThread* dados) {
 		}
 		switch ((*dados->tabuleiro1.tabuleiro)[dados->tabuleiro1.posX][dados->tabuleiro1.posY - 1]) {
 		case 2:				// peça ┃
-			_tprintf(_T("encontrei peça |, direcao: CIMA\n"));
+			_tprintf(_T("encontrei peça ┃, direcao: CIMA\n"));
 			break;
 		case 3:				// peça ┏
 			dados->tabuleiro1.dirAgua = DIREITA;
-			_tprintf(_T("encontrei peça r, direcao: DIREITA\n"));
+			_tprintf(_T("encontrei peça ┏, direcao: DIREITA\n"));
 			break;
 		case 4:				// peça ┓
 			dados->tabuleiro1.dirAgua = ESQUERDA;
-			_tprintf(_T("encontrei peça q, direcao: ESQUERDA\n"));
+			_tprintf(_T("encontrei peça ┓, direcao: ESQUERDA\n"));
 			break;
 		default:			//encontra peça inutilizável ou vazio ou barreira
 			return FALSE;
@@ -347,15 +350,15 @@ BOOL fluirAgua(DadosThread* dados) {
 		}
 		switch ((*dados->tabuleiro1.tabuleiro)[dados->tabuleiro1.posX+1][dados->tabuleiro1.posY]) {
 		case 1:				// peça ━
-			_tprintf(_T("encontrei peça -, direcao: DIREITA\n"));
+			_tprintf(_T("encontrei peça ━, direcao: DIREITA\n"));
 			break;
 		case 4:				// peça ┓
 			dados->tabuleiro1.dirAgua = BAIXO;
-			_tprintf(_T("encontrei peça q, direcao: BAIXO\n"));
+			_tprintf(_T("encontrei peça ┓, direcao: BAIXO\n"));
 			break;
 		case 5:				// peça ┛
 			dados->tabuleiro1.dirAgua = CIMA;
-			_tprintf(_T("encontrei peça d, direcao: CIMA\n"));
+			_tprintf(_T("encontrei peça ┛, direcao: CIMA\n"));
 			break;
 		default:			//encontra peça inutilizável ou vazio ou barreira
 			return FALSE;
@@ -369,15 +372,15 @@ BOOL fluirAgua(DadosThread* dados) {
 		}
 		switch ((*dados->tabuleiro1.tabuleiro)[dados->tabuleiro1.posX][dados->tabuleiro1.posY + 1]) {
 		case 2:				// peça ┃
-			_tprintf(_T("encontrei peça |, direcao: BAIXO\n"));
+			_tprintf(_T("encontrei peça ┃, direcao: BAIXO\n"));
 			break;
 		case 5:				// peça ┛
 			dados->tabuleiro1.dirAgua = ESQUERDA;
-			_tprintf(_T("encontrei peça d, direcao: ESQUERDA\n"));
+			_tprintf(_T("encontrei peça ┛, direcao: ESQUERDA\n"));
 			break;
 		case 6:				// peça ┗
 			dados->tabuleiro1.dirAgua = DIREITA;
-			_tprintf(_T("encontrei peça L, direcao: DIREITA\n"));
+			_tprintf(_T("encontrei peça ┗, direcao: DIREITA\n"));
 			break;
 		default:			//encontra peça inutilizável ou vazio ou barreira
 			return FALSE;
@@ -391,15 +394,15 @@ BOOL fluirAgua(DadosThread* dados) {
 		}
 		switch ((*dados->tabuleiro1.tabuleiro)[dados->tabuleiro1.posX - 1][dados->tabuleiro1.posY]) {
 		case 1:				// peça ━
-			_tprintf(_T("encontrei peça -, direcao: ESQUERDA\n"));
+			_tprintf(_T("encontrei peça ━, direcao: ESQUERDA\n"));
 			break;
 		case 3:				// peça ┏
 			dados->tabuleiro1.dirAgua = BAIXO;
-			_tprintf(_T("encontrei peça r, direcao: BAIXO\n"));
+			_tprintf(_T("encontrei peça ┏, direcao: BAIXO\n"));
 			break;
 		case 6:				// peça ┗
 			dados->tabuleiro1.dirAgua = CIMA;
-			_tprintf(_T("encontrei peça L, direcao: CIMA\n"));
+			_tprintf(_T("encontrei peça ┗, direcao: CIMA\n"));
 			break;
 		default:			//encontra peça inutilizável ou vazio ou barreira
 			return FALSE;
@@ -416,11 +419,13 @@ BOOL fluirAgua(DadosThread* dados) {
 DWORD WINAPI ThreadAgua(LPVOID param) {
 	DadosThread* dados = (DadosThread*)param;
 
+	SetEvent(dados->hEventUpdateTabuleiro);
 	_tprintf(_T("(ThreadAgua) Sleep %d"), dados->tempoInicioAgua * 1000);
 	Sleep(dados->tempoInicioAgua * 1000);
 	while (!dados->terminar) {
 		if (fluirAgua(dados)) {
 			_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
+			SetEvent(dados->hEventUpdateTabuleiro);
 			Sleep(TIMER_FLUIR * 1000);
 		}else {
 			_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"));
@@ -478,7 +483,7 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 		carregaMapaPreDefinido(dados, dados->tabuleiro1.tabuleiro);
 
 		// Define início e fim
-		//definirInicioFim(dados);	//meta 2 -> alterar para tabuleiro1
+		definirInicioFim(dados);
 
 
 	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX);
@@ -506,6 +511,15 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
 	}
+
+	dados->hEventUpdateTabuleiro = CreateEvent(NULL, TRUE, FALSE, EVENT_TABULEIRO);
+	if (dados->hEventUpdateTabuleiro == NULL) {
+		_tprintf(_T("Erro: CreateSemaphore (%d)\n"), GetLastError());
+		UnmapViewOfFile(dados->hMapFile);
+		CloseHandle(dados->memPar);
+		CloseHandle(dados->hMapFile);
+	}
+
 	return TRUE;
 }
 

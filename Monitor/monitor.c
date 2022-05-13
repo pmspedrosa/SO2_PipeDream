@@ -1,4 +1,4 @@
-#include <windows.h>
+﻿#include <windows.h>
 #include <tchar.h>
 #include <fcntl.h>
 #include <io.h>
@@ -16,14 +16,14 @@
 #define SEM_LEITURA _T("SEM_LEITURA")				//nome do semaforo de leitura
 #define SEM_SV _T("SEM_SV")							//nome do semaforo de servidor
 
-
+#define EVENT_TABULEIRO _T("EVENT_TABULEIRO")
+#define BLUE _T("\x1b[34m")
+#define RESET _T("\x1b[0m")
 
 /*comandos*/
 #define PFAGUA _T("PFAGUA")							//nome do semaforo de leitura
 #define BARR _T("BARR")								//nome do semaforo de leitura
 #define SAIR _T("SAIR")
-
-
 
 typedef struct {									//estrutura que vai criar cada celula do buffer circular
 	int id;											//id do produtor 
@@ -31,7 +31,7 @@ typedef struct {									//estrutura que vai criar cada celula do buffer circula
 }CelulaBuffer;
 
 typedef struct {
-	unsigned int nP;								//numero de produtores		//acho que isto n�o tem de estar em mem�ria partilhada
+	unsigned int nP;								//numero de produtores		//acho que isto não tem de estar em memória partilhada
 	unsigned int posE;								//posicao de escrita
 	unsigned int posL;								//posicao de leitura
 	int tabuleiro1[20][20];							//tabuleiro jogador 1
@@ -44,7 +44,7 @@ typedef struct {									//estrutura para passar as threads
 	MemPartilhada* memPar;
 	HANDLE hSemEscrita;								//semaforo que controla as escritas
 	HANDLE hSemLeitura;								//semaforo que controla as leituras
-	HANDLE hSemServidor;							//semaforo para controlo do n�mero de svs ativos
+	HANDLE hSemServidor;							//semaforo para controlo do número de svs ativos
 	HANDLE hMutex;									//mutex
 	HANDLE hMapFile;								//map file
 	int terminar;									//flag para indicar a thread para terminar -> 1 para sair, 0 caso contrario
@@ -58,7 +58,7 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 	TCHAR comando[MAX];
 	//TCHAR* prox_tok;	//A char* stores the starting memory location of a C-string
 	//TCHAR* delim = _T(" ");	//delimitador para string tokenizer
-	
+
 	unsigned int cont = 0;
 
 	while (dados->terminar == 0) {
@@ -71,7 +71,7 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 		_fgetts(comando, MAX, stdin);
 		//Retirar \n
 		comando[_tcslen(comando) - 1] = '\0';
-		//Mai�sculas
+		//Maiúsculas
 		for (int i = 0; i < _tcslen(comando); i++)
 			comando[i] = _totupper(comando[i]);
 		_tprintf(TEXT("Comando : %s\n"), comando);
@@ -80,7 +80,7 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 			continue;
 		}
 
-		_tcscpy_s(celula.comando,MAX, comando);
+		_tcscpy_s(celula.comando, MAX, comando);
 
 
 		CopyMemory(&dados->memPar->buffer[dados->memPar->posE], &celula, sizeof(CelulaBuffer));
@@ -99,6 +99,105 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 	return 0;
 }
 
+VOID displayTabuleiro(int tab[20][20], int tamX, int tamY) {
+	for (int i = 0; i < tamX; i++) {
+		_tprintf(_T("____"));
+	}
+	_tprintf(_T("\n"));
+
+	for (int y = 0; y < tamY; y++) {
+		for (int x = 0; x < tamX; x++) {
+			_tprintf(_T("|   "));
+		}
+		_tprintf(_T("|\n"));
+
+		for (int x = 0; x < tamX; x++) {
+			switch (tab[x][y]) {
+			case 0:
+				_tprintf(_T("|   "));
+				break;
+			case 1:
+				_tprintf(_T("| ━ "));
+				break;
+			case 2:
+				_tprintf(_T("| ┃ "));
+				break;
+			case 3:
+				_tprintf(_T("| ┏ "));
+				break;
+			case 4:
+				_tprintf(_T("| ┓ "));
+				break;
+			case 5:
+				_tprintf(_T("| ┛ "));
+				break;
+			case 6:
+				_tprintf(_T("| ┗ "));
+				break;
+			case 7:
+				_tprintf(_T("| █ "));
+				break;
+			case -1:
+				_tprintf(_T("| ") BLUE _T("━ ") RESET);
+				break;
+			case -2:
+				_tprintf(_T("| ") BLUE _T("┃ ") RESET);
+				break;
+			case -3:
+				_tprintf(_T("| ") BLUE _T("┏ ") RESET);
+				break;
+			case -4:
+				_tprintf(_T("| ") BLUE _T("┓ ") RESET);
+				break;
+			case -5:
+				_tprintf(_T("| ") BLUE _T("┛ ") RESET);
+				break;
+			case -6:
+				_tprintf(_T("| ") BLUE _T("┗ ") RESET);
+				break;
+			};
+		}
+		_tprintf(_T("|\n"));
+
+		for (int x = 0; x < tamX; x++) {
+			_tprintf(_T("|___"));
+		}
+		_tprintf(_T("|\n"));
+	}
+}
+
+VOID updateDisplay(DadosThread* dados) {
+	system("cls");
+	_tprintf(_T("TABULEIRO 1\n"));
+	displayTabuleiro(dados->memPar->tabuleiro1, dados->memPar->tamX, dados->memPar->tamY);
+	_tprintf(_T("\n\n\nTABULEIRO 2\n"));
+	displayTabuleiro(dados->memPar->tabuleiro2, dados->memPar->tamX, dados->memPar->tamY);
+}
+
+DWORD WINAPI ThreadDisplay(LPVOID params) {
+	DadosThread* dados = (DadosThread*)params;
+	HANDLE hEventUpdateTabuleiro = OpenEvent(EVENT_MODIFY_STATE | SYNCHRONIZE, FALSE, EVENT_TABULEIRO);
+	if (hEventUpdateTabuleiro == NULL) {
+		_tprintf(_T("Erro: OpenEvent (%d)\n"), GetLastError());
+		return -1;
+	}
+
+	while (!dados->terminar)
+	{
+		_tprintf(_T("WAITING!!!"));
+		if (WaitForSingleObject(hEventUpdateTabuleiro, INFINITE) != WAIT_OBJECT_0){
+			_tprintf(_T("Erro: WaitForSingleObject (%d)\n"), GetLastError());
+			return -1;
+		}
+		updateDisplay(dados);
+		if (ResetEvent(hEventUpdateTabuleiro) == 0) {
+			_tprintf(_T("Erro: ResetEvent (%d)\n"), GetLastError());
+			return -1;
+		}
+	}
+	return 0;
+	
+}
 
 BOOL initMemAndSync(DadosThread* dados) {
 	BOOL primeiroProcesso = FALSE;
@@ -159,7 +258,7 @@ BOOL initMemAndSync(DadosThread* dados) {
 
 int _tmain(int argc, TCHAR* argv[]) {
 
-	HANDLE hFileMap, hThread;
+	HANDLE hFileMap, hThread, hThreadDisplay;
 	DadosThread dados;
 	BOOL primeiroProcesso = FALSE;
 
@@ -182,6 +281,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	ReleaseMutex(dados.hMutex);
 
 	hThread = CreateThread(NULL, 0, ThreadProdutor, &dados, 0, NULL);
+	hThread = CreateThread(NULL, 0, ThreadDisplay, &dados, 0, NULL);
 
 	while (dados.terminar == 0) {
 		
