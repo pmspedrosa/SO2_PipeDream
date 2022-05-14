@@ -22,12 +22,13 @@
 #define NUM_SV 1
 
 #define MEM_PARTILHADA _T("MEM_PARTILHADA")			//nome da mem partilhada
-#define MUTEX _T("MUTEX")							//nome da mutex
+#define MUTEX_BUFFER _T("MUTEX_BUFFER")				//nome da mutex do buffer circular
 #define SEM_ESCRITA _T("SEM_ESCRITA")				//nome do semaforo de escrita
 #define SEM_LEITURA _T("SEM_LEITURA")				//nome do semaforo de leitura
 #define SEM_SV _T("SEM_SV")							//nome do semaforo de servidor
 
 #define EVENT_TABULEIRO _T("EVENT_TABULEIRO")
+#define MUTEX_TABULEIRO _T("MUTEX_TABULEIRO")
 
 #define CIMA 0
 #define DIREITA 1
@@ -68,13 +69,14 @@ typedef struct {									//estrutura para passar as threads
 	HANDLE hSemEscrita;								//semaforo que controla as escritas
 	HANDLE hSemLeitura;								//semaforo que controla as leituras
 	HANDLE hSemServidor;							//semaforo para controlo do número de svs ativos
-	HANDLE hMutex;									//mutex
+	HANDLE hMutexBufferCircular;					//mutex buffer circular
 	HANDLE hMapFile;								//map file
 	int terminar;									//flag para indicar a thread para terminar -> 1 para sair, 0 caso contrario
 	int id;											//id do produtor
 	DWORD tempoInicioAgua;							//tempo até água começar a fluir
 	DadosTabuleiro tabuleiro1, tabuleiro2;
 	HANDLE hEventUpdateTabuleiro;					//evento que indica aos monitores que houve alterações nos tabuleiros
+	HANDLE hMutexTabuleiro;
 }DadosThread;
 
 
@@ -122,7 +124,7 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 	while (dados->terminar == 0) {	//termina quando dados.terminar != 0
 
 		WaitForSingleObject(dados->hSemLeitura, INFINITE);	//bloqueia à espera que o semaforo fique assinalado
-		WaitForSingleObject(dados->hMutex, INFINITE);		//bloqueia à espera do unlock do mutex
+		WaitForSingleObject(dados->hMutexBufferCircular, INFINITE);		//bloqueia à espera do unlock do mutex
 		
 
 		CopyMemory(&celula, &dados->memPar->buffer[dados->memPar->posL], sizeof(CelulaBuffer)); 
@@ -171,7 +173,7 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 		}
 
 
-		ReleaseMutex(dados->hMutex);						//liberta mutex
+		ReleaseMutex(dados->hMutexBufferCircular);						//liberta mutex
 		ReleaseSemaphore(dados->hSemEscrita, 1, NULL);		//liberta semaforo
 		//_tprintf(_T("Servidor consumiu comando [%s] de monitor [%d]\n", celula.comando, celula.id));
 
@@ -423,11 +425,14 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 	_tprintf(_T("(ThreadAgua) Sleep %d"), dados->tempoInicioAgua * 1000);
 	Sleep(dados->tempoInicioAgua * 1000);
 	while (!dados->terminar) {
+		WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
 		if (fluirAgua(dados)) {
+			ReleaseMutex(dados->hMutexTabuleiro);
 			_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
 			SetEvent(dados->hEventUpdateTabuleiro);
 			Sleep(TIMER_FLUIR * 1000);
 		}else {
+			ReleaseMutex(dados->hMutexTabuleiro);
 			_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"));
 			break;
 		}
@@ -486,12 +491,13 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 		definirInicioFim(dados);
 
 
-	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX);
-	if (dados->hMutex == NULL) {
+	dados->hMutexBufferCircular = CreateMutex(NULL, FALSE, MUTEX_BUFFER);
+	if (dados->hMutexBufferCircular == NULL) {
 		_tprintf(_T("Erro: CreateMutex (%d)\n"), GetLastError());
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
+		return FALSE;
 	}
 
 	dados->hSemEscrita = CreateSemaphore(NULL, TAM_BUFFER, TAM_BUFFER, SEM_ESCRITA);
@@ -501,6 +507,7 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
+		return FALSE;
 	}
 
 	dados->hSemLeitura = CreateSemaphore(NULL, 0, 1, SEM_LEITURA);
@@ -510,6 +517,7 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
+		return FALSE;
 	}
 
 	dados->hEventUpdateTabuleiro = CreateEvent(NULL, TRUE, FALSE, EVENT_TABULEIRO);
@@ -518,6 +526,16 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
+		return FALSE;
+	}
+
+	dados->hMutexTabuleiro = CreateMutex(NULL, FALSE, MUTEX_TABULEIRO);
+	if (dados->hMutexTabuleiro == NULL) {
+		_tprintf(_T("Erro: CreateMutex (%d)\n"), GetLastError());
+		UnmapViewOfFile(dados->hMapFile);
+		CloseHandle(dados->memPar);
+		CloseHandle(dados->hMapFile);
+		return FALSE;
 	}
 
 	return TRUE;
@@ -630,13 +648,14 @@ int _tmain(int argc, LPTSTR argv[]) {
 
 	UnmapViewOfFile(dados.memPar);
 	//CloseHandles...
-	CloseHandle(dados.hMutex);
+	CloseHandle(dados.hMutexBufferCircular);
 	CloseHandle(dados.hSemEscrita);
 	CloseHandle(dados.hSemLeitura);
 	CloseHandle(dados.hMapFile);
 	CloseHandle(hThreadConsumidor);
 	CloseHandle(hThreadAgua);
-
+	CloseHandle(dados.hEventUpdateTabuleiro);
+	CloseHandle(dados.hMutexTabuleiro);
 	
 	return 0;
 }
