@@ -1,4 +1,4 @@
-﻿#include <windows.h>
+#include <windows.h>
 #include <tchar.h>
 #include <fcntl.h>
 #include <io.h>
@@ -66,7 +66,7 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 		celula.id = dados->id;
 
 		WaitForSingleObject(dados->hSemEscrita, INFINITE);
-		WaitForSingleObject(dados->hMutexBufferCircular, INFINITE);
+
 
 		fflush(stdin);
 		_fgetts(comando, MAX, stdin);
@@ -83,6 +83,7 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 
 		_tcscpy_s(celula.comando, MAX, comando);
 
+		WaitForSingleObject(dados->hMutexBufferCircular, INFINITE);
 
 		CopyMemory(&dados->memPar->buffer[dados->memPar->posE], &celula, sizeof(CelulaBuffer));
 		dados->memPar->posE++;
@@ -186,7 +187,7 @@ VOID displayTabuleiro(int tab[20][20], int tamX, int tamY, HANDLE hConsole, WORD
 }
 
 VOID updateDisplay(DadosThread* dados, HANDLE hConsole, WORD atributosBase) {
-	system("cls");
+	//system("cls");
 	_tprintf(_T("TABULEIRO 1\n"));
 	displayTabuleiro(dados->memPar->tabuleiro1, dados->memPar->tamX, dados->memPar->tamY, hConsole, atributosBase);
 	_tprintf(_T("\n\n\nTABULEIRO 2\n"));
@@ -212,10 +213,13 @@ DWORD WINAPI ThreadDisplay(LPVOID params) {
 	}
 	HANDLE hMutexTabuleiro = OpenMutex(SYNCHRONIZE, FALSE, MUTEX_TABULEIRO);
 	if (hEventUpdateTabuleiro == NULL) {
-		_tprintf(_T("Erro: OpenMtex (%d)\n"), GetLastError());
+		_tprintf(_T("Erro: OpenMutex (%d)\n"), GetLastError());
 		return -1;
 	}
 
+	WaitForSingleObject(hMutexTabuleiro, INFINITE);
+	updateDisplay(dados, hConsole, atributosBase);
+	ReleaseMutex(hMutexTabuleiro);
 	while (!dados->terminar)
 	{
 		_tprintf(_T("WAITING!!!"));
@@ -314,12 +318,13 @@ int _tmain(int argc, TCHAR* argv[]) {
 	}
 
 	WaitForSingleObject(dados.hMutexBufferCircular, INFINITE); //incrementar o num de produtores
+
 	dados.memPar->nP++;
 	dados.id = dados.memPar->nP;
 	ReleaseMutex(dados.hMutexBufferCircular);
 
 	hThread = CreateThread(NULL, 0, ThreadProdutor, &dados, 0, NULL);
-	hThread = CreateThread(NULL, 0, ThreadDisplay, &dados, 0, NULL);
+	hThreadDisplay = CreateThread(NULL, 0, ThreadDisplay, &dados, 0, NULL);
 
 	while (dados.terminar == 0) {
 		
