@@ -38,6 +38,7 @@
 #define BARR _T("BARR")								//nome comando adiciona barreira á grelha de jogo		
 #define MODO _T("MODO")								//nome comando modo sequencia de peças/tubos
 #define SAIR _T("SAIR")								//sair
+#define INICIAR _T("INICIAR")						//iniciar jogo
 
 
 typedef struct {									//estrutura que vai criar cada celula do buffer circular
@@ -68,6 +69,7 @@ typedef struct {									//estrutura para passar as threads
 	HANDLE hSemServidor;							//semaforo para controlo do número de svs ativos
 	HANDLE hMutex;									//mutex
 	HANDLE hMapFile;								//map file
+	HANDLE hThreadAgua;								//handle thread agua
 	int terminar;									//flag para indicar a thread para terminar -> 1 para sair, 0 caso contrario
 	int id;											//id do produtor
 	DWORD tempoInicioAgua;							//tempo até água começar a fluir
@@ -101,11 +103,8 @@ TCHAR** divideString(TCHAR * comando, const TCHAR * delim, unsigned int* tam) {
 
 		token = _tcstok_s(NULL, delim, &proxToken);
 	}
-
 	return arrayCmd;
 }
-
-
 
 
 
@@ -134,8 +133,6 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 
 		arrayComandos = divideString(comando, delim, &nrArgs);
 		
-
-		
 		if (arrayComandos != NULL ) {
 			_tprintf(_T("\ncomando: %s.\n"), arrayComandos[0]);
 			for (int i = 0; i < nrArgs; i++)
@@ -144,20 +141,70 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 			}
 			if (_tcscmp(arrayComandos[0], PFAGUA) == 0)						//comando para fluxo agua por determinado tempo
 			{
-				if (nrArgs < 1)
+				if (nrArgs > 0) {
+					int tempo = _tstoi(arrayComandos[1]);
+					if (tempo != 0 && tempo < 25 && tempo > 1)								//se for válido ou de 2s a 25s
+						if (SuspendThread(dados->hThreadAgua) != -1) {			//Suspende a Thread do fluxo da água, ou seja, pausa o jogo
+							Sleep(tempo * 1000);						//dorme o tempo definido
+							ResumeThread(dados->hThreadAgua);					//Retoma thread
+						}
+						else
+							_tprintf(_T("Não foi possível realizar a paragem do jogo."));
+					else
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
 					continue;
-				// func pfagua com args ...
+				}
+				else {
+					_tprintf(_T("Numero de argumentos insuficientes\n"));
+					continue;
+				}
 			}
-			else if (_tcscmp(arrayComandos[0], BARR) == 0)					//comando adicionar barreira
+			else if (_tcscmp(arrayComandos[0], INICIAR) == 0)						//comando para fluxo agua por determinado tempo
 			{
-				_tprintf(_T("barrrrrr\n"));
-				// func barr com args ...
-				if (nrArgs < 2)
-					continue;
+				ResumeThread(dados->hThreadAgua);
+				continue;
 			}
-			else if (_tcscmp(arrayComandos[0], MODO) == 0)					//comando alterar modo sequencia tubos
+			else if (_tcscmp(arrayComandos[0], BARR) == 0)						//comando adicionar barreira
+			{
+				int x = 0,y = 0;
+				_tprintf(_T("barrrrrr\n"));
+				if (nrArgs > 1) {
+					if (_tcscmp(arrayComandos[1], '0') != 0) {					//verifica se valor é igual a '0' pois atoi devolve 0 quando é erro
+						x = _tstoi(arrayComandos[1]);
+						if (x == 0) {
+							_tprintf(_T("Valor passado como argumento não é aceite\n"));
+							continue;
+						}
+					}
+					if (_tcscmp(arrayComandos[2], '0') != 0) {					//verifica se valor é igual a '0' pois atoi devolve 0 quando é erro
+						y = _tstoi(arrayComandos[2]);
+						if (y == 0) {
+							_tprintf(_T("Valor passado como argumento não é aceite\n"));
+							continue;
+						}
+					}
+					if (x < dados->memPar->tamX && x >= 0 && y < dados->memPar->tamY && y >= 0) {		//se for válido ou de 2s a 25s
+						if (dados->tabuleiro1.tabuleiro[x][y] == 0){	//espaço livre
+							(*dados->tabuleiro1.tabuleiro)[x][y] = 7;
+							continue;
+						}
+						_tprintf(_T("Não foi possivel adicionar a barreira\n"));
+						continue;
+					}
+					else {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+						continue;
+					}
+				}
+				else {
+					_tprintf(_T("Numero de argumentos insuficientes\n"));
+					continue;
+				}
+			}
+			else if (_tcscmp(arrayComandos[0], MODO) == 0)							//comando alterar modo sequencia tubos
 			{
 				_tprintf(_T("modooooooo\n"));
+				//if(dados->modo == 1)dados->modo = 0; else dados->modo = 1;		//modo = 1 -> aleatorio, modo = 0 -> sequecia predefinida
 				// func mudar modo sequencia peças/tubos ...
 			}
 			else //comando nao encontrado
@@ -166,7 +213,6 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 				// comando desconhecido
 			}
 		}
-
 
 		ReleaseMutex(dados->hMutex);						//liberta mutex
 		ReleaseSemaphore(dados->hSemEscrita, 1, NULL);		//liberta semaforo
@@ -595,10 +641,10 @@ int _tmain(int argc, LPTSTR argv[]) {
 	}
 
 	hThreadConsumidor = CreateThread(NULL, 0, ThreadConsumidor, &dados, 0, NULL);
-	hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dados, 0, NULL);
+	dados.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dados, CREATE_SUSPENDED, NULL);
 
 
-	if (hThreadConsumidor != NULL && hThreadAgua != NULL) {
+	if (hThreadConsumidor != NULL && dados.hThreadAgua != NULL) {
 		_tprintf(_T("Escreva 'SAIR' para sair.\n"));
 		do { 
 			fflush(stdin);
@@ -621,136 +667,8 @@ int _tmain(int argc, LPTSTR argv[]) {
 	CloseHandle(dados.hSemLeitura);
 	CloseHandle(dados.hMapFile);
 	CloseHandle(hThreadConsumidor);
-	CloseHandle(hThreadAgua);
+	CloseHandle(dados.hThreadAgua);
 
 	
 	return 0;
-}
-
-
-
-
-
-BOOL verifica(DadosThread* dados) {
-	MemPartilhada* mem = dados->memPar;
-	unsigned int tab = mem->tabuleiro1;
-	int* x = 0;   //dados->posX;
-	int* y = 0;   //dados->posY;
-	int maxX = dados->memPar->tamX, maxY = dados->memPar->tamY;
-
-	/*****************************/
-	/*verifica se peça horizontal*/
-	/*****************************/
-	if (tab[x][y] == 1) {	
-		//verificar se bate contra a barreira do jogo[horizontal]
-		if ((x == 0 && tab[x+1][y] == 8) || (x == maxX && tab[x - 1][y] == 8)) {	
-			return FALSE;
-		}
-		//verifica peça direita [agua esquerda]
-		else if (x==0 || (tab[x-1][y] == 8)) {		
-			if (tab[x + 1][y] == 1 || tab[x + 1][y] == 4 || tab[x + 1][y] == 5)
-				return TRUE;
-		}
-		//verifica peça esquerda [agua direita]
-		else if (x == maxX || (tab[x + 1][y] == 8)) {
-			if (tab[x - 1][y] == 1 || tab[x - 1][y] == 3 || tab[x - 1][y] == 6)
-				return TRUE;
-		}	
-
-	/***************************/
-	/*verifica se peça vertical*/
-	/***************************/
-	}else if (tab[x][y] == 2) {	
-		//verificar se bate contra a barreira do jogo[vertical]
-		if ((y == 0 && tab[x][y+1] == 8) || (y == maxY && tab[x][y-1] == 8)) {
-			return FALSE;
-		}
-		//verificar peça baixo[agua cima]
-		else if (y==0 || (tab[x][y-1] == 8)) {		
-		if (tab[x][y+1] == 2 || tab[x][y+1] == 5 || tab[x][y+1] == 6)
-			return TRUE;
-		}
-		//verificar peça cima[agua baixo]
-		else if (y == maxY || (tab[x][y + 1] == 8)) {
-			if (tab[x][y - 1] == 2 || tab[x][y - 1] == 3 || tab[x][y - 1] == 4)
-				return TRUE;
-		}
-
-	/************************************/
-	/*verifica se peça 90º direita baixo*/
-	/************************************/
-	}else if (tab[x][y] == 3) {	
-		//verificar se bate contra a barreira do jogo[direita, baixo]
-		if ((x == maxX && y == maxY) || (x == maxX && tab[x][y+1] == 8) || (y == maxY && tab[x+1][y] == 8)) {
-			return FALSE;
-		}
-		//verificar peça direita[agua baixo]
-		else if (y==maxY || (tab[x][y+1] == 8)) {		
-			if (tab[x+1][y] == 1 || tab[x+1][y] == 4 || tab[x+1][y] == 5)
-				return TRUE;
-		}
-		//verificar peça baixo[agua direita]
-		else if (x == maxX || (tab[x+1][y] == 8)) {
-			if (tab[x][y + 1] == 2 || tab[x][y + 1] == 5 || tab[x][y + 1] == 6)
-				return TRUE;
-		}
-
-	/*************************************/
-	/*verifica se peça 90º esquerda baixo*/
-	/*************************************/
-	}else if (tab[x][y] == 4) {	
-		//verificar se bate contra a barreira do jogo[esquerda, baixo]
-		if ((x == 0 && y == maxY) || (x == 0 && tab[x][y+1] == 8) || (y == maxY && tab[x-1][y] == 8)) {
-			return FALSE;
-		}
-		//verificar peça esquerda[agua baixo]
-		else if (y == maxY || (tab[x][y+1] == 8)) {
-			if (tab[x - 1][y] == 1 || tab[x - 1][y] == 3 || tab[x - 1][y] == 6)
-				return TRUE;
-		}
-		//verificar peça baixo[agua esquerda]
-		else if (x == 0 || (tab[x - 1][y] == 8)) {
-			if (tab[x][y + 1] == 2 || tab[x][y + 1] == 5 || tab[x][y + 1] == 6)
-				return TRUE;
-		}
-
-	/*************************************/
-	/*verifica se peça 90º esquerda cima*/
-	/*************************************/
-	}else if (tab[x][y] == 5) {
-		//verificar se bate contra a barreira do jogo[esquerda, cima]
-		if ((x == 0 && y == 0) || (x == 0 && tab[x][y - 1] == 8) || (y == 0 && tab[x - 1][y] == 8)) {
-			return FALSE;
-		}
-		//verificar peça esquerda[agua cima]
-		else if (x == 0 || (tab[x][y-1] == 8)) {
-			if (tab[x - 1][y] == 1 || tab[x - 1][y] == 3 || tab[x - 1][y] == 6)
-				return TRUE;
-		}
-		//verificar peça cima[agua esquerda]
-		else if (y == 0 || (tab[x-1][y] == 8)) {
-			if (tab[x][y - 1] == 2 || tab[x][y - 1] == 3 || tab[x][y - 1] == 4)
-				return TRUE;
-		}
-
-	/************************************/
-	/*verifica se peça 90º direita cima*/
-	/************************************/
-	}else if (tab[x][y] == 6) {	
-		//verificar se bate contra a barreira do jogo[direita, cima]
-		if ((x == maxX && y == 0) || (x == maxX && tab[x][y - 1] == 8) || (y == 0 && tab[x + 1][y] == 8)) {
-			return FALSE;
-		}
-		//verificar peça direita[agua cima]
-		else if (y==0 || (tab[x][y-1] == 8)) {		
-			if (tab[x + 1][y] == 1 || tab[x + 1][y] == 4 || tab[x + 1][y] == 5)
-				return TRUE;
-		}
-		//verificar peça cima[agua direita]
-		else if (x = maxX || (tab[x + 1][y] == 8)) {
-			if (tab[x][y - 1] == 2 || tab[x][y - 1] == 3 || tab[x][y - 1] == 4)
-				return TRUE;
-		}
-	}
-	return FALSE;
 }
