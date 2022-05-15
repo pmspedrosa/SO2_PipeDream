@@ -160,22 +160,28 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 			}
 			if (_tcscmp(arrayComandos[0], PFAGUA) == 0)						//comando para fluxo agua por determinado tempo
 			{
-				if (nrArgs > 0) {
-					int tempo = _tstoi(arrayComandos[1]);
-					if (tempo != 0 && tempo < 25 && tempo > 1) {								//se for válido ou de 2s a 25s
-						dados->parafluxo = tempo;
-						WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
-						_tcscpy_s(dados->memPar->estado, MAX, _T("Fluxo de água em pausa"));
-						ReleaseMutex(dados->hMutexTabuleiro);
-						SetEvent(dados->hEventUpdateTabuleiro);
-					}
-					else
-						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+				if (!dados->iniciado)
+				{
+					_tprintf(TEXT("Jogo não está em curso\n"));
 				}
 				else {
-					_tprintf(_T("Numero de argumentos insuficientes\n"));
-				}
-			}
+					if (nrArgs > 1) {
+						int tempo = _tstoi(arrayComandos[1]);
+						if (tempo != 0 && tempo < 25 && tempo > 1) {								//se for válido ou de 2s a 25s
+							dados->parafluxo = tempo;
+							WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
+							_tcscpy_s(dados->memPar->estado, MAX, _T("Fluxo de água em pausa"));
+							ReleaseMutex(dados->hMutexTabuleiro);
+							SetEvent(dados->hEventUpdateTabuleiro);
+						}
+						else
+							_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+					else {
+						_tprintf(_T("Numero de argumentos insuficientes\n"));
+					}
+
+				}							}
 			else if (_tcscmp(arrayComandos[0], INICIAR) == 0)						//comando para fluxo agua por determinado tempo
 			{
 				if (dados->iniciado) {
@@ -193,7 +199,7 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 			{
 				int x = 0,y = 0;
 				_tprintf(_T("barrrrrr\n"));
-				if (nrArgs > 1) {
+				if (nrArgs > 2) {
 					if (_tcscmp(arrayComandos[1], "0" ) != 0) {					//verifica se valor é igual a '0' pois atoi devolve 0 quando é erro
 						x = _tstoi(arrayComandos[1]);
 						if (x == 0) {
