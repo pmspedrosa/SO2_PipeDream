@@ -180,6 +180,7 @@ DWORD WINAPI ThreadDisplay(LPVOID params) {
 		waitRet = WaitForMultipleObjects(2, hEventsWait, FALSE, INFINITE);
 
 		if (waitRet == WAIT_OBJECT_0 + 1){
+			dados->terminar = 1;
 			break;
 		}
 		else if(waitRet != WAIT_OBJECT_0){
@@ -305,9 +306,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	hThreadDisplay = CreateThread(NULL, 0, ThreadDisplay, &dados, 0, NULL);
 
 	while (dados.terminar == 0) {
-		WaitForSingleObject(dados.hEventTerminar, INFINITE);
-		fflush(stdin);
-		dados.terminar = 1;
+
 	}
 	
 	HANDLE hThreadsWait[] = { hThread, hThreadDisplay};
