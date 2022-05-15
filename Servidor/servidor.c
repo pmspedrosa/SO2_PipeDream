@@ -60,6 +60,7 @@ typedef struct {
 	int tabuleiro2[20][20];							//tabuleiro jogador 2
 	unsigned int tamX, tamY;						//tam tabuleiro
 	CelulaBuffer buffer[TAM_BUFFER];
+	TCHAR estado[MAX];								//string que indica o estado do programa
 }MemPartilhada;
 
 typedef struct {
@@ -161,8 +162,13 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 			{
 				if (nrArgs > 0) {
 					int tempo = _tstoi(arrayComandos[1]);
-					if (tempo != 0 && tempo < 25 && tempo > 1)								//se for válido ou de 2s a 25s
+					if (tempo != 0 && tempo < 25 && tempo > 1) {								//se for válido ou de 2s a 25s
 						dados->parafluxo = tempo;
+						WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
+						_tcscpy_s(dados->memPar->estado, MAX, _T("Fluxo de água em pausa"));
+						ReleaseMutex(dados->hMutexTabuleiro);
+						SetEvent(dados->hEventUpdateTabuleiro);
+					}
 					else
 						_tprintf(_T("Valor passado como argumento não é aceite\n"));
 				}
@@ -177,6 +183,9 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 				}
 				else {
 					ResumeThread(dados->hThreadAgua);
+					WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
+					_tcscpy_s(dados->memPar->estado, MAX, _T("Jogo iniciado"));
+					ReleaseMutex(dados->hMutexTabuleiro);
 					dados->iniciado = TRUE;
 				}
 			}
@@ -202,10 +211,14 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 					if (x < dados->memPar->tamX && x >= 0 && y < dados->memPar->tamY && y >= 0) {		//se for válido ou de 2s a 25s
 						if ((*dados->tabuleiro1.tabuleiro)[x][y] == 0){	//espaço livre
 							(*dados->tabuleiro1.tabuleiro)[x][y] = 7;
+							_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira adicionada"));
 							SetEvent(dados->hEventUpdateTabuleiro);
 						}
-						else
+						else {
+							_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira não pôde ser adicionada"));
 							_tprintf(_T("Não foi possivel adicionar a barreira\n"));
+							SetEvent(dados->hEventUpdateTabuleiro);
+						}
 					}
 					else {
 						_tprintf(_T("Valor passado como argumento não é aceite\n"));
@@ -486,6 +499,7 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 			if (dados->parafluxo == 0) {
 				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
 				if (fluirAgua(dados)) {
+					_tcscpy_s(dados->memPar->estado, MAX, _T("Água fluiu"));
 					ReleaseMutex(dados->hMutexTabuleiro);
 					_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
 					SetEvent(dados->hEventUpdateTabuleiro);
@@ -502,7 +516,7 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 				dados->parafluxo = 0;
 			}
 		}
-
+	dados->iniciado = FALSE;
 	_tprintf(_T("SAIR DA THREAD"));
 }
 
@@ -722,9 +736,11 @@ int _tmain(int argc, LPTSTR argv[]) {
 			if (_tcscmp(comando, PAUSA) == 0) {
 				if (dados.iniciado == TRUE) {
 					WaitForSingleObject(dados.hMutexTabuleiro, INFINITE);
+					_tcscpy_s(dados.memPar->estado, MAX, _T("Jogo em pausa"));
 					_tprintf(TEXT("Jogo em pausa\n"));
 					SuspendThread(dados.hThreadAgua);
 					ReleaseMutex(dados.hMutexTabuleiro);
+					SetEvent(dados.hEventUpdateTabuleiro);
 				}
 				else {
 					_tprintf(TEXT("Jogo não está em curso\n"));
@@ -732,8 +748,12 @@ int _tmain(int argc, LPTSTR argv[]) {
 			}
 			if (_tcscmp(comando, RETOMAR) == 0) {
 				if (dados.iniciado == TRUE) {
+					WaitForSingleObject(dados.hMutexTabuleiro, INFINITE);
+					_tcscpy_s(dados.memPar->estado, MAX, _T("Jogo retomado"));
+					ReleaseMutex(dados.hMutexTabuleiro);
 					_tprintf(TEXT("Jogo retomado\n"));
 					ResumeThread(dados.hThreadAgua);
+					SetEvent(dados.hEventUpdateTabuleiro);
 				}
 				else {
 					_tprintf(TEXT("Jogo não está em curso\n"));

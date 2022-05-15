@@ -40,6 +40,7 @@ typedef struct {
 	int tabuleiro2[20][20];							//tabuleiro jogador 2
 	unsigned int tamX, tamY;						//tam tabuleiro
 	CelulaBuffer buffer[TAM_BUFFER];
+	TCHAR estado[MAX];								//string que indica o estado do programa
 }MemPartilhada;
 
 typedef struct {									//estrutura para passar as threads
@@ -198,7 +199,9 @@ VOID updateDisplay(DadosThread* dados, HANDLE hConsole, WORD atributosBase) {
 	_tprintf(_T("\n\n\nTABULEIRO 2\n"));
 	displayTabuleiro(dados->memPar->tabuleiro2, dados->memPar->tamX, dados->memPar->tamY, hConsole, atributosBase);
 	_tprintf(_T("\n"));
-
+	TCHAR estado[MAX];
+	_tcscpy_s(estado, MAX, dados->memPar->estado);
+	_tprintf(_T("%s\n"), estado);
 }
 
 DWORD WINAPI ThreadDisplay(LPVOID params) {
@@ -229,7 +232,6 @@ DWORD WINAPI ThreadDisplay(LPVOID params) {
 	ReleaseMutex(hMutexTabuleiro);
 	while (!dados->terminar)
 	{
-		_tprintf(_T("WAITING!!!"));
 		waitRet = WaitForMultipleObjects(2, hEventsWait, FALSE, INFINITE);
 
 		if (waitRet == WAIT_OBJECT_0 + 1){
