@@ -67,7 +67,6 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 
 		WaitForSingleObject(dados->hSemEscrita, INFINITE);
 
-
 		fflush(stdin);
 		_fgetts(comando, MAX, stdin);
 		//Retirar \n
@@ -82,6 +81,7 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 		}
 
 		_tcscpy_s(celula.comando, MAX, comando);
+
 
 		WaitForSingleObject(dados->hMutexBufferCircular, INFINITE);
 
@@ -310,6 +310,11 @@ int _tmain(int argc, TCHAR* argv[]) {
 	_setmode(_fileno(stderr), _O_WTEXT);
 #endif
 	
+	/*if (WaitForSingleObject(dados.hSemLeitura, MAX) == WAIT_TIMEOUT) {
+		_tprintf(TEXT("J� existe um servidor ativo ... \n"));
+		CloseHandle(dados.hSemServidor);
+		return 0;
+	}*/
 
 	dados.terminar = 0;
 	if (!initMemAndSync(&dados)) {

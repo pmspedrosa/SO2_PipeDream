@@ -41,6 +41,7 @@
 #define BARR _T("BARR")								//nome comando adiciona barreira á grelha de jogo		
 #define MODO _T("MODO")								//nome comando modo sequencia de peças/tubos
 #define SAIR _T("SAIR")								//sair
+#define INICIAR _T("INICIAR")						//iniciar jogo
 
 
 typedef struct {									//estrutura que vai criar cada celula do buffer circular
@@ -71,12 +72,16 @@ typedef struct {									//estrutura para passar as threads
 	HANDLE hSemServidor;							//semaforo para controlo do número de svs ativos
 	HANDLE hMutexBufferCircular;					//mutex buffer circular
 	HANDLE hMapFile;								//map file
+	HANDLE hThreadAgua;								//handle thread agua
 	int terminar;									//flag para indicar a thread para terminar -> 1 para sair, 0 caso contrario
 	int id;											//id do produtor
 	DWORD tempoInicioAgua;							//tempo até água começar a fluir
 	DadosTabuleiro tabuleiro1, tabuleiro2;
+	int parafluxo;									//para thread fluxo agua por determinado tempo
+
 	HANDLE hEventUpdateTabuleiro;					//evento que indica aos monitores que houve alterações nos tabuleiros
 	HANDLE hMutexTabuleiro;
+
 }DadosThread;
 
 
@@ -106,11 +111,8 @@ TCHAR** divideString(TCHAR * comando, const TCHAR * delim, unsigned int* tam) {
 
 		token = _tcstok_s(NULL, delim, &proxToken);
 	}
-
 	return arrayCmd;
 }
-
-
 
 
 
@@ -139,8 +141,6 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 
 		arrayComandos = divideString(comando, delim, &nrArgs);
 		
-
-		
 		if (arrayComandos != NULL ) {
 			_tprintf(_T("\ncomando: %s.\n"), arrayComandos[0]);
 			for (int i = 0; i < nrArgs; i++)
@@ -149,20 +149,70 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 			}
 			if (_tcscmp(arrayComandos[0], PFAGUA) == 0)						//comando para fluxo agua por determinado tempo
 			{
-				if (nrArgs < 1)
+				if (nrArgs > 0) {
+					int tempo = _tstoi(arrayComandos[1]);
+					if (tempo != 0 && tempo < 25 && tempo > 1)								//se for válido ou de 2s a 25s
+						if (SuspendThread(dados->hThreadAgua) != -1) {			//Suspende a Thread do fluxo da água, ou seja, pausa o jogo
+							Sleep(tempo * 1000);						//dorme o tempo definido
+							ResumeThread(dados->hThreadAgua);					//Retoma thread
+						}
+						else
+							_tprintf(_T("Não foi possível realizar a paragem do jogo."));
+					else
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
 					continue;
-				// func pfagua com args ...
+				}
+				else {
+					_tprintf(_T("Numero de argumentos insuficientes\n"));
+					continue;
+				}
 			}
-			else if (_tcscmp(arrayComandos[0], BARR) == 0)					//comando adicionar barreira
+			else if (_tcscmp(arrayComandos[0], INICIAR) == 0)						//comando para fluxo agua por determinado tempo
 			{
-				_tprintf(_T("barrrrrr\n"));
-				// func barr com args ...
-				if (nrArgs < 2)
-					continue;
+				ResumeThread(dados->hThreadAgua);
+				continue;
 			}
-			else if (_tcscmp(arrayComandos[0], MODO) == 0)					//comando alterar modo sequencia tubos
+			else if (_tcscmp(arrayComandos[0], BARR) == 0)						//comando adicionar barreira
+			{
+				int x = 0,y = 0;
+				_tprintf(_T("barrrrrr\n"));
+				if (nrArgs > 1) {
+					if (_tcscmp(arrayComandos[1], '0') != 0) {					//verifica se valor é igual a '0' pois atoi devolve 0 quando é erro
+						x = _tstoi(arrayComandos[1]);
+						if (x == 0) {
+							_tprintf(_T("Valor passado como argumento não é aceite\n"));
+							continue;
+						}
+					}
+					if (_tcscmp(arrayComandos[2], '0') != 0) {					//verifica se valor é igual a '0' pois atoi devolve 0 quando é erro
+						y = _tstoi(arrayComandos[2]);
+						if (y == 0) {
+							_tprintf(_T("Valor passado como argumento não é aceite\n"));
+							continue;
+						}
+					}
+					if (x < dados->memPar->tamX && x >= 0 && y < dados->memPar->tamY && y >= 0) {		//se for válido ou de 2s a 25s
+						if (dados->tabuleiro1.tabuleiro[x][y] == 0){	//espaço livre
+							(*dados->tabuleiro1.tabuleiro)[x][y] = 7;
+							continue;
+						}
+						_tprintf(_T("Não foi possivel adicionar a barreira\n"));
+						continue;
+					}
+					else {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+						continue;
+					}
+				}
+				else {
+					_tprintf(_T("Numero de argumentos insuficientes\n"));
+					continue;
+				}
+			}
+			else if (_tcscmp(arrayComandos[0], MODO) == 0)							//comando alterar modo sequencia tubos
 			{
 				_tprintf(_T("modooooooo\n"));
+				//if(dados->modo == 1)dados->modo = 0; else dados->modo = 1;		//modo = 1 -> aleatorio, modo = 0 -> sequecia predefinida
 				// func mudar modo sequencia peças/tubos ...
 			}
 			else //comando nao encontrado
@@ -172,8 +222,8 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 			}
 		}
 
-
 		ReleaseMutex(dados->hMutexBufferCircular);						//liberta mutex
+
 		ReleaseSemaphore(dados->hSemEscrita, 1, NULL);		//liberta semaforo
 		//_tprintf(_T("Servidor consumiu comando [%s] de monitor [%d]\n", celula.comando, celula.id));
 
@@ -424,19 +474,24 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 	SetEvent(dados->hEventUpdateTabuleiro);
 	_tprintf(_T("(ThreadAgua) Sleep %d"), dados->tempoInicioAgua * 1000);
 	Sleep(dados->tempoInicioAgua * 1000);
-	while (!dados->terminar) {
-		WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
-		if (fluirAgua(dados)) {
-			ReleaseMutex(dados->hMutexTabuleiro);
-			_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
-			SetEvent(dados->hEventUpdateTabuleiro);
-			Sleep(TIMER_FLUIR * 1000);
-		}else {
-			ReleaseMutex(dados->hMutexTabuleiro);
-			_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"));
-			break;
+
+		while (!dados->terminar) {
+			if (dados->parafluxo == 0) {
+				if (fluirAgua(dados)) {
+					_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
+					Sleep(TIMER_FLUIR * 1000);
+				}
+				else {
+					_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"));
+					break;
+				}
+			}
+			else {
+				Sleep(dados->parafluxo * 1000);
+				dados->parafluxo = 0;
+			}
 		}
-	}
+
 	_tprintf(_T("SAIR DA THREAD"));
 }
 
@@ -465,6 +520,7 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 		dados->memPar->nP = 0;
 		dados->memPar->posE = 0;
 		dados->memPar->posL = 0;
+		dados->parafluxo = 0;
 	//}
 		
 		//	Comentado por causa do mapa pré-definido da meta 1
@@ -627,10 +683,10 @@ int _tmain(int argc, LPTSTR argv[]) {
 	}
 
 	hThreadConsumidor = CreateThread(NULL, 0, ThreadConsumidor, &dados, 0, NULL);
-	hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dados, 0, NULL);
+	dados.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dados, CREATE_SUSPENDED, NULL);
 
 
-	if (hThreadConsumidor != NULL && hThreadAgua != NULL) {
+	if (hThreadConsumidor != NULL && dados.hThreadAgua != NULL) {
 		_tprintf(_T("Escreva 'SAIR' para sair.\n"));
 		do { 
 			fflush(stdin);
@@ -653,7 +709,8 @@ int _tmain(int argc, LPTSTR argv[]) {
 	CloseHandle(dados.hSemLeitura);
 	CloseHandle(dados.hMapFile);
 	CloseHandle(hThreadConsumidor);
-	CloseHandle(hThreadAgua);
+
+	CloseHandle(dados.hThreadAgua);
 	CloseHandle(dados.hEventUpdateTabuleiro);
 	CloseHandle(dados.hMutexTabuleiro);
 	
