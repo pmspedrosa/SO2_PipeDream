@@ -65,7 +65,7 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 		celula.id = dados->id;
 
 		WaitForSingleObject(dados->hSemEscrita, INFINITE);
-		WaitForSingleObject(dados->hMutex, INFINITE);
+	
 
 		fflush(stdin);
 		_fgetts(comando, MAX, stdin);
@@ -82,7 +82,7 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 
 		_tcscpy_s(celula.comando,MAX, comando);
 
-
+		WaitForSingleObject(dados->hMutex, INFINITE);
 		CopyMemory(&dados->memPar->buffer[dados->memPar->posE], &celula, sizeof(CelulaBuffer));
 		dados->memPar->posE++;
 		if (dados->memPar->posE == TAM_BUFFER) //chegou ao limite? Sim, volta a 0

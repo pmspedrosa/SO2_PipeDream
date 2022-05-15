@@ -74,6 +74,7 @@ typedef struct {									//estrutura para passar as threads
 	int id;											//id do produtor
 	DWORD tempoInicioAgua;							//tempo até água começar a fluir
 	DadosTabuleiro tabuleiro1, tabuleiro2;
+	int parafluxo;									//para thread fluxo agua por determinado tempo
 }DadosThread;
 
 
@@ -464,15 +465,23 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 
 	_tprintf(_T("(ThreadAgua) Sleep %d"), dados->tempoInicioAgua * 1000);
 	Sleep(dados->tempoInicioAgua * 1000);
-	while (!dados->terminar) {
-		if (fluirAgua(dados)) {
-			_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
-			Sleep(TIMER_FLUIR * 1000);
-		}else {
-			_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"));
-			break;
+		while (!dados->terminar) {
+			if (dados->parafluxo == 0) {
+				if (fluirAgua(dados)) {
+					_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
+					Sleep(TIMER_FLUIR * 1000);
+				}
+				else {
+					_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"));
+					break;
+				}
+			}
+			else {
+				Sleep(dados->parafluxo * 1000);
+				dados->parafluxo = 0;
+			}
 		}
-	}
+
 	_tprintf(_T("SAIR DA THREAD"));
 }
 
@@ -501,6 +510,7 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 		dados->memPar->nP = 0;
 		dados->memPar->posE = 0;
 		dados->memPar->posL = 0;
+		dados->parafluxo = 0;
 	//}
 		
 		//	Comentado por causa do mapa pré-definido da meta 1
