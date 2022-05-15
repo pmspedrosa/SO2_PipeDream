@@ -16,6 +16,7 @@
 #define SEM_LEITURA _T("SEM_LEITURA")				//nome do semaforo de leitura
 #define SEM_SV _T("SEM_SV")							//nome do semaforo de servidor
 
+#define EVENT_TERMINAR _T("EVENT_TERMINAR")
 #define EVENT_TABULEIRO _T("EVENT_TABULEIRO")
 #define BLUE _T("\x1b[34m")
 #define RESET _T("\x1b[0m")
@@ -50,6 +51,7 @@ typedef struct {									//estrutura para passar as threads
 	HANDLE hMapFile;								//map file
 	int terminar;									//flag para indicar a thread para terminar -> 1 para sair, 0 caso contrario
 	int id;											//id do produtor
+	HANDLE hEventTerminar;							//evento assinalado pelo servidor para sair
 }DadosThread;
 
 
@@ -59,13 +61,16 @@ DWORD WINAPI ThreadProdutor(LPVOID param) {
 	TCHAR comando[MAX];
 	//TCHAR* prox_tok;	//A char* stores the starting memory location of a C-string
 	//TCHAR* delim = _T(" ");	//delimitador para string tokenizer
+	HANDLE hSemEscritaWait[2] = { dados->hSemEscrita, dados->hEventTerminar };
 
 	unsigned int cont = 0;
 
 	while (dados->terminar == 0) {
 		celula.id = dados->id;
 
-		WaitForSingleObject(dados->hSemEscrita, INFINITE);
+		if (WaitForMultipleObjects(2, hSemEscritaWait, FALSE, INFINITE) == WAIT_OBJECT_0 + 1) {		//bloqueia à espera que o semaforo fique assinalado
+			return 0;
+		}
 
 		fflush(stdin);
 		_fgetts(comando, MAX, stdin);
@@ -202,6 +207,8 @@ DWORD WINAPI ThreadDisplay(LPVOID params) {
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 	CONSOLE_SCREEN_BUFFER_INFO consoleInfo;
 	WORD atributosBase;
+	HANDLE hEventsWait[2] = { hEventUpdateTabuleiro, dados->hEventTerminar };
+	DWORD waitRet;
 
 	/* Save current attributes */
 	GetConsoleScreenBufferInfo(hConsole, &consoleInfo);
@@ -223,8 +230,13 @@ DWORD WINAPI ThreadDisplay(LPVOID params) {
 	while (!dados->terminar)
 	{
 		_tprintf(_T("WAITING!!!"));
-		if (WaitForSingleObject(hEventUpdateTabuleiro, INFINITE) != WAIT_OBJECT_0){
-			_tprintf(_T("Erro: WaitForSingleObject (%d)\n"), GetLastError());
+		waitRet = WaitForMultipleObjects(2, hEventsWait, FALSE, INFINITE);
+
+		if (waitRet == WAIT_OBJECT_0 + 1){
+			break;
+		}
+		else if(waitRet != WAIT_OBJECT_0){
+			_tprintf(_T("Erro: WaitForMultipleObject (%d)\n"), GetLastError());
 			return -1;
 		}
 		WaitForSingleObject(hMutexTabuleiro, INFINITE);
@@ -273,6 +285,7 @@ BOOL initMemAndSync(DadosThread* dados) {
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
+		return FALSE;
 	}
 
 	dados->hSemEscrita = CreateSemaphore(NULL, TAM_BUFFER, TAM_BUFFER, SEM_ESCRITA);
@@ -282,6 +295,7 @@ BOOL initMemAndSync(DadosThread* dados) {
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
+		return FALSE;
 	}
 
 	dados->hSemLeitura = CreateSemaphore(NULL, 0, 1, SEM_LEITURA);
@@ -291,7 +305,19 @@ BOOL initMemAndSync(DadosThread* dados) {
 		UnmapViewOfFile(dados->hMapFile);
 		CloseHandle(dados->memPar);
 		CloseHandle(dados->hMapFile);
+		return FALSE;
 	}
+
+	dados->hEventTerminar = CreateEvent(NULL, TRUE, FALSE, EVENT_TERMINAR);
+	if (dados->hEventTerminar == NULL) {
+		_tprintf(_T("Erro: CreateEvent (%d)\n"), GetLastError());
+		UnmapViewOfFile(dados->hMapFile);
+		CloseHandle(dados->memPar);
+		CloseHandle(dados->hMapFile);
+		return FALSE;
+	}
+
+
 	return TRUE;
 }
 
@@ -332,8 +358,13 @@ int _tmain(int argc, TCHAR* argv[]) {
 	hThreadDisplay = CreateThread(NULL, 0, ThreadDisplay, &dados, 0, NULL);
 
 	while (dados.terminar == 0) {
-		
+		WaitForSingleObject(dados.hEventTerminar, INFINITE);
+		fflush(stdin);
+		dados.terminar = 1;
 	}
+	
+	HANDLE hThreadsWait[] = { hThread, hThreadDisplay};
+	WaitForMultipleObjects(2, hThreadsWait, TRUE, 100);
 
 
 	UnmapViewOfFile(dados.memPar);
@@ -342,6 +373,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	CloseHandle(dados.hSemEscrita);
 	CloseHandle(dados.hSemLeitura);
 	CloseHandle(dados.hMapFile);
+	CloseHandle(dados.hEventTerminar);
 	CloseHandle(hThread);
 
 	return 0;
