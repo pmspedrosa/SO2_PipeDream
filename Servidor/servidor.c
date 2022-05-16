@@ -177,7 +177,7 @@ void carregaMapaPreDefinido(DadosThread* dados, int tabuleiro[20][20]) {
 	tabuleiro[3][5] = 2;
 	tabuleiro[3][6] = 6;
 	tabuleiro[4][6] = 1;
-	tabuleiro[5][6] = 4;
+	tabuleiro[5][6] = 1;
 	tabuleiro[6][6] = 1;
 	tabuleiro[7][6] = 1;
 	tabuleiro[8][6] = 5;
