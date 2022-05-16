@@ -13,17 +13,17 @@ TCHAR** divideString(TCHAR * comando, const TCHAR * delim, unsigned int* tam) {
 
 	while (token != NULL) {
 		//realocar a memória para integrar mais um argumento
-		//realloc returna um ponteiro para a nova memoria alocada, ou NULL quando falha
+		//realloc retorna um ponteiro para a nova memoria alocada, ou NULL quando falha
 		temp = realloc(arrayCmd, sizeof(TCHAR*) * (*tam + 1));		
 
 		if (temp == NULL) {
 			_ftprintf(stderr, TEXT("[ERRO] Falha ao alocar memoria!"));
 			return NULL;
 		}
-		arrayCmd = temp;						//apontar para a nova memoria alocada				
+		arrayCmd = temp;												//apontar para a nova memoria alocada				
 		arrayCmd[(*tam)++] = token;
 
-		token = _tcstok_s(NULL, delim, &proxToken);
+		token = _tcstok_s(NULL, delim, &proxToken);						//copia o proximo token para a "token"
 	}
 	return arrayCmd;
 }
@@ -41,14 +41,14 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 
 	while (dados->terminar == 0) {	//termina quando dados.terminar != 0
 
-		if(WaitForMultipleObjects(2, hSemLeituraWait, FALSE, INFINITE) == WAIT_OBJECT_0 + 1){		//bloqueia à espera que o semaforo fique assinalado
+		if(WaitForMultipleObjects(2, hSemLeituraWait, FALSE, INFINITE) == WAIT_OBJECT_0 + 1){		//fica à espera que o semaforo fique assinalado
 			return 0;
 		}
 			
-		WaitForSingleObject(dados->hMutexBufferCircular, INFINITE);									//bloqueia à espera do unlock do mutex
+		WaitForSingleObject(dados->hMutexBufferCircular, INFINITE);									//fica à espera do unlock do mutex
 
 
-		CopyMemory(&celula, &dados->memPar->buffer[dados->memPar->posL], sizeof(CelulaBuffer)); 
+		CopyMemory(&celula, &dados->memPar->buffer[dados->memPar->posL], sizeof(CelulaBuffer));		//copia da memória os próximos dados
 		dados->memPar->posL++; 
 		if (dados->memPar->posL == TAM_BUFFER) 
 			dados->memPar->posL = 0; 
@@ -56,9 +56,9 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 		_tcscpy_s(comando, MAX, celula.comando);
 		_tprintf(_T("P%d consumiu %s.\n"), celula.id, celula.comando);
 
-		free(arrayComandos);												//libertar a memoria de args
+		free(arrayComandos);	//libertar a memoria de args
 
-		arrayComandos = divideString(comando, delim, &nrArgs);
+		arrayComandos = divideString(comando, delim, &nrArgs);			//divisão da string para um array com o comando e args
 		
 		if (arrayComandos != NULL ) {
 			_tprintf(_T("\ncomando: %s.\n"), arrayComandos[0]);
@@ -66,8 +66,9 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 			{
 				_tprintf(_T("arg[%d]: %s.\n"), i, arrayComandos[i]);
 			}
-			if (_tcscmp(arrayComandos[0], PFAGUA) == 0)						//comando para fluxo agua por determinado tempo
+			if (_tcscmp(arrayComandos[0], PFAGUA) == 0)			//comando para fluxo agua por determinado tempo
 			{
+				_tprintf(_T("pfaguaaaaaa\n"));
 				if (!dados->iniciado)
 				{
 					_tprintf(TEXT("Jogo não está em curso\n"));
@@ -75,7 +76,7 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 				else {
 					if (nrArgs > 1) {
 						int tempo = _tstoi(arrayComandos[1]);
-						if (tempo != 0 && tempo < 25 && tempo > 1) {								//se for válido ou de 2s a 25s
+						if (tempo != 0 && tempo < 25 && tempo > 1) {	//se for válido ou de 2s a 25s
 							dados->parafluxo = tempo;
 							WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
 							_tcscpy_s(dados->memPar->estado, MAX, _T("Fluxo de água em pausa"));
@@ -90,7 +91,7 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 					}
 
 				}							}
-			else if (_tcscmp(arrayComandos[0], INICIAR) == 0)						//comando para fluxo agua por determinado tempo
+			else if (_tcscmp(arrayComandos[0], INICIAR) == 0)	//comando para fluxo agua por determinado tempo
 			{
 				if (dados->iniciado) {
 					_tprintf(_T("Jogo já está em curso\n"));
@@ -103,35 +104,35 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 					dados->iniciado = TRUE;
 				}
 			}
-			else if (_tcscmp(arrayComandos[0], BARR) == 0)						//comando adicionar barreira
+			else if (_tcscmp(arrayComandos[0], BARR) == 0)		//comando adicionar barreira
 			{
 				int x = 0,y = 0;
 				_tprintf(_T("barrrrrr\n"));
 				if (nrArgs > 2) {
-					if (_tcscmp(arrayComandos[1], "0" ) != 0) {					//verifica se valor é igual a '0' pois atoi devolve 0 quando é erro
+					if (_tcscmp(arrayComandos[1], _T("0") ) != 0) {		//verifica se valor é igual a '0' pois atoi devolve 0 quando é erro
 						x = _tstoi(arrayComandos[1]);
 						if (x == 0) {
 							_tprintf(_T("Valor passado como argumento não é aceite\n"));
 						}
 					}
-					if (_tcscmp(arrayComandos[2], "0") != 0) {					//verifica se valor é igual a '0' pois atoi devolve 0 quando é erro
+					if (_tcscmp(arrayComandos[2], _T("0")) != 0) {	//verifica se valor é igual a '0' pois atoi devolve 0 quando é erro
 						y = _tstoi(arrayComandos[2]);
 						if (y == 0) {
 							_tprintf(_T("Valor passado como argumento não é aceite\n"));
 						}
 					}
-					WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);				//bloqueia à espera do unlock do mutex
+					WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);	//bloqueia à espera do unlock do mutex
 					
 					if (x < dados->memPar->tamX && x >= 0 && y < dados->memPar->tamY && y >= 0) {		//se for válido ou de 2s a 25s
-						if ((*dados->tabuleiro1.tabuleiro)[x][y] == 0){	//espaço livre
+						if ((*dados->tabuleiro1.tabuleiro)[x][y] == 0){		//espaço livre
 							(*dados->tabuleiro1.tabuleiro)[x][y] = 7;
 							_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira adicionada"));
-							SetEvent(dados->hEventUpdateTabuleiro);
+							SetEvent(dados->hEventUpdateTabuleiro);			//assinala evento de atualização do tabuleiro
 						}
 						else {
 							_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira não pôde ser adicionada"));
 							_tprintf(_T("Não foi possivel adicionar a barreira\n"));
-							SetEvent(dados->hEventUpdateTabuleiro);
+							SetEvent(dados->hEventUpdateTabuleiro);			//assinala evento de atualização do tabuleiro
 						}
 					}
 					else {
@@ -147,20 +148,15 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 			{
 				_tprintf(_T("modooooooo\n"));
 				//if(dados->modo == 1)dados->modo = 0; else dados->modo = 1;		//modo = 1 -> aleatorio, modo = 0 -> sequecia predefinida
-				// func mudar modo sequencia peças/tubos ...
 			}
 			else //comando nao encontrado
 			{
-				_tprintf(_T("Comando desconhecido!\n"));// func barr com args ...
+				_tprintf(_T("Comando desconhecido!\n"));
 				// comando desconhecido
 			}
 		}
-
-		ReleaseMutex(dados->hMutexBufferCircular);						//liberta mutex
-
+		ReleaseMutex(dados->hMutexBufferCircular);			//liberta mutex
 		ReleaseSemaphore(dados->hSemEscrita, 1, NULL);		//liberta semaforo
-		//_tprintf(_T("Servidor consumiu comando [%s] de monitor [%d]\n", celula.comando, celula.id));
-
 	}//while
 	return 0;
 }
@@ -194,25 +190,25 @@ void carregaMapaPreDefinido(DadosThread* dados, int tabuleiro[20][20]) {
 BOOL definirInicioFim(DadosThread* dados) {
 	srand(time(0));
 	
-	int parede = (rand() % (4));				//define em que parede vai estar :  0 - cima // 1 - direita //2 - baixo // 3 - esquerda
+	int parede = (rand() % (4));						//define em que parede vai estar :  0 - cima // 1 - direita //2 - baixo // 3 - esquerda
 	int min = 0, max, tipoTubo, posInicio, posFim;
 
 	switch (parede){
-	case 0:										//se estiver em cima ou em baixo, o limite máximo da sua posição é tamH, e o tubo inicial é vertical
+	case 0:												//se estiver em cima ou em baixo, o limite máximo da sua posição é tamH, e o tubo inicial é vertical
 	case 2:
 		max = dados->memPar->tamX;
 		tipoTubo = 2;
 		break;
-	case 1:										//se estiver à direita ou esquerda, o limite máximo da sua posição é tamV, e o tubo inicial é horizontal
+	case 1:												//se estiver à direita ou esquerda, o limite máximo da sua posição é tamV, e o tubo inicial é horizontal
 	case 3:
 		max = dados->memPar->tamY;
 		tipoTubo = 1;
 		break;
-	default:									//se o valor aleatorio não for um dos esperados, retorna FALSE (apenas se ocorrer algum erro)
+	default:											//se o valor aleatorio não for um dos esperados, retorna FALSE (apenas se ocorrer algum erro)
 		return FALSE;
 	}
 
-	posInicio = (rand() % max);						//posição a ocupar, na parede 
+	posInicio = (rand() % max);							//posição a ocupar, na parede 
 	
 	if (max%2 == 0){								//se max par
 		if (posInicio >= max / 2) {						//e posInicio maior que metade, posFim tem de estar na primeira metade da parede
@@ -236,16 +232,16 @@ BOOL definirInicioFim(DadosThread* dados) {
 
 	switch (parede) {							
 	case 0:																				//Parede de cima
-		//dados->tabuleiro1.tabuleiro[posInicio][0] = tipoTubo * -1;									//mete tubo correto na posição de inicio
-		(*dados->tabuleiro2.tabuleiro)[posInicio][0] = tipoTubo * -1;							//mete tubo com água correto na posição de inicio
+		//dados->tabuleiro1.tabuleiro[posInicio][0] = tipoTubo * -1;						//mete tubo correto na posição de inicio
+		(*dados->tabuleiro2.tabuleiro)[posInicio][0] = tipoTubo * -1;						//mete tubo com água correto na posição de inicio
 
-		//dados->tabuleiro1.posX = posInicio;													//posição de agua ativa = posição de inicio
+		//dados->tabuleiro1.posX = posInicio;												//posição de agua ativa = posição de inicio
 		//dados->tabuleiro1.posY = 0;
 		dados->tabuleiro2.posX = posInicio;													//posição de agua ativa = posição de inicio
 		dados->tabuleiro2.posY = 0;
 		
-		//dados->tabuleiro1.tabuleiro[posFim][dados->memPar->tamY - 1] = tipoTubo;		//posFim -> Parede contrária ao inicio			//devemos querer guardar esta posição também nos dados do servidor
-		(*dados->tabuleiro2.tabuleiro)[posFim][dados->memPar->tamY - 1] = tipoTubo;		//posFim -> Parede contrária ao inicio			//devemos querer guardar esta posição também nos dados do servidor
+		//dados->tabuleiro1.tabuleiro[posFim][dados->memPar->tamY - 1] = tipoTubo;			//posFim -> Parede contrária ao inicio			//devemos querer guardar esta posição também nos dados do servidor
+		(*dados->tabuleiro2.tabuleiro)[posFim][dados->memPar->tamY - 1] = tipoTubo;			//posFim -> Parede contrária ao inicio			//devemos querer guardar esta posição também nos dados do servidor
 		
 		//dados->tabuleiro1.dirAgua = BAIXO;
 		dados->tabuleiro2.dirAgua = BAIXO;
@@ -255,7 +251,7 @@ BOOL definirInicioFim(DadosThread* dados) {
 
 		break;
 	case 1:
-		ultimaPos = dados->memPar->tamX - 1;													//pareda lado direito
+		ultimaPos = dados->memPar->tamX - 1;											//pareda lado direito
 		//dados->tabuleiro1.tabuleiro[ultimaPos][posInicio] = tipoTubo * -1;
 		(*dados->tabuleiro2.tabuleiro)[ultimaPos][posInicio] = tipoTubo * -1;
 
@@ -275,7 +271,7 @@ BOOL definirInicioFim(DadosThread* dados) {
 
 		break;
 	case 2:
-		ultimaPos = dados->memPar->tamY - 1;												//parede baixo
+		ultimaPos = dados->memPar->tamY - 1;											//parede baixo
 		//dados->tabuleiro1.tabuleiro[posInicio][ultimaPos] = tipoTubo * -1;
 		(*dados->tabuleiro2.tabuleiro)[posInicio][ultimaPos] = tipoTubo * -1;
 
@@ -295,7 +291,7 @@ BOOL definirInicioFim(DadosThread* dados) {
 		
 		break;
 	case 3:
-		//dados->tabuleiro1.tabuleiro[0][posInicio] = tipoTubo * -1;						//parede lado esquerdo
+		//dados->tabuleiro1.tabuleiro[0][posInicio] = tipoTubo * -1;					//parede lado esquerdo
 		(*dados->tabuleiro2.tabuleiro)[0][posInicio] = tipoTubo * -1;
 
 		//dados->tabuleiro1.posX = 0;
@@ -419,24 +415,23 @@ BOOL fluirAgua(DadosThread* dados) {
 DWORD WINAPI ThreadAgua(LPVOID param) {
 	DadosThread* dados = (DadosThread*)param;
 
-	SetEvent(dados->hEventUpdateTabuleiro);
-	_tprintf(_T("(ThreadAgua) Sleep %d"), dados->tempoInicioAgua * 1000);
-	Sleep(dados->tempoInicioAgua * 1000);
+	SetEvent(dados->hEventUpdateTabuleiro);														//assinala evento de atualização do tabuleiro
+	_tprintf(_T("(ThreadAgua) Sleep %d"), dados->tempoInicioAgua * 1000);			
+	Sleep(dados->tempoInicioAgua * 1000);														//jogo incia após "tempoInicioAgua"
 
 		while (!dados->terminar) {
 			if (dados->parafluxo == 0) {
 				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
-				if (fluirAgua(dados)) {
-					
+				if (fluirAgua(dados)) {															//verifica se a água fluiu com sucesso
 					if (dados->tabuleiro1.posX == dados->posfX && dados->tabuleiro1.posY == dados->posfY){
-						_tcscpy_s(dados->memPar->estado, MAX, _T("Ganhou!!!"));
+						_tcscpy_s(dados->memPar->estado, MAX, _T("Ganhou!!!"));					//muda o estado do jogo 
 						_tprintf(_T("(ThreadAgua) Ganhou!!!"));
 						SetEvent(dados->hEventUpdateTabuleiro);
 						ReleaseMutex(dados->hMutexTabuleiro);
 						break;
 					}
 					else {
-						_tcscpy_s(dados->memPar->estado, MAX, _T("Água fluiu"));
+						_tcscpy_s(dados->memPar->estado, MAX, _T("Água fluiu"));				//muda o estado do jogo 
 						_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
 					}
 					ReleaseMutex(dados->hMutexTabuleiro);
@@ -444,7 +439,7 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 					Sleep(TIMER_FLUIR * 1000);
 				}
 				else {
-					_tcscpy_s(dados->memPar->estado, MAX, _T("Perdeu!!!"));
+					_tcscpy_s(dados->memPar->estado, MAX, _T("Perdeu!!!"));						//muda o estado do jogo 
 					_tprintf(_T("(ThreadAgua) Perdeu!!!"));
 					ReleaseMutex(dados->hMutexTabuleiro);
 					SetEvent(dados->hEventUpdateTabuleiro);
@@ -453,7 +448,7 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 				}
 			}
 			else {
-				Sleep(dados->parafluxo * 1000);
+				Sleep(dados->parafluxo * 1000);													//tempo do fluxo da água
 				dados->parafluxo = 0;
 			}
 		}
@@ -482,35 +477,33 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 		return FALSE;
 	}
 
-	//if (primeiroProcesso) {		//desnecessário porque o servidor é sempre o primeiro programa lançado
-		dados->memPar->nP = 0;
-		dados->memPar->posE = 0;
-		dados->memPar->posL = 0;
-		dados->parafluxo = 0;
-	//}
-		
-		//	Comentado por causa do mapa pré-definido da meta 1
-		//dados->memPar->tamX = tamH;
-		//dados->memPar->tamY = tamV;
-		
-		dados->memPar->tamX = 10;
-		dados->memPar->tamY = 7;
+	dados->memPar->nP = 0;
+	dados->memPar->posE = 0;
+	dados->memPar->posL = 0;
+	dados->parafluxo = 0;
 
-		dados->tabuleiro1.tabuleiro = &(dados->memPar->tabuleiro1);
-		dados->tabuleiro2.tabuleiro = &(dados->memPar->tabuleiro2);
-		for (int i = 0; i < tamH; i++) {
-			for (int j = 0; j < tamV; j++) {
-				(*dados->tabuleiro1.tabuleiro)[i][j] = 0;
+	//Comentado por causa do mapa pré-definido da meta 1
+	//dados->memPar->tamX = tamH;
+	//dados->memPar->tamY = tamV;
+		
+	dados->memPar->tamX = 10;
+	dados->memPar->tamY = 7;
 
-				(*dados->tabuleiro2.tabuleiro)[i][j] = 0;		//apenas meta 1. Depois será feito -> tabuleiro2 = tabuleiro1 (cópia de valores)
-			}
+	dados->tabuleiro1.tabuleiro = &(dados->memPar->tabuleiro1);
+	dados->tabuleiro2.tabuleiro = &(dados->memPar->tabuleiro2);
+	for (int i = 0; i < tamH; i++) {
+		for (int j = 0; j < tamV; j++) {
+			(*dados->tabuleiro1.tabuleiro)[i][j] = 0;
+
+			(*dados->tabuleiro2.tabuleiro)[i][j] = 0;		//apenas meta 1. Depois será feito -> tabuleiro2 = tabuleiro1 (cópia de valores)
 		}
+	}
 
-		//	MAPA PRÉ-DEFINIDO
-		carregaMapaPreDefinido(dados, dados->tabuleiro1.tabuleiro);
+	//	MAPA PRÉ-DEFINIDO
+	carregaMapaPreDefinido(dados, dados->tabuleiro1.tabuleiro);
 
-		// Define início e fim
-		definirInicioFim(dados);
+	// Define início e fim
+	definirInicioFim(dados);
 
 
 	dados->hMutexBufferCircular = CreateMutex(NULL, FALSE, MUTEX_BUFFER);
@@ -583,19 +576,19 @@ DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeVal
 	}
 	if (valorNum < min || valorNum > max) {
 		sizeValor = sizeof(valorNum);
-		if (RegQueryValueEx(hChaveRegistry, nomeValorRegistry, NULL, NULL, &valorNum, &sizeValor) == ERROR_SUCCESS) {
+		if (RegQueryValueEx(hChaveRegistry, nomeValorRegistry, NULL, NULL, &valorNum, &sizeValor) == ERROR_SUCCESS) {			//vai buscar valor registry
 			*varGuardar = valorNum;
 			return 1;
 		}
 		else {
 			*varGuardar = valorOmissao;
-			RegSetValueEx(hChaveRegistry, nomeValorRegistry, 0, REG_DWORD, varGuardar, sizeof(unsigned int));
+			RegSetValueEx(hChaveRegistry, nomeValorRegistry, 0, REG_DWORD, varGuardar, sizeof(unsigned int));					//altera valor registry
 			return 2;
 		}
 	}
 	else {
 		*varGuardar = valorNum;
-		RegSetValueEx(hChaveRegistry, nomeValorRegistry, 0, REG_DWORD, varGuardar, sizeof(unsigned int));
+		RegSetValueEx(hChaveRegistry, nomeValorRegistry, 0, REG_DWORD, varGuardar, sizeof(unsigned int));						//altera valor registry
 		return 3;
 	}
 }
@@ -631,15 +624,15 @@ int _tmain(int argc, LPTSTR argv[]) {
 		return 0;
 	}
 
-  if (RegCreateKeyEx(HKEY_CURRENT_USER, CHAVE_REGISTRY_NOME, 0, NULL, REG_OPTION_VOLATILE, KEY_ALL_ACCESS, NULL, &hChaveRegistry, &respostaRegistry) != ERROR_SUCCESS) {
+    if (RegCreateKeyEx(HKEY_CURRENT_USER, CHAVE_REGISTRY_NOME, 0, NULL, REG_OPTION_VOLATILE, KEY_ALL_ACCESS, NULL, &hChaveRegistry, &respostaRegistry) != ERROR_SUCCESS) {
 		DWORD error = GetLastError();
 		_tprintf(TEXT("Erro a abrir a chave [%d]\n"), hChaveRegistry);
 		return -1;
 	}
 	if (argc >= 4) {
-		carregaValorConfig(argv[1], hChaveRegistry, REGISTRY_TAM_H, TAM_H_OMISSAO, &tamHorizontal, 3, 20);
-		carregaValorConfig(argv[2], hChaveRegistry, REGISTRY_TAM_V, TAM_V_OMISSAO, &tamVertical, 3, 20);
-		carregaValorConfig(argv[3], hChaveRegistry, REGISTRY_TEMPO, TEMPO_AGUA_OMISSAO, &(dados.tempoInicioAgua), 5, 45);
+		carregaValorConfig(argv[1], hChaveRegistry, REGISTRY_TAM_H, TAM_H_OMISSAO, &tamHorizontal, 3, 20);							//carrega tamanho horizontal tabela
+		carregaValorConfig(argv[2], hChaveRegistry, REGISTRY_TAM_V, TAM_V_OMISSAO, &tamVertical, 3, 20);							//carrega tamanho vertical tabela
+		carregaValorConfig(argv[3], hChaveRegistry, REGISTRY_TEMPO, TEMPO_AGUA_OMISSAO, &(dados.tempoInicioAgua), 5, 45);			//carrega tempo para inicio fluxo agua
 	}
 	else {
 		carregaValorConfig(NULL, hChaveRegistry, REGISTRY_TAM_H, TAM_H_OMISSAO, &tamHorizontal, 3, 20);
@@ -660,14 +653,14 @@ int _tmain(int argc, LPTSTR argv[]) {
 	}
 
 	hThreadConsumidor = CreateThread(NULL, 0, ThreadConsumidor, &dados, 0, NULL);
-	dados.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dados, CREATE_SUSPENDED, NULL);
+	dados.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dados, CREATE_SUSPENDED, NULL);					//thread criada suspensa até que monitor inicie o jogo
 
 
 	if (hThreadConsumidor != NULL && dados.hThreadAgua != NULL) {
 		_tprintf(_T("Escreva 'SAIR' para sair.\n"));
 		do { 
 			fflush(stdin);
-			_fgetts(comando, MAX-1, stdin);
+			_fgetts(comando, MAX-2, stdin);
 			//Retirar \n
 			comando[_tcslen(comando) - 1] = '\0';
 			//Maiúsculas
