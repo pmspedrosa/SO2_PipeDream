@@ -91,6 +91,7 @@ typedef struct {									//estrutura para passar as threads
 	HANDLE hMutexTabuleiro;
 	BOOL iniciado;
 	HANDLE hEventTerminar;							//evento para informar monitores (e clientes na meta 2) que devem terminar
+	int posfX, posfY;								//posição peça final da água
 
 }DadosThread;
 

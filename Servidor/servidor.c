@@ -177,7 +177,7 @@ void carregaMapaPreDefinido(DadosThread* dados, int tabuleiro[20][20]) {
 	tabuleiro[3][5] = 2;
 	tabuleiro[3][6] = 6;
 	tabuleiro[4][6] = 1;
-	tabuleiro[5][6] = 1;
+	tabuleiro[5][6] = 4;
 	tabuleiro[6][6] = 1;
 	tabuleiro[7][6] = 1;
 	tabuleiro[8][6] = 5;
@@ -187,6 +187,8 @@ void carregaMapaPreDefinido(DadosThread* dados, int tabuleiro[20][20]) {
 	dados->tabuleiro1.posX = 0;
 	dados->tabuleiro1.posY = 2;
 	dados->tabuleiro1.dirAgua = DIREITA;
+	dados->posfX = 9;
+	dados->posfY = 5;
 }
 
 BOOL definirInicioFim(DadosThread* dados) {
@@ -248,9 +250,12 @@ BOOL definirInicioFim(DadosThread* dados) {
 		//dados->tabuleiro1.dirAgua = BAIXO;
 		dados->tabuleiro2.dirAgua = BAIXO;
 
+		//dados->posfX = posFim;
+		//dados->posfY = dados->memPar->tamY - 1;
+
 		break;
 	case 1:
-		ultimaPos = dados->memPar->tamX - 1;
+		ultimaPos = dados->memPar->tamX - 1;													//pareda lado direito
 		//dados->tabuleiro1.tabuleiro[ultimaPos][posInicio] = tipoTubo * -1;
 		(*dados->tabuleiro2.tabuleiro)[ultimaPos][posInicio] = tipoTubo * -1;
 
@@ -265,9 +270,12 @@ BOOL definirInicioFim(DadosThread* dados) {
 		//dados->tabuleiro1.dirAgua = ESQUERDA;
 		dados->tabuleiro2.dirAgua = ESQUERDA;
 
+		//dados->posfX = 0;
+		//dados->posfY = posFim;
+
 		break;
 	case 2:
-		ultimaPos = dados->memPar->tamY - 1;
+		ultimaPos = dados->memPar->tamY - 1;												//parede baixo
 		//dados->tabuleiro1.tabuleiro[posInicio][ultimaPos] = tipoTubo * -1;
 		(*dados->tabuleiro2.tabuleiro)[posInicio][ultimaPos] = tipoTubo * -1;
 
@@ -281,10 +289,13 @@ BOOL definirInicioFim(DadosThread* dados) {
 
 		//dados->tabuleiro1.dirAgua = CIMA;
 		dados->tabuleiro2.dirAgua = CIMA;
+
+		//dados->posfX = posFim;
+		//dados->posfY = 0;
 		
 		break;
 	case 3:
-		//dados->tabuleiro1.tabuleiro[0][posInicio] = tipoTubo * -1;
+		//dados->tabuleiro1.tabuleiro[0][posInicio] = tipoTubo * -1;						//parede lado esquerdo
 		(*dados->tabuleiro2.tabuleiro)[0][posInicio] = tipoTubo * -1;
 
 		//dados->tabuleiro1.posX = 0;
@@ -297,11 +308,14 @@ BOOL definirInicioFim(DadosThread* dados) {
 
 		//dados->tabuleiro1.dirAgua = DIREITA;
 		dados->tabuleiro2.dirAgua = DIREITA;
+
+		//dados->posfX = dados->memPar->tamX - 1;
+		//dados->posfY = posFim;
 		
 		break;
 	default:
 		return FALSE;
-	}
+	} 
 	return TRUE;
 }
 
@@ -413,14 +427,25 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 			if (dados->parafluxo == 0) {
 				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
 				if (fluirAgua(dados)) {
-					_tcscpy_s(dados->memPar->estado, MAX, _T("Água fluiu"));
+					
+					if (dados->tabuleiro1.posX == dados->posfX && dados->tabuleiro1.posY == dados->posfY){
+						_tcscpy_s(dados->memPar->estado, MAX, _T("Ganhou!!!"));
+						_tprintf(_T("(ThreadAgua) Ganhou!!!"));
+						break;
+					}
+					else {
+						_tcscpy_s(dados->memPar->estado, MAX, _T("Água fluiu"));
+						_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
+					}
 					ReleaseMutex(dados->hMutexTabuleiro);
-					_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
 					SetEvent(dados->hEventUpdateTabuleiro);
 					Sleep(TIMER_FLUIR * 1000);
 				}
 				else {
+					_tcscpy_s(dados->memPar->estado, MAX, _T("Perdeu!!!"));
+					_tprintf(_T("(ThreadAgua) Perdeu!!!"));
 					ReleaseMutex(dados->hMutexTabuleiro);
+					SetEvent(dados->hEventUpdateTabuleiro);
 					_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"));
 					break;
 				}
