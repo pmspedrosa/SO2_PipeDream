@@ -283,12 +283,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 	_setmode(_fileno(stdout), _O_WTEXT);
 	_setmode(_fileno(stderr), _O_WTEXT);
 #endif
-	
-	/*if (WaitForSingleObject(dados.hSemLeitura, MAX) == WAIT_TIMEOUT) {
-		_tprintf(TEXT("J� existe um servidor ativo ... \n"));
-		CloseHandle(dados.hSemServidor);
-		return 0;
-	}*/
 
 	dados.terminar = 0;
 	if (!initMemAndSync(&dados)) {

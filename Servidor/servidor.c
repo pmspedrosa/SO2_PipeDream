@@ -4,7 +4,7 @@ TCHAR** divideString(TCHAR * comando, const TCHAR * delim, unsigned int* tam) {
 	TCHAR* proxToken = NULL, ** temp, ** arrayCmd = NULL;
 	TCHAR* token = _tcstok_s(comando, delim, &proxToken);
 
-	if (comando == NULL || _tcslen(comando) == 0) {
+	if (comando == NULL || _tcslen(comando) == 0) {						//verifica se string está vazia
 		_ftprintf(stderr, TEXT("[ERRO] String comando vazia!"));
 		return NULL;
 	}
@@ -216,18 +216,18 @@ BOOL definirInicioFim(DadosThread* dados) {
 	
 	if (max%2 == 0){								//se max par
 		if (posInicio >= max / 2) {						//e posInicio maior que metade, posFim tem de estar na primeira metade da parede
-			min = max / 2;
+			max = max / 2;
 		}
 		else {											//e posInicio menor que metade, posFim tem de estar na segunda metade da parede
-			max = max / 2;
+			min = max / 2;
 		}
 	}
 	else {											//se max impar
 		if (posInicio > max / 2) {						//e posInicio maior que metade inteira, posFim tem de estar na primeira metade da parede
-			min = (max / 2) + 1;
+			max = (max / 2) + 1;
 		}
 		else if (posInicio < max / 2) {					//e posInicio menor que metade inteira, posFim tem de estar na primeira metade da parede
-			max = max / 2;						
+			min = max / 2;						
 		}												//se max impar e posInicio igual à metade inteira, posInicio está na posição do meio, logo posFim pode estar em qualquer posição da parede
 	}
 
@@ -431,6 +431,8 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 					if (dados->tabuleiro1.posX == dados->posfX && dados->tabuleiro1.posY == dados->posfY){
 						_tcscpy_s(dados->memPar->estado, MAX, _T("Ganhou!!!"));
 						_tprintf(_T("(ThreadAgua) Ganhou!!!"));
+						SetEvent(dados->hEventUpdateTabuleiro);
+						ReleaseMutex(dados->hMutexTabuleiro);
 						break;
 					}
 					else {
@@ -707,6 +709,8 @@ int _tmain(int argc, LPTSTR argv[]) {
 		WaitForMultipleObjects(2, hThreadsWait, TRUE, 100);
 	}
 
+	dados.tabuleiro1.tabuleiro = NULL;
+	dados.tabuleiro2.tabuleiro = NULL;
 	UnmapViewOfFile(dados.memPar);
 	//CloseHandles...
 	CloseHandle(dados.hMutexBufferCircular);
