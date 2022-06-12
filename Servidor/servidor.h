@@ -35,6 +35,7 @@
 #define MAX 256									
 #define TAM_BUFFER 10											//tamanho buffer
 #define NUM_SV 1												//numero de servidor ativos possiveis
+#define NPIPES 2												//Numero de pipes		
 
 /*direções*/
 #define CIMA 0
@@ -50,6 +51,38 @@
 #define INICIAR _T("INICIAR")									//iniciar jogo
 #define PAUSA _T("PAUSA")										//pausar jogo
 #define RETOMAR _T("RETOMAR")									//retomar jogo
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+#define NOME_PIPE_CLIENTE _T("\\\.\\pipe\\cs")				//nome named pipe Cliente-Servidor
+#define NOME_PIPE_SERVIDOR _T("\\\.\\pipe\\sc")				//nome named pipe Servidor-Cliente
+
+
+typedef struct {
+	TCHAR cmd[MAX];									//comando da mensagem enviada. Ex: paraAgua, info, cliquedir
+	TCHAR args[MAX][TAM_BUFFER];					//argumentos associados aos comandos, pode ter ou não
+}Msg;
+
+typedef struct {
+	HANDLE hPipe;									// handle do pipe
+	OVERLAPPED overlap;
+	BOOL activo;									//representa se a instancia do named pipe está ou nao ativa, se ja tem um cliente ou nao
+}PipeDados;
+
+typedef struct {
+	PipeDados hPipes[NPIPES];
+	HANDLE hEvents[NPIPES];
+	HANDLE hMutex;
+	int numClientes;
+	int terminar;
+}DadosThreadPipes;
+
+
+////////////////////////////////////////////////////////////////////////////////
+
 
 
 typedef struct {									//estrutura que vai criar cada celula do buffer circular

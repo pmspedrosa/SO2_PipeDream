@@ -1,6 +1,8 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <tchar.h>
+#include "cliente.h"
+
 /* ===================================================== */
 /* Programa base (esqueleto) para aplicações Windows     */
 /* ===================================================== */
@@ -21,6 +23,149 @@ LRESULT CALLBACK TrataEventos(HWND, UINT, WPARAM, LPARAM);
 // propriedades do objecto janela
 TCHAR szProgName[] = TEXT("Base2022");
 
+
+
+
+
+DWORD WINAPI ThreadLer(LPVOID param) {						
+	//fica sempre á escuta de ler coisas vindas do named pipe
+	//escreve diretamente no ecrã
+	DadosThreadPipes* dados = (DadosThreadPipes*)param;
+	TCHAR buf[MAX];
+	DWORD n;
+
+	_tprintf(TEXT("[Cliente] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), NOME_PIPE_CLIENTE);
+
+	//espera que exista um named pipe para ler do mesmo
+	//bloqueia aqui
+	if (!WaitNamedPipe(NOME_PIPE_CLIENTE, NMPWAIT_WAIT_FOREVER)) {
+		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (WaitNamedPipe)\n"), NOME_PIPE_CLIENTE);
+		exit(-1);
+	}
+
+	_tprintf(TEXT("[Cliente] Ligação ao pipe do cliente... (CreateFile)\n"));
+
+	HANDLE hPipe = CreateFile(NOME_PIPE_CLIENTE, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	if (hPipe == NULL) {
+		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), NOME_PIPE_CLIENTE);
+		exit(-1);
+	}
+
+	_tprintf(TEXT("[Cliente] Liguei-me...\n"));
+
+	while (dados->terminar == 0) {
+		//le as mensagens enviadas pelo cliente
+		BOOL ret = ReadFile(hPipe, &buf, sizeof(buf), &n, NULL);
+
+
+
+		if (!ret || !n) {
+			_tprintf(TEXT("[Cliente] %d %d... (ReadFile)\n"), ret, n);
+			break;
+		}
+
+		_tprintf(TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
+
+		
+	}
+
+	CloseHandle(hPipe);
+	Sleep(200);
+
+	return 0;
+
+}
+
+
+
+DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o cliente através do named pipe
+	//funcionamento -> evento ativa quando texto variável de "escrita" é alterada
+	DadosThreadPipes* dados = (DadosThreadPipes*)param;
+	Msg *buf;
+	DWORD n;
+	int i;
+
+	do {
+		//ficar bloqueado à espera de um evento qualquer
+		//lê o comando enviado de algum lado, deve ser dos eventos do rato,etc
+
+		//escreve no named pipe
+		for (i = 0; i < NPIPES; i++) {
+			WaitForSingleObject(dados->hMutex, INFINITE);
+			if (dados->hPipe.activo) {
+				if (!WriteFile(dados->hPipe.hPipe, buf, _tcslen(buf) * sizeof(TCHAR), &n, NULL))
+					_tprintf(TEXT("[ERRO] Escrever no pipe! (WriteFile)\n"));
+				else
+					_tprintf(TEXT("[ESCRITOR] Enviei %d bytes ao leitor [%d]... (WriteFile)\n"), n, i);
+			}
+			//libertamos o mutex
+			ReleaseMutex(dados->hMutex);
+		}
+
+	} while (dados->terminar == 0);
+	dados->terminar = 1;
+
+	for (i = 0; i < NPIPES; i++)
+		SetEvent(dados->hEvent);
+
+	return 0;
+}
+
+
+
+
+BOOL initNamedPipes(DadosThreadPipes* dados) {
+	//FILE_FLAG_OVERLAPPED para o named pipe aceitar comunicações assincronas
+	HANDLE hPipe = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
+		PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, NPIPES, MAX * sizeof(TCHAR),
+		MAX * sizeof(TCHAR), 1000, NULL);
+
+	if (hPipe == INVALID_HANDLE_VALUE) {
+		_tprintf(TEXT("[ERRO] Criar Named Pipe! (CreateNamedPipe)"));
+		exit(-1);
+	}
+
+	dados->hPipe.hPipe = hPipe;
+	dados->terminar = 0;
+
+	// criar evento que vai ser associado à estrutura overlaped
+	// os eventos aqui tem de ter sempre reset manual e nao automático porque temos de delegar essas responsabilidades ao sistema operativo
+	HANDLE hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+	if (hEvent == NULL) {
+		_tprintf(TEXT("[ERRO] ao criar evento\n"));
+		dados->terminar = 1;
+		return -1;
+	}
+
+	dados->hPipe.hPipe = hPipe;
+	dados->hPipe.activo = FALSE;
+	//temos de garantir que a estrutura overlap está limpa
+	ZeroMemory(&dados->hPipe.overlap, sizeof(dados->hPipe.overlap));
+	//preenchemos agora o evento
+	dados->hPipe.overlap.hEvent = hEvent;
+	dados->hEvent = hEvent;
+
+	_tprintf(TEXT("[Cliente] Esperar ligação de um servidor... (ConnectNamedPipe)\n"));
+
+	// aqui passamos um ponteiro para a estrutura overlap
+	ConnectNamedPipe(hPipe, &dados->hPipe.overlap);
+
+	//criacao da thread
+	HANDLE hThread = CreateThread(NULL, 0, ThreadEscrever, &dados, 0, NULL);
+	if (hThread == NULL) {
+		_tprintf(TEXT("[Erro] ao criar thread!\n"));
+		return -1;
+	}
+}
+
+
+
+
+
+
+
 // ============================================================================
 // FUNÇÃO DE INÍCIO DO PROGRAMA: WinMain()
 // ============================================================================
@@ -36,11 +181,21 @@ TCHAR szProgName[] = TEXT("Base2022");
 //   nCmdShow:  Parâmetro que especifica o modo de exibição da janela (usado em  
 //        	   ShowWindow()
 
+
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow) {
 	HWND hWnd;		// hWnd é o handler da janela, gerado mais abaixo por CreateWindow()
 	MSG lpMsg;		// MSG é uma estrutura definida no Windows para as mensagens
 	WNDCLASSEX wcApp;	// WNDCLASSEX é uma estrutura cujos membros servem para 
 			  // definir as características da classe da janela
+
+	//utilizar a teentativa de abrir o evento como forma de saber se o servidor está ativo
+	HANDLE hEventUpdateTabuleiro = OpenEvent(EVENT_MODIFY_STATE | SYNCHRONIZE, FALSE, EVENT_TABULEIRO);
+
+	if (hEventUpdateTabuleiro == NULL) {
+		_tprintf(_T("Erro: OpenEvent (%d)\n"), GetLastError());
+		//dados->terminar = 1;
+		return 0;
+	}
 
 	// ============================================================================
 	// 1. Definição das características da janela "wcApp" 
