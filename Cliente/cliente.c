@@ -1,78 +1,80 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <tchar.h>
+#define TAM_BITMAP 300
+#define NUM_BITMAPS 8
 /* ===================================================== */
-/* Programa base (esqueleto) para aplicações Windows     */
+/* Programa base (esqueleto) para aplicaï¿½ï¿½es Windows     */
 /* ===================================================== */
 // Cria uma janela de nome "Janela Principal" e pinta fundo de branco
 // Modelo para programas Windows:
-//  Composto por 2 funções: 
+//  Composto por 2 funï¿½ï¿½es: 
 //	WinMain()     = Ponto de entrada dos programas windows
 //			1) Define, cria e mostra a janela
-//			2) Loop de recepção de mensagens provenientes do Windows
+//			2) Loop de recepï¿½ï¿½o de mensagens provenientes do Windows
 //     TrataEventos()= Processamentos da janela (pode ter outro nome)
-//			1) É chamada pelo Windows (callback) 
-//			2) Executa código em função da mensagem recebida
+//			1) ï¿½ chamada pelo Windows (callback) 
+//			2) Executa cï¿½digo em funï¿½ï¿½o da mensagem recebida
 
 LRESULT CALLBACK TrataEventos(HWND, UINT, WPARAM, LPARAM);
 
-// Nome da classe da janela (para programas de uma só janela, normalmente este nome é 
-// igual ao do próprio programa) "szprogName" é usado mais abaixo na definição das 
+// Nome da classe da janela (para programas de uma sï¿½ janela, normalmente este nome ï¿½ 
+// igual ao do prï¿½prio programa) "szprogName" ï¿½ usado mais abaixo na definiï¿½ï¿½o das 
 // propriedades do objecto janela
 TCHAR szProgName[] = TEXT("Base2022");
 
 // ============================================================================
-// FUNÇÃO DE INÍCIO DO PROGRAMA: WinMain()
+// FUNï¿½ï¿½O DE INï¿½CIO DO PROGRAMA: WinMain()
 // ============================================================================
-// Em Windows, o programa começa sempre a sua execução na função WinMain()que desempenha
-// o papel da função main() do C em modo consola WINAPI indica o "tipo da função" (WINAPI
-// para todas as declaradas nos headers do Windows e CALLBACK para as funções de
+// Em Windows, o programa comeï¿½a sempre a sua execuï¿½ï¿½o na funï¿½ï¿½o WinMain()que desempenha
+// o papel da funï¿½ï¿½o main() do C em modo consola WINAPI indica o "tipo da funï¿½ï¿½o" (WINAPI
+// para todas as declaradas nos headers do Windows e CALLBACK para as funï¿½ï¿½es de
 // processamento da janela)
-// Parâmetros:
-//   hInst: Gerado pelo Windows, é o handle (número) da instância deste programa 
-//   hPrevInst: Gerado pelo Windows, é sempre NULL para o NT (era usado no Windows 3.1)
-//   lpCmdLine: Gerado pelo Windows, é um ponteiro para uma string terminada por 0
-//              destinada a conter parâmetros para o programa 
-//   nCmdShow:  Parâmetro que especifica o modo de exibição da janela (usado em  
+// Parï¿½metros:
+//   hInst: Gerado pelo Windows, ï¿½ o handle (nï¿½mero) da instï¿½ncia deste programa 
+//   hPrevInst: Gerado pelo Windows, ï¿½ sempre NULL para o NT (era usado no Windows 3.1)
+//   lpCmdLine: Gerado pelo Windows, ï¿½ um ponteiro para uma string terminada por 0
+//              destinada a conter parï¿½metros para o programa 
+//   nCmdShow:  Parï¿½metro que especifica o modo de exibiï¿½ï¿½o da janela (usado em  
 //        	   ShowWindow()
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow) {
-	HWND hWnd;		// hWnd é o handler da janela, gerado mais abaixo por CreateWindow()
-	MSG lpMsg;		// MSG é uma estrutura definida no Windows para as mensagens
-	WNDCLASSEX wcApp;	// WNDCLASSEX é uma estrutura cujos membros servem para 
-			  // definir as características da classe da janela
+	HWND hWnd;		// hWnd ï¿½ o handler da janela, gerado mais abaixo por CreateWindow()
+	MSG lpMsg;		// MSG ï¿½ uma estrutura definida no Windows para as mensagens
+	WNDCLASSEX wcApp;	// WNDCLASSEX ï¿½ uma estrutura cujos membros servem para 
+			  // definir as caracterï¿½sticas da classe da janela
 
 	// ============================================================================
-	// 1. Definição das características da janela "wcApp" 
+	// 1. Definiï¿½ï¿½o das caracterï¿½sticas da janela "wcApp" 
 	//    (Valores dos elementos da estrutura "wcApp" do tipo WNDCLASSEX)
 	// ============================================================================
 	wcApp.cbSize = sizeof(WNDCLASSEX);      // Tamanho da estrutura WNDCLASSEX
-	wcApp.hInstance = hInst;		         // Instância da janela actualmente exibida 
-								   // ("hInst" é parâmetro de WinMain e vem 
-										 // inicializada daí)
+	wcApp.hInstance = hInst;		         // Instï¿½ncia da janela actualmente exibida 
+								   // ("hInst" ï¿½ parï¿½metro de WinMain e vem 
+										 // inicializada daï¿½)
 	wcApp.lpszClassName = szProgName;       // Nome da janela (neste caso = nome do programa)
-	wcApp.lpfnWndProc = TrataEventos;       // Endereço da função de processamento da janela
-											// ("TrataEventos" foi declarada no início e
+	wcApp.lpfnWndProc = TrataEventos;       // Endereï¿½o da funï¿½ï¿½o de processamento da janela
+											// ("TrataEventos" foi declarada no inï¿½cio e
 											// encontra-se mais abaixo)
 	wcApp.style = CS_HREDRAW | CS_VREDRAW;  // Estilo da janela: Fazer o redraw se for
 											// modificada horizontal ou verticalmente
 
-	wcApp.hIcon = LoadIcon(NULL, IDI_QUESTION);   // "hIcon" = handler do ícon normal
+	wcApp.hIcon = LoadIcon(NULL, IDI_QUESTION);   // "hIcon" = handler do ï¿½con normal
 										   // "NULL" = Icon definido no Windows
-										   // "IDI_AP..." Ícone "aplicação"
-	wcApp.hIconSm = LoadIcon(NULL, IDI_SHIELD); // "hIconSm" = handler do ícon pequeno
+										   // "IDI_AP..." ï¿½cone "aplicaï¿½ï¿½o"
+	wcApp.hIconSm = LoadIcon(NULL, IDI_SHIELD); // "hIconSm" = handler do ï¿½con pequeno
 										   // "NULL" = Icon definido no Windows
-										   // "IDI_INF..." Ícon de informação
+										   // "IDI_INF..." ï¿½con de informaï¿½ï¿½o
 	wcApp.hCursor = LoadCursor(NULL, IDC_ARROW);	// "hCursor" = handler do cursor (rato) 
 							  // "NULL" = Forma definida no Windows
 							  // "IDC_ARROW" Aspecto "seta" 
 	wcApp.lpszMenuName = NULL;			// Classe do menu que a janela pode ter
-							  // (NULL = não tem menu)
+							  // (NULL = nï¿½o tem menu)
 	wcApp.cbClsExtra = 0;				// Livre, para uso particular
 	wcApp.cbWndExtra = 0;				// Livre, para uso particular
 	wcApp.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
 	// "hbrBackground" = handler para "brush" de pintura do fundo da janela. Devolvido por
-	// "GetStockObject".Neste caso o fundo será branco
+	// "GetStockObject".Neste caso o fundo serï¿½ branco
 
 	// ============================================================================
 	// 2. Registar a classe "wcApp" no Windows
@@ -85,93 +87,230 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	// ============================================================================
 	hWnd = CreateWindow(
 		szProgName,			// Nome da janela (programa) definido acima
-		TEXT("Exemplo de Janela Principal em C"),// Texto que figura na barra do título
+		TEXT("Exemplo de Janela Principal em C"),// Texto que figura na barra do tï¿½tulo
 		WS_OVERLAPPEDWINDOW,	// Estilo da janela (WS_OVERLAPPED= normal)
-		CW_USEDEFAULT,		// Posição x pixels (default=à direita da última)
-		CW_USEDEFAULT,		// Posição y pixels (default=abaixo da última)
+		CW_USEDEFAULT,		// Posiï¿½ï¿½o x pixels (default=ï¿½ direita da ï¿½ltima)
+		CW_USEDEFAULT,		// Posiï¿½ï¿½o y pixels (default=abaixo da ï¿½ltima)
 		CW_USEDEFAULT,		// Largura da janela (em pixels)
 		CW_USEDEFAULT,		// Altura da janela (em pixels)
 		(HWND)HWND_DESKTOP,	// handle da janela pai (se se criar uma a partir de
 						// outra) ou HWND_DESKTOP se a janela for a primeira, 
 						// criada a partir do "desktop"
 		(HMENU)NULL,			// handle do menu da janela (se tiver menu)
-		(HINSTANCE)hInst,		// handle da instância do programa actual ("hInst" é 
-						// passado num dos parâmetros de WinMain()
-		0);				// Não há parâmetros adicionais para a janela
+		(HINSTANCE)hInst,		// handle da instï¿½ncia do programa actual ("hInst" ï¿½ 
+						// passado num dos parï¿½metros de WinMain()
+		0);				// Nï¿½o hï¿½ parï¿½metros adicionais para a janela
 	  // ============================================================================
 	  // 4. Mostrar a janela
 	  // ============================================================================
 	ShowWindow(hWnd, nCmdShow);	// "hWnd"= handler da janela, devolvido por 
-					  // "CreateWindow"; "nCmdShow"= modo de exibição (p.e. 
-					  // normal/modal); é passado como parâmetro de WinMain()
-	UpdateWindow(hWnd);		// Refrescar a janela (Windows envia à janela uma 
-					  // mensagem para pintar, mostrar dados, (refrescar)… 
+					  // "CreateWindow"; "nCmdShow"= modo de exibiï¿½ï¿½o (p.e. 
+					  // normal/modal); ï¿½ passado como parï¿½metro de WinMain()
+	UpdateWindow(hWnd);		// Refrescar a janela (Windows envia ï¿½ janela uma 
+					  // mensagem para pintar, mostrar dados, (refrescar)ï¿½ 
 	// ============================================================================
 	// 5. Loop de Mensagens
 	// ============================================================================
-	// O Windows envia mensagens às janelas (programas). Estas mensagens ficam numa fila de
-	// espera até que GetMessage(...) possa ler "a mensagem seguinte"	
-	// Parâmetros de "getMessage":
-	// 1)"&lpMsg"=Endereço de uma estrutura do tipo MSG ("MSG lpMsg" ja foi declarada no  
-	//   início de WinMain()):
+	// O Windows envia mensagens ï¿½s janelas (programas). Estas mensagens ficam numa fila de
+	// espera atï¿½ que GetMessage(...) possa ler "a mensagem seguinte"	
+	// Parï¿½metros de "getMessage":
+	// 1)"&lpMsg"=Endereï¿½o de uma estrutura do tipo MSG ("MSG lpMsg" ja foi declarada no  
+	//   inï¿½cio de WinMain()):
 	//			HWND hwnd		handler da janela a que se destina a mensagem
 	//			UINT message		Identificador da mensagem
-	//			WPARAM wParam		Parâmetro, p.e. código da tecla premida
-	//			LPARAM lParam		Parâmetro, p.e. se ALT também estava premida
+	//			WPARAM wParam		Parï¿½metro, p.e. cï¿½digo da tecla premida
+	//			LPARAM lParam		Parï¿½metro, p.e. se ALT tambï¿½m estava premida
 	//			DWORD time		Hora a que a mensagem foi enviada pelo Windows
-	//			POINT pt		Localização do mouse (x, y) 
+	//			POINT pt		Localizaï¿½ï¿½o do mouse (x, y) 
 	// 2)handle da window para a qual se pretendem receber mensagens (=NULL se se pretendem
 	//   receber as mensagens para todas as
-	// janelas pertencentes à thread actual)
-	// 3)Código limite inferior das mensagens que se pretendem receber
-	// 4)Código limite superior das mensagens que se pretendem receber
+	// janelas pertencentes ï¿½ thread actual)
+	// 3)Cï¿½digo limite inferior das mensagens que se pretendem receber
+	// 4)Cï¿½digo limite superior das mensagens que se pretendem receber
 
 	// NOTA: GetMessage() devolve 0 quando for recebida a mensagem de fecho da janela,
-	// 	  terminando então o loop de recepção de mensagens, e o programa 
+	// 	  terminando entï¿½o o loop de recepï¿½ï¿½o de mensagens, e o programa 
 
 	while (GetMessage(&lpMsg, NULL, 0, 0)) {
-		TranslateMessage(&lpMsg);	// Pré-processamento da mensagem (p.e. obter código 
+		TranslateMessage(&lpMsg);	// Prï¿½-processamento da mensagem (p.e. obter cï¿½digo 
 					   // ASCII da tecla premida)
 		DispatchMessage(&lpMsg);	// Enviar a mensagem traduzida de volta ao Windows, que
-					   // aguarda até que a possa reenviar à função de 
+					   // aguarda atï¿½ que a possa reenviar ï¿½ funï¿½ï¿½o de 
 					   // tratamento da janela, CALLBACK TrataEventos (abaixo)
 	}
 
 	// ============================================================================
 	// 6. Fim do programa
 	// ============================================================================
-	return((int)lpMsg.wParam);	// Retorna sempre o parâmetro wParam da estrutura lpMsg
+	return((int)lpMsg.wParam);	// Retorna sempre o parï¿½metro wParam da estrutura lpMsg
 }
 
 // ============================================================================
-// FUNÇÃO DE PROCESSAMENTO DA JANELA
-// Esta função pode ter um nome qualquer: Apenas é necesário que na inicialização da
-// estrutura "wcApp", feita no início de // WinMain(), se identifique essa função. Neste
+// FUNï¿½ï¿½O DE PROCESSAMENTO DA JANELA
+// Esta funï¿½ï¿½o pode ter um nome qualquer: Apenas ï¿½ necesï¿½rio que na inicializaï¿½ï¿½o da
+// estrutura "wcApp", feita no inï¿½cio de // WinMain(), se identifique essa funï¿½ï¿½o. Neste
 // caso "wcApp.lpfnWndProc = WndProc"
 //
-// WndProc recebe as mensagens enviadas pelo Windows (depois de lidas e pré-processadas
-// no loop "while" da função WinMain()
-// Parâmetros:
+// WndProc recebe as mensagens enviadas pelo Windows (depois de lidas e prï¿½-processadas
+// no loop "while" da funï¿½ï¿½o WinMain()
+// Parï¿½metros:
 //		hWnd	O handler da janela, obtido no CreateWindow()
 //		messg	Ponteiro para a estrutura mensagem (ver estrutura em 5. Loop...
-//		wParam	O parâmetro wParam da estrutura messg (a mensagem)
-//		lParam	O parâmetro lParam desta mesma estrutura
+//		wParam	O parï¿½metro wParam da estrutura messg (a mensagem)
+//		lParam	O parï¿½metro lParam desta mesma estrutura
 //
-// NOTA:Estes parâmetros estão aqui acessíveis o que simplifica o acesso aos seus valores
+// NOTA:Estes parï¿½metros estï¿½o aqui acessï¿½veis o que simplifica o acesso aos seus valores
 //
-// A função EndProc é sempre do tipo "switch..." com "cases" que descriminam a mensagem
+// A funï¿½ï¿½o EndProc ï¿½ sempre do tipo "switch..." com "cases" que descriminam a mensagem
 // recebida e a tratar.
-// Estas mensagens são identificadas por constantes (p.e. 
+// Estas mensagens sï¿½o identificadas por constantes (p.e. 
 // WM_DESTROY, WM_CHAR, WM_KEYDOWN, WM_PAINT...) definidas em windows.h
 // ============================================================================
 
-LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam) {
-	HDC hdc;
+typedef struct PosChar {
+	DWORD xPos, yPos;
+	TCHAR c;
+}PosChar;
+
+typedef struct BitmapInfo {
+	BITMAP bmp;
+	HDC bmpDC;
+}BitmapInfo;
+
+void loadImages(BOOL set, BitmapInfo bitmap[], HWND hWnd) {
+	HBITMAP hBmp;
+	HDC hdc = GetDC(hWnd);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe1.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[0].bmp);
+	bitmap[0].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[0].bmpDC, hBmp);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe2.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[1].bmp);
+	bitmap[1].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[1].bmpDC, hBmp);
+	
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe3.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[2].bmp);
+	bitmap[2].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[2].bmpDC, hBmp);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe4.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[3].bmp);
+	bitmap[3].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[3].bmpDC, hBmp);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe5.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[4].bmp);
+	bitmap[4].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[4].bmpDC, hBmp);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe6.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[5].bmp);
+	bitmap[5].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[5].bmpDC, hBmp);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe7.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[6].bmp);
+	bitmap[6].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[6].bmpDC, hBmp);
+
+
+}
+
+void imprimirTabuleiro(HWND hWnd, int tabuleiro[20][20], int tamX, int tamY, BitmapInfo bitmap[]) {
+	int tamCelula = 0;
 	RECT rect;
-	static TCHAR c = '?';
-	int xPos, yPos;
+	HDC hdc = GetDC(hWnd);
+	GetClientRect(hWnd, &rect);
+	int paddingX = rect.right / tamX;
+	int paddingY = rect.bottom / tamY;
+	BITMAP currBitmap;
+
+	if (paddingX >= paddingY){
+		tamCelula = (paddingY);	//alterar mais tarde para adicionar algum tipo de padding
+		paddingX = (rect.right - rect.bottom) / 2;
+		paddingY = 0;
+	}
+	else {
+		tamCelula = (paddingX);
+		paddingY = (rect.bottom - rect.right) / 2;
+		paddingX = 0;
+	}
+
+	FillRect(hdc, &rect, CreateSolidBrush(RGB(100, 100, 100)));
+	for (int x = 0; x < tamX; x++){
+		for (int y = 0; y < tamY; y++){		
+			if (tabuleiro[x][y] > 0 && tabuleiro[x][y] < NUM_BITMAPS){
+				currBitmap = bitmap[tabuleiro[x][y] - 1].bmp;
+				StretchBlt(hdc, (tamCelula * x) + paddingX, (tamCelula * y) + paddingY, tamCelula, tamCelula, bitmap[tabuleiro[x][y] - 1].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
+
+			}
+			
+		}
+	}
+
+}
+
+LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam) {
+	RECT rect;
+	PAINTSTRUCT ps;
+	HDC hdc;
+	static TCHAR lastChar = '?';
+	static TCHAR c;
+	static PosChar posicoes[1000];
+	static DWORD count = 0;
+	static HBITMAP hBmp[7];
+	static int xBitmap, yBitmap;
+	static BitmapInfo bitmap[7];
+	static HDC bmpDC = NULL;
+	MINMAXINFO* mmi;
+	static int xpto = 0;
+	static int limDir;
+	static HDC memDC = NULL;
+	static int tabuleiro[20][20];
+	static int tamX = 10, tamY = 7;
 
 	switch (messg) {
+	case WM_CREATE:
+		loadImages(TRUE, bitmap, hWnd);
+
+		//CARREGAR MAPA PRE-DEFINIDO PARA TESTE
+		for (int x = 0; x < 20; x++){
+			for (int y = 0; y < 20; y++)
+			{
+				tabuleiro[x][y] = 0;
+			}
+		}
+		tabuleiro[0][2] = 1;
+		tabuleiro[1][2] = 1;
+		tabuleiro[2][2] = 1;
+		tabuleiro[3][2] = 1;
+		tabuleiro[4][2] = 4;
+		tabuleiro[4][3] = 2;
+		tabuleiro[4][4] = 5;
+		tabuleiro[3][4] = 3;
+		tabuleiro[3][5] = 2;
+		tabuleiro[3][6] = 6;
+		tabuleiro[4][6] = 1;
+		tabuleiro[5][6] = 1;
+		tabuleiro[6][6] = 1;
+		tabuleiro[7][6] = 1;
+		tabuleiro[8][6] = 5;
+		tabuleiro[8][5] = 3;
+		tabuleiro[9][5] = 1;
+		
+		tabuleiro[9][6] = 3;
+		tabuleiro[0][0] = 5;
+
+		//GetObject(hBmp, sizeof(bmp), &bmp);
+		hdc = GetDC(hWnd);
+		ReleaseDC(hWnd, hdc);
+		GetClientRect(hWnd, &rect);
+
+
+		break;
 	case WM_CLOSE:		// Close da janela	
 		if (MessageBox(hWnd, _T("Queres mesmo sair?"), _T("SAIR"),
 			MB_ICONQUESTION | MB_YESNO | MB_HELP) == IDYES)
@@ -184,16 +323,36 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		break;
 
 	case WM_LBUTTONDOWN:	//apanhar evento que escuta tecla rato	
-		xPos = GET_X_LPARAM(lParam);
-		yPos = GET_Y_LPARAM(lParam);
-		hdc = GetDC(hWnd);		//a função GetDC recupera um identificador para um contexto de dispositivo (DC) ...
-		GetClientRect(hWnd, &rect);
-		SetTextColor(hdc, RGB(0, 0, 0));
-		SetBkMode(hdc, TRANSPARENT);
-		rect.left = xPos;
-		rect.top = yPos;
-		DrawText(hdc, &c, 1, &rect, DT_SINGLELINE | DT_NOCLIP);
-		ReleaseDC(hWnd, hdc);
+		posicoes[count].xPos = GET_X_LPARAM(lParam);
+		posicoes[count].yPos = GET_Y_LPARAM(lParam);
+		posicoes[count].c = lastChar;
+		count++;
+		InvalidateRect(hWnd, NULL, TRUE);		//Chama WM_PAINT
+		break;
+	case WM_PAINT:
+		
+		hdc = BeginPaint(hWnd, &ps);
+
+		imprimirTabuleiro(hWnd, tabuleiro, tamX, tamY, bitmap);
+
+		//GetClientRect(hWnd, &rect);
+		//SetTextColor(hdc, RGB(0, 0, 0));
+		//SetBkMode(hdc, TRANSPARENT);
+
+		//A funÃ§Ã£o FillRect preenche um retÃ¢ngulo usando o pincel especificado.
+		//FillRect(hdc, &rect, CreateSolidBrush(RGB(249, 213, 2)));
+		//BitBlt(hdc, xBitmap, yBitmap, bmp[0].bmWidth, bmp[0].bmHeight, bmpDC, 0, 0, SRCCOPY);
+		//StretchBlt(hdc, xBitmap, yBitmap, bmp[0].bmWidth/2, bmp[0].bmHeight/2, bmpDC, 0, 0 ,bmp[0].bmWidth, bmp[0].bmHeight, SRCCOPY);
+
+		//A funÃ§Ã£o EndPaint marca o fim da pintura na janela especificada.Essa funÃ§Ã£o Ã© necessÃ¡ria para cada chamada Ã  funÃ§Ã£o BeginPaint
+
+		//for (DWORD i = 0; i < count; i++) {
+			//rect.left = posicoes[i].xPos;
+			//rect.top = posicoes[i].yPos;
+			//DrawText(hdc, &posicoes[i].c, 1, &rect, DT_SINGLELINE, DT_NOCLIP);
+		//}
+
+		EndPaint(hWnd, &ps);
 		break;
 	case WM_CHAR:	//apanhar  teclado
 		c = (wchar_t)wParam;
@@ -203,9 +362,9 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		PostQuitMessage(0);
 	default:
 		// Neste exemplo, para qualquer outra mensagem (p.e. "minimizar","maximizar","restaurar")
-		// não é efectuado nenhum processamento, apenas se segue o "default" do Windows
+		// nï¿½o ï¿½ efectuado nenhum processamento, apenas se segue o "default" do Windows
 		return(DefWindowProc(hWnd, messg, wParam, lParam));
-		break;  // break tecnicamente desnecessário por causa do return
+		break;  // break tecnicamente desnecessï¿½rio por causa do return
 	}
 	return(0);
 }
