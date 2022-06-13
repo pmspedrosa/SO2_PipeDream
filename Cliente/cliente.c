@@ -230,12 +230,12 @@ void imprimirTabuleiro(HWND hWnd, int tabuleiro[20][20], int tamX, int tamY, Bit
 
 	if (paddingX >= paddingY){
 		tamCelula = (paddingY);	//alterar mais tarde para adicionar algum tipo de padding
-		paddingX = (rect.right - rect.bottom) / 2;
+		paddingX = (rect.right - tamCelula * tamX) / 2;
 		paddingY = 0;
 	}
 	else {
 		tamCelula = (paddingX);
-		paddingY = (rect.bottom - rect.right) / 2;
+		paddingY = (rect.bottom - tamCelula * tamY) / 2;
 		paddingX = 0;
 	}
 
