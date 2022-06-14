@@ -283,7 +283,43 @@ void imprimirTabuleiro(HWND hWnd, int tabuleiro[20][20], int tamX, int tamY, Bit
 			rect.right = rect.left + tamCelula;
 		}
 	}
+}
 
+void processaClique(HWND hWnd, int tamX, int tamY, int posCliqueX, int posCliqueY) {
+	int tamCelula = 0;
+	RECT rect;
+	HDC hdc = GetDC(hWnd);
+	GetClientRect(hWnd, &rect);
+	int paddingX = rect.right / tamX;
+	int paddingY = rect.bottom / tamY;
+
+	if (paddingX >= paddingY) {
+		tamCelula = paddingY;
+		paddingX = (rect.right - tamCelula * tamX) / 2;
+		paddingY = 0;
+	}
+	else {
+		tamCelula = paddingX;
+		paddingY = (rect.bottom - tamCelula * tamY) / 2;
+		paddingX = 0;
+	}
+
+	if (posCliqueX < paddingX || posCliqueY < paddingY)
+		return;
+	if (posCliqueX > (tamX * tamCelula) + paddingX || posCliqueY > (tamY * tamCelula) + paddingY){
+		return;
+	}
+	int coordX, coordY;
+	coordX = (posCliqueX - paddingX) / tamCelula;
+	coordY = (posCliqueY - paddingY) / tamCelula;
+
+	//DEBUG START
+	TCHAR a[512];
+	_stprintf_s(a, 512, _T("TAM_CELULA = %d ,Clique %d, %d, Celula %d, %d\n"), tamCelula, posCliqueX, posCliqueY, coordX, coordY);
+	OutputDebugString(a);
+	//DEBUG END
+
+	//aqui chama a função para enviar mensagem ao servidor, para avisar do clique
 }
 
 LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam) {
@@ -356,11 +392,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		break;
 
 	case WM_LBUTTONDOWN:	//apanhar evento que escuta tecla rato	
-		posicoes[count].xPos = GET_X_LPARAM(lParam);
-		posicoes[count].yPos = GET_Y_LPARAM(lParam);
-		posicoes[count].c = lastChar;
-		count++;
-		InvalidateRect(hWnd, NULL, TRUE);		//Chama WM_PAINT
+		processaClique(hWnd, tamX, tamY, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		//InvalidateRect(hWnd, NULL, TRUE);		//Chama WM_PAINT
 		break;
 	case WM_PAINT:
 		
