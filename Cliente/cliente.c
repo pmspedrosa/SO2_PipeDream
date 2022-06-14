@@ -1,8 +1,8 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <tchar.h>
-#define TAM_BITMAP 300
-#define NUM_BITMAPS 8
+#define TAM_BITMAP 150
+#define NUM_BITMAPS 14
 /* ===================================================== */
 /* Programa base (esqueleto) para aplica��es Windows     */
 /* ===================================================== */
@@ -181,42 +181,75 @@ void loadImages(BOOL set, BitmapInfo bitmap[], HWND hWnd) {
 	HBITMAP hBmp;
 	HDC hdc = GetDC(hWnd);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe1.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe6_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[0].bmp);
 	bitmap[0].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[0].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe2.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe5_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[1].bmp);
 	bitmap[1].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[1].bmpDC, hBmp);
 	
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe3.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe4_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[2].bmp);
 	bitmap[2].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[2].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe4.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe3_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[3].bmp);
 	bitmap[3].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[3].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe5.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe2_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[4].bmp);
 	bitmap[4].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[4].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe6.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe1_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[5].bmp);
 	bitmap[5].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[5].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe7.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[6].bmp);
 	bitmap[6].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[6].bmpDC, hBmp);
 
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe1.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[7].bmp);
+	bitmap[7].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[7].bmpDC, hBmp);
 
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe2.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[8].bmp);
+	bitmap[8].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[8].bmpDC, hBmp);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe3.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[9].bmp);
+	bitmap[9].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[9].bmpDC, hBmp);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe4.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[10].bmp);
+	bitmap[10].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[10].bmpDC, hBmp);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe5.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[11].bmp);
+	bitmap[11].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[11].bmpDC, hBmp);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe6.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[12].bmp);
+	bitmap[12].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[12].bmpDC, hBmp);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	GetObject(hBmp, sizeof(BITMAP), &bitmap[13].bmp);
+	bitmap[13].bmpDC = CreateCompatibleDC(hdc);
+	SelectObject(bitmap[13].bmpDC, hBmp);
 }
 
 void imprimirTabuleiro(HWND hWnd, int tabuleiro[20][20], int tamX, int tamY, BitmapInfo bitmap[]) {
@@ -241,13 +274,13 @@ void imprimirTabuleiro(HWND hWnd, int tabuleiro[20][20], int tamX, int tamY, Bit
 
 	FillRect(hdc, &rect, CreateSolidBrush(RGB(100, 100, 100)));
 	for (int x = 0; x < tamX; x++){
-		for (int y = 0; y < tamY; y++){		
-			if (tabuleiro[x][y] > 0 && tabuleiro[x][y] < NUM_BITMAPS){
-				currBitmap = bitmap[tabuleiro[x][y] - 1].bmp;
-				StretchBlt(hdc, (tamCelula * x) + paddingX, (tamCelula * y) + paddingY, tamCelula, tamCelula, bitmap[tabuleiro[x][y] - 1].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
-
-			}
-			
+		for (int y = 0; y < tamY; y++){	
+			currBitmap = bitmap[tabuleiro[x][y] + 6].bmp;
+			StretchBlt(hdc, (tamCelula * x) + paddingX, (tamCelula * y) + paddingY, tamCelula, tamCelula, bitmap[tabuleiro[x][y] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
+			rect.left = (tamCelula * x) + paddingX;
+			rect.top = (tamCelula * y) + paddingY;
+			rect.bottom = rect.top + tamCelula;
+			rect.right = rect.left + tamCelula;
 		}
 	}
 
@@ -263,7 +296,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	static DWORD count = 0;
 	static HBITMAP hBmp[7];
 	static int xBitmap, yBitmap;
-	static BitmapInfo bitmap[7];
+	static BitmapInfo bitmap[NUM_BITMAPS];
 	static HDC bmpDC = NULL;
 	MINMAXINFO* mmi;
 	static int xpto = 0;
@@ -283,7 +316,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 				tabuleiro[x][y] = 0;
 			}
 		}
-		tabuleiro[0][2] = 1;
+		tabuleiro[0][2] = -1;
 		tabuleiro[1][2] = 1;
 		tabuleiro[2][2] = 1;
 		tabuleiro[3][2] = 1;
@@ -335,23 +368,6 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 		imprimirTabuleiro(hWnd, tabuleiro, tamX, tamY, bitmap);
 
-		//GetClientRect(hWnd, &rect);
-		//SetTextColor(hdc, RGB(0, 0, 0));
-		//SetBkMode(hdc, TRANSPARENT);
-
-		//A função FillRect preenche um retângulo usando o pincel especificado.
-		//FillRect(hdc, &rect, CreateSolidBrush(RGB(249, 213, 2)));
-		//BitBlt(hdc, xBitmap, yBitmap, bmp[0].bmWidth, bmp[0].bmHeight, bmpDC, 0, 0, SRCCOPY);
-		//StretchBlt(hdc, xBitmap, yBitmap, bmp[0].bmWidth/2, bmp[0].bmHeight/2, bmpDC, 0, 0 ,bmp[0].bmWidth, bmp[0].bmHeight, SRCCOPY);
-
-		//A função EndPaint marca o fim da pintura na janela especificada.Essa função é necessária para cada chamada à função BeginPaint
-
-		//for (DWORD i = 0; i < count; i++) {
-			//rect.left = posicoes[i].xPos;
-			//rect.top = posicoes[i].yPos;
-			//DrawText(hdc, &posicoes[i].c, 1, &rect, DT_SINGLELINE, DT_NOCLIP);
-		//}
-
 		EndPaint(hWnd, &ps);
 		break;
 	case WM_CHAR:	//apanhar  teclado
@@ -360,6 +376,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 	case WM_DESTROY:	//Destruir janela
 		PostQuitMessage(0);
+	case WM_ERASEBKGND: //Sent when the window background must be erased (for example, when a window is resized). 
+		return 1;
 	default:
 		// Neste exemplo, para qualquer outra mensagem (p.e. "minimizar","maximizar","restaurar")
 		// n�o � efectuado nenhum processamento, apenas se segue o "default" do Windows
