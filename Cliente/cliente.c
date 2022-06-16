@@ -432,25 +432,37 @@ void loadImages(BOOL set, BitmapInfo bitmap[], HWND hWnd) {
 	SelectObject(bitmap[13].bmpDC, hBmp);
 }
 
+int getPaddings(int tamX, int tamY, RECT* rect, int* paddingX, int* paddingY) {			
+	// Recebe dimensoes do tabuleiro, o rect do ecrã e ponteiros para as variáveis que guardaram os paddings
+	// Devolve o tamanho de célula
+
+	int tamCelula;
+	*paddingX = rect->right / tamX;
+	*paddingY = rect->bottom / tamY;
+
+	if (*paddingX >= *paddingY) {
+		tamCelula = *paddingY;
+		*paddingX = (rect->right - tamCelula * tamX) / 2;
+		*paddingY = 0;
+	}
+	else {
+		tamCelula = *paddingX;
+		*paddingY = (rect->bottom - tamCelula * tamY) / 2;
+		*paddingX = 0;
+	}
+
+	return tamCelula;
+}
+
 void imprimirTabuleiro(HWND hWnd, int tabuleiro[20][20], int tamX, int tamY, BitmapInfo bitmap[]) {
-	int tamCelula = 0;
 	RECT rect;
 	HDC hdc = GetDC(hWnd);
 	GetClientRect(hWnd, &rect);
-	int paddingX = rect.right / tamX;
-	int paddingY = rect.bottom / tamY;
+	int paddingX, paddingY;
+	int tamCelula = getPaddings(tamX, tamY, &rect, &paddingX, &paddingY);
+
 	BITMAP currBitmap;
 
-	if (paddingX >= paddingY){
-		tamCelula = (paddingY);	//alterar mais tarde para adicionar algum tipo de padding
-		paddingX = (rect.right - tamCelula * tamX) / 2;
-		paddingY = 0;
-	}
-	else {
-		tamCelula = (paddingX);
-		paddingY = (rect.bottom - tamCelula * tamY) / 2;
-		paddingX = 0;
-	}
 
 	FillRect(hdc, &rect, CreateSolidBrush(RGB(100, 100, 100)));
 	for (int x = 0; x < tamX; x++){
@@ -466,23 +478,11 @@ void imprimirTabuleiro(HWND hWnd, int tabuleiro[20][20], int tamX, int tamY, Bit
 }
 
 void processaClique(HWND hWnd, int tamX, int tamY, int posCliqueX, int posCliqueY) {
-	int tamCelula = 0;
 	RECT rect;
 	HDC hdc = GetDC(hWnd);
 	GetClientRect(hWnd, &rect);
-	int paddingX = rect.right / tamX;
-	int paddingY = rect.bottom / tamY;
-
-	if (paddingX >= paddingY) {
-		tamCelula = paddingY;
-		paddingX = (rect.right - tamCelula * tamX) / 2;
-		paddingY = 0;
-	}
-	else {
-		tamCelula = paddingX;
-		paddingY = (rect.bottom - tamCelula * tamY) / 2;
-		paddingX = 0;
-	}
+	int paddingX, paddingY;
+	int tamCelula = getPaddings(tamX, tamY, &rect, &paddingX, &paddingY);
 
 	if (posCliqueX < paddingX || posCliqueY < paddingY)
 		return;
@@ -500,6 +500,56 @@ void processaClique(HWND hWnd, int tamX, int tamY, int posCliqueX, int posClique
 	//DEBUG END
 
 	//aqui chama a função para enviar mensagem ao servidor, para avisar do clique
+}
+
+BOOL iniciaDetecaoHover(HWND hWnd) {
+	TRACKMOUSEEVENT tme;
+	tme.cbSize = sizeof(TRACKMOUSEEVENT);
+	tme.dwFlags = TME_HOVER;
+	tme.hwndTrack = hWnd;
+	tme.dwHoverTime = 2000;
+
+	return TrackMouseEvent(&tme);
+}
+
+void processaHover(HWND hWnd, int tamX, int tamY, int posHoverX, int posHoverY) {
+	RECT rect;
+	HDC hdc = GetDC(hWnd);
+	GetClientRect(hWnd, &rect);
+	int paddingX, paddingY;
+	int tamCelula = getPaddings(tamX, tamY, &rect, &paddingX, &paddingY);
+
+	if (posHoverX < paddingX || posHoverY < paddingY)
+		return;
+	if (posHoverX > (tamX * tamCelula) + paddingX || posHoverY > (tamY * tamCelula) + paddingY) {
+		return;
+	}
+	int coordX, coordY;
+	coordX = (posHoverX - paddingX) / tamCelula;
+	coordY = (posHoverY - paddingY) / tamCelula;
+
+	//DEBUG START
+	TCHAR a[512];
+	_stprintf_s(a, 512, _T("Hovered célula %d, %d\n"), coordX, coordY);
+	OutputDebugString(a);
+	//DEBUG END
+
+	int celulaAtivaX = 0, celulaAtivaY = 0;		//apenas aqui para referência futura. estes dados farão parte de uma estrutura que guarde também o tabuleiro e as suas dimensoes
+	if (coordX == celulaAtivaX && coordY == celulaAtivaY){
+		OutputDebugString(_T("Hover na Célula Ativa\n"));
+		//chama função para enviar mensagem ao servidor a avisar do evento hover
+		
+		// a receção de uma resposta por parte do servidor deve iniciar um evento de deteção de que mexeu o rato, para parar o hover
+		// não deve ser feito aqui, mas sim na thread de leitura de pipes
+	}
+	else {			//se não for a célula correta, recomeça a deteção de hover
+		if (iniciaDetecaoHover(hWnd)) {
+			OutputDebugString(_T("INICIOU DETEÇÂO HOVER\n"));
+		}
+		else {
+			OutputDebugString(_T("NÃO CONSEGUIU INICIAR DETEÇÂO HOVER\n"));
+		}
+	}
 }
 
 LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam) {
@@ -557,8 +607,6 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		hdc = GetDC(hWnd);
 		ReleaseDC(hWnd, hdc);
 		GetClientRect(hWnd, &rect);
-
-
 		break;
 	case WM_CLOSE:		// Close da janela	
 		if (MessageBox(hWnd, _T("Queres mesmo sair?"), _T("SAIR"),
@@ -574,6 +622,13 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	case WM_LBUTTONDOWN:	//apanhar evento que escuta tecla rato	
 		processaClique(hWnd, tamX, tamY, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 		//InvalidateRect(hWnd, NULL, TRUE);		//Chama WM_PAINT
+		
+		// APENAS PARA TESTE. SERÁ REMOVIDO DAQUI E CHAMADO QUANDO RECEBER INFORMAÇÃO DO SERVIDOR DE QUE SE INICIOU O JOGO
+		iniciaDetecaoHover(hWnd);
+		
+		break;
+	case WM_MOUSEHOVER:
+		processaHover(hWnd, tamX, tamY, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 		break;
 	case WM_PAINT:
 		
