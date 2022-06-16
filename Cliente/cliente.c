@@ -1,48 +1,228 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <tchar.h>
+#include "cliente.h"
 #define TAM_BITMAP 150
 #define NUM_BITMAPS 14
-/* ===================================================== */
-/* Programa base (esqueleto) para aplica��es Windows     */
-/* ===================================================== */
-// Cria uma janela de nome "Janela Principal" e pinta fundo de branco
-// Modelo para programas Windows:
-//  Composto por 2 fun��es: 
-//	WinMain()     = Ponto de entrada dos programas windows
-//			1) Define, cria e mostra a janela
-//			2) Loop de recep��o de mensagens provenientes do Windows
-//     TrataEventos()= Processamentos da janela (pode ter outro nome)
-//			1) � chamada pelo Windows (callback) 
-//			2) Executa c�digo em fun��o da mensagem recebida
+
+
+Msg msg;
+TCHAR mensagem[MAX];
+TCHAR cmd[MAX];
 
 LRESULT CALLBACK TrataEventos(HWND, UINT, WPARAM, LPARAM);
 
-// Nome da classe da janela (para programas de uma s� janela, normalmente este nome � 
-// igual ao do pr�prio programa) "szprogName" � usado mais abaixo na defini��o das 
-// propriedades do objecto janela
 TCHAR szProgName[] = TEXT("Base2022");
 
-// ============================================================================
-// FUN��O DE IN�CIO DO PROGRAMA: WinMain()
-// ============================================================================
-// Em Windows, o programa come�a sempre a sua execu��o na fun��o WinMain()que desempenha
-// o papel da fun��o main() do C em modo consola WINAPI indica o "tipo da fun��o" (WINAPI
-// para todas as declaradas nos headers do Windows e CALLBACK para as fun��es de
-// processamento da janela)
-// Par�metros:
-//   hInst: Gerado pelo Windows, � o handle (n�mero) da inst�ncia deste programa 
-//   hPrevInst: Gerado pelo Windows, � sempre NULL para o NT (era usado no Windows 3.1)
-//   lpCmdLine: Gerado pelo Windows, � um ponteiro para uma string terminada por 0
-//              destinada a conter par�metros para o programa 
-//   nCmdShow:  Par�metro que especifica o modo de exibi��o da janela (usado em  
-//        	   ShowWindow()
+
+
+TCHAR comandosParaString(Msg msg) {
+	TCHAR str[MAX] = _T("");
+	TCHAR tk[MAX] = _T(" ");
+
+	_tcscat_s(str, MAX, msg.cmd);
+	if (msg.numargs > 0) {
+		for (int i = 0; i < msg.numargs; i++)
+		{
+			_tcscat_s(str, MAX, tk);
+			_tcscat_s(str, MAX, msg.args[i]);
+		}
+	}
+
+	return str;
+}
+
+
+
+DWORD WINAPI ThreadLer(LPVOID param) {						
+	//fica sempre á escuta de ler coisas vindas do named pipe
+	//escreve diretamente no ecrã
+	DadosThreadPipe* dados = (DadosThreadPipe*)param;
+	TCHAR buf[MAX];
+	DWORD n;
+
+	OutputDebugString(TEXT("[Cliente] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), NOME_PIPE_SERVIDOR);
+
+	//espera que exista um named pipe para ler do mesmo
+	//bloqueia aqui
+	if (!WaitNamedPipe(NOME_PIPE_SERVIDOR, NMPWAIT_WAIT_FOREVER)) {
+		OutputDebugString(TEXT("[ERRO] Ligar ao pipe '%s'! (WaitNamedPipe)\n"), NOME_PIPE_SERVIDOR);
+		exit(-1);
+	}
+
+	OutputDebugString(TEXT("[Cliente] Ligação ao pipe do servidor... (CreateFile)\n"));
+
+	HANDLE hPipe = CreateFile(NOME_PIPE_SERVIDOR, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	if (hPipe == NULL) {
+		OutputDebugString(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), NOME_PIPE_SERVIDOR);
+		exit(-1);
+	}
+
+	OutputDebugString(TEXT("[Cliente] Liguei-me...\n"));
+
+	while (dados->terminar == 0) {
+		//le as mensagens enviadas pelo cliente
+		BOOL ret = ReadFile(hPipe, buf, sizeof(buf), &n, NULL);
+		buf[n / sizeof(TCHAR)] = '\0';
+
+		if (!ret || !n) {
+			OutputDebugString(TEXT("[Cliente] %d %d... (ReadFile)\n"), ret, n);
+			break;
+		}
+
+		OutputDebugString(TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
+		_tcscpy_s(mensagem, MAX, buf);
+
+	}
+
+	CloseHandle(hPipe);
+	Sleep(200);
+
+	return 0;
+
+}
+
+
+DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o servidor através do named pipe
+	DadosThreadPipe* dados = (DadosThreadPipe*)param;
+	DWORD n;
+	int i;
+
+
+	do {
+		//sistema de mensagens
+
+		/*para->água parada
+		pi-> impossivel colocar peça no local indicado
+		pc-> peça colocada com sucesso
+		perdeu -> perdeu
+		ganhou -> ganhou
+		barr -> barreira adicionada
+		...
+		*/
+
+		//fica bloqueado à espera do evento
+		WaitForSingleObject(dados->hEventoNamedPipe, INFINITE);
+
+		TCHAR buf[MAX] = _T("asdilvbna");
+		_tcscpy_s(cmd, MAX,buf);
+		
+
+		WaitForSingleObject(dados->hMutex, INFINITE);
+		if (dados->hPipe.activo) {
+			if (!WriteFile(dados->hPipe.hPipe, cmd, _tcslen(cmd) * sizeof(TCHAR), &n, NULL))
+				OutputDebugString(TEXT("[ERRO] Escrever no pipe! (WriteFile)\n"));
+			else
+				OutputDebugString(TEXT("[ESCRITOR] Enviei %d bytes ao cliente ... (WriteFile)\n"), n);
+		}
+		ReleaseMutex(dados->hMutex);
+		Sleep(2000);
+
+	} while (dados->terminar == 0);
+	CloseHandle(dados->hThread);
+	return 0;
+}
+
+
+BOOL initNamedPipes(DadosThreadPipe* dados) {
+	HANDLE hPipe, hThread;
+	dados->terminar = 0;
+
+	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX_NPIPE_CLI); //Criação do mutex
+	if (dados->hMutex == NULL) {
+		OutputDebugString(TEXT("[Erro] ao criar mutex!\n"));
+		return FALSE;
+	}
+
+	hPipe = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 1, MAX * sizeof(TCHAR),MAX * sizeof(TCHAR), 1000, NULL);
+	if (hPipe == INVALID_HANDLE_VALUE) {
+		OutputDebugString(TEXT("[ERRO] Criar Named Pipe! (CreateNamedPipe)"));
+		CloseHandle(dados->hMutex);
+		return FALSE;
+	}
+
+	WaitForSingleObject(dados->hMutex, INFINITE);
+	dados->hPipe.hPipe = hPipe;
+	dados->hPipe.activo = FALSE;
+	ReleaseMutex(dados->hMutex);
+
+	_tprintf(TEXT("[CLIENTE] Esperar ligação de um servidor... (ConnectNamedPipe)\n"));
+	//o cliente espera até ter um servidor conectado a esta instância
+	if (!ConnectNamedPipe(dados->hPipe.hPipe, NULL)) {
+		OutputDebugString(TEXT("[ERRO] Ligação ao servidor! (ConnectNamedPipe\n"));
+		CloseHandle(dados->hMutex);
+		DisconnectNamedPipe(dados->hPipe.hPipe);
+		return FALSE;
+	}
+	//_tprintf(TEXT(" Ligação ao servidor com sucesso! (ConnectNamedPipe\n"));
+	OutputDebugString(TEXT(" Ligação ao servidor com sucesso! (ConnectNamedPipe\n"));
+	WaitForSingleObject(dados->hMutex, INFINITE);
+	dados->hPipe.activo = TRUE;
+	ReleaseMutex(dados->hMutex);
+
+	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, EVENT_NAMEDPIPE_SV);
+	if (dados->hEventoNamedPipe == NULL) {
+		OutputDebugString(_T("Erro: CreateEvent NamedPipe(%d)\n"), GetLastError());
+		CloseHandle(dados->hMutex);
+		DisconnectNamedPipe(dados->hPipe.hPipe);
+		return FALSE;
+	}
+}
+
+
+
+
+
+
+
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow) {
 	HWND hWnd;		// hWnd � o handler da janela, gerado mais abaixo por CreateWindow()
 	MSG lpMsg;		// MSG � uma estrutura definida no Windows para as mensagens
 	WNDCLASSEX wcApp;	// WNDCLASSEX � uma estrutura cujos membros servem para 
 			  // definir as caracter�sticas da classe da janela
+
+	DadosThreadPipe dadosPipes;
+
+	//utilizar a teentativa de abrir o evento como forma de saber se o servidor está ativo
+	HANDLE hEventUpdateTabuleiro = OpenEvent(EVENT_MODIFY_STATE | SYNCHRONIZE, FALSE, EVENT_TABULEIRO);
+
+	if (hEventUpdateTabuleiro == NULL) {
+		OutputDebugString(_T("Erro: OpenEvent (%d)\n"), GetLastError());
+		//dados->terminar = 1;
+		return 0;
+	}
+
+	dadosPipes.terminar = 0;
+
+	HANDLE hThreadLer = CreateThread(NULL, 0, ThreadLer, &dadosPipes, 0, NULL);
+	if (hThreadLer == NULL) {
+		OutputDebugString(TEXT("[Erro] ao criar thread!\n"));
+		return -1;
+	}
+
+
+	if (!initNamedPipes(&dadosPipes)) {
+		OutputDebugString(_T("Erro ao criar named Pipes do Cliente.\n"));
+		CloseHandle(hThreadLer);
+		exit(1);
+	}
+
+	//criacao da thread
+	HANDLE hThreadEscrever = CreateThread(NULL, 0, ThreadEscrever, &dadosPipes, 0, NULL);
+	if (hThreadEscrever == NULL) {
+		OutputDebugString(TEXT("[Erro] ao criar thread!\n"));
+		//closehandle
+		return -1;
+	}
+	
+	
+
+	//dadosPipes.hThread = hThreadEscrever;
+	
+
+
 
 	// ============================================================================
 	// 1. Defini��o das caracter�sticas da janela "wcApp" 
@@ -403,6 +583,20 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 		EndPaint(hWnd, &ps);
 		break;
+	case WM_RBUTTONDOWN:
+		/*xPos = GET_X_LPARAM(lParam);
+		yPos = GET_Y_LPARAM(lParam);
+		hdc = GetDC(hWnd);		//a função GetDC recupera um identificador para um contexto de dispositivo (DC) ...
+		GetClientRect(hWnd, &rect);
+		SetTextColor(hdc, RGB(0, 0, 0));
+		SetBkMode(hdc, TRANSPARENT);
+		rect.left = xPos;
+		rect.top = yPos;
+		DrawText(hdc, &mensagem, _tcslen(mensagem), &rect, DT_SINGLELINE | DT_NOCLIP);
+		ReleaseDC(hWnd, hdc);
+		break;*/
+
+
 	case WM_CHAR:	//apanhar  teclado
 		c = (wchar_t)wParam;
 		break;

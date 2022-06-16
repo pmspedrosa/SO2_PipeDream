@@ -1,5 +1,8 @@
 ﻿#include "servidor.h"
 
+TCHAR info[MAX];
+
+
 TCHAR** divideString(TCHAR * comando, const TCHAR * delim, unsigned int* tam) {
 	TCHAR* proxToken = NULL, ** temp, ** arrayCmd = NULL;
 	TCHAR* token = _tcstok_s(comando, delim, &proxToken);
@@ -27,6 +30,144 @@ TCHAR** divideString(TCHAR * comando, const TCHAR * delim, unsigned int* tam) {
 	}
 	return arrayCmd;
 }
+
+
+DWORD WINAPI ThreadLer(LPVOID param) {
+	//fica sempre á escuta de ler coisas vindas do named pipe
+	//escreve diretamente no ecrã
+	DadosThreadPipe* dados = (DadosThreadPipe*)param;
+	TCHAR buf[MAX];
+	DWORD n;
+
+	_tprintf(TEXT("[SV] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), NOME_PIPE_CLIENTE);
+
+	//espera que exista um named pipe para ler do mesmo
+	//bloqueia aqui
+	if (!WaitNamedPipe(NOME_PIPE_CLIENTE, NMPWAIT_WAIT_FOREVER)) {
+		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (WaitNamedPipe)\n"), NOME_PIPE_CLIENTE);
+		exit(-1);
+	}
+
+	_tprintf(TEXT("[SV] Ligação ao pipe do cliente... (CreateFile)\n"));
+
+	HANDLE hPipe = CreateFile(NOME_PIPE_CLIENTE, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	if (hPipe == NULL) {
+		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), NOME_PIPE_CLIENTE);
+		exit(-1);
+	}
+
+	_tprintf(TEXT("[SV] Liguei-me...\n"));
+
+	while (dados->terminar == 0) {
+		//le as mensagens enviadas pelo cliente
+		BOOL ret = ReadFile(hPipe, buf, sizeof(buf), &n, NULL);
+		buf[n / sizeof(TCHAR)] = '\0';
+
+		if (!ret || !n) {
+			_tprintf(TEXT("[SV] %d %d... (ReadFile)\n"), ret, n);
+			break;
+		}
+
+		_tprintf(TEXT("[SV] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
+
+
+
+		//divide string recebida e aciona as funções adequadas aos comandos
+
+
+
+		//sistema de mensagens
+
+		/*para->água parada
+		pi-> impossivel colocar peça no local indicado
+		pc-> peça colocada com sucesso
+		perdeu -> perdeu
+		ganhou -> ganhou
+		barr -> barreira adicionada
+		...
+		*/
+
+
+		//_tcscpy_s(mensagem, MAX, buf);
+
+	}
+
+	CloseHandle(hPipe);
+	Sleep(200);
+
+	return 0;
+
+}
+
+
+DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o cliente através do named pipe
+	//funcionamento -> evento ativa quando texto variável de "escrita" é alterada
+	DadosThreadPipe* dados = (DadosThreadPipe*)param;
+	DWORD n;
+	TCHAR buf[MAX]=_T("yodvbasucansdo");
+	int i;
+	//_tcscpy_s(buf, MAX, _T("aygfhilvanvoadf\n"));
+	
+
+	do {
+		//ficar bloqueado à espera de um evento 
+		WaitForSingleObject(dados->hEventoNamedPipe, INFINITE);
+
+		_tcscpy_s(dados->mensagem, MAX, buf);
+
+
+		//escreve no named pipe
+		for (i = 0; i < NPIPES; i++) {
+			WaitForSingleObject(dados->hMutex, INFINITE);
+			if (dados->hPipe[i].activo) {
+				if (!WriteFile(dados->hPipe[i].hPipe, dados->mensagem, _tcslen(dados->mensagem) * sizeof(TCHAR), &n, NULL))
+					_tprintf(TEXT("[ERRO] Escrever no pipe! (WriteFile)\n"));
+				else
+					_tprintf(TEXT("[SV] Enviei %d bytes ao cliente ... (WriteFile)\n"), n);
+			}
+			//libertamos o mutex
+			ReleaseMutex(dados->hMutex);
+		}
+			Sleep(1000);
+
+	} while (dados->terminar==0);
+	dados->terminar = 1;
+
+
+	return 0;
+}
+
+
+DWORD WINAPI ThreadAceitaClientes(LPVOID param) {
+	DadosThreadPipe* dados = (DadosThreadPipe*)param; 
+	
+	do {
+		if(dados->numClientes<2){
+			_tprintf(TEXT("[SV] Esperar ligação de um cliente... (ConnectNamedPipe)\n"));
+			//o servidor espera até ter um cliente conectado a esta instância
+			//bloqueia aqui
+			if (!ConnectNamedPipe(dados->hPipe[dados->numClientes].hPipe, NULL)) {
+				_tprintf(TEXT("[ERRO] Ligação ao cliente! (ConnectNamedPipe\n"));
+				exit(-1);
+			}
+			//bloqueamos no mutex
+			WaitForSingleObject(dados->hMutex, INFINITE);
+			dados->hPipe[dados->numClientes].activo = TRUE;
+			dados->numClientes++;
+			ResumeThread(dados->hThread[1]);
+			ReleaseMutex(dados->hMutex);
+		}
+		//se já tiver 2 clientes ligados 
+		Sleep(2000);
+	} while (dados->terminar == 0);
+	
+	return 0;
+}
+
+
+
+
 
 
 
@@ -594,16 +735,57 @@ DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeVal
 }
 
 
+
+BOOL initNamedPipes(DadosThreadPipe* dados) {
+	HANDLE hPipe, hThread;
+	dados->terminar = 0;
+	dados->numClientes = 0;
+
+
+	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX_NPIPE_SV); //Criação do mutex
+	if (dados->hMutex == NULL) {
+		_tprintf(TEXT("[Erro] ao criar mutex!\n"));
+		return FALSE;
+	}
+
+	for (int i = 0; i < NPIPES; i++)
+	{
+		hPipe = CreateNamedPipe(NOME_PIPE_SERVIDOR, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, NPIPES, 256 * sizeof(TCHAR), 256 * sizeof(TCHAR), 1000, NULL);
+		if (hPipe == INVALID_HANDLE_VALUE) {
+			_tprintf(TEXT("[ERRO] Criar Named Pipe! (CreateNamedPipe)"));
+			CloseHandle(dados->hMutex);
+			return FALSE;
+		}
+
+		WaitForSingleObject(dados->hMutex, INFINITE);
+		dados->hPipe[i].hPipe = hPipe;
+		dados->hPipe[i].activo = FALSE;
+		ReleaseMutex(dados->hMutex);
+	}
+
+	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, EVENT_NAMEDPIPE_SV);
+	if (dados->hEventoNamedPipe == NULL) {
+		_tprintf(_T("Erro: CreateEvent NamedPipe(%d)\n"), GetLastError());
+		CloseHandle(dados->hMutex);
+		return FALSE;
+	}
+}
+
+
+
+
 int _tmain(int argc, LPTSTR argv[]) {
 	HKEY hChaveRegistry;
 	DWORD respostaRegistry;
 
 	DWORD tamHorizontal, tamVertical;
 
-	HANDLE hThreadConsumidor, hThreadAgua;
+	HANDLE hThreadConsumidor, hThreadAgua, hThreadEscrever, hThreadLer;
 	DadosThread dados;
-	TCHAR comando[100];
+	TCHAR comando[MAX];
 	//unsigned int tab[20][20];
+
+	DadosThreadPipe dadosPipes;
 
 
 #ifdef UNICODE
@@ -651,14 +833,53 @@ int _tmain(int argc, LPTSTR argv[]) {
 		_tprintf(_T("Erro ao criar/abrir a memoria partilhada e mecanismos sincronos.\n"));
 		exit(1);
 	}
-
+	
 	hThreadConsumidor = CreateThread(NULL, 0, ThreadConsumidor, &dados, 0, NULL);
 	dados.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dados, CREATE_SUSPENDED, NULL);					//thread criada suspensa até que monitor inicie o jogo
 
 
+	if (!initNamedPipes(&dadosPipes)) {
+		_tprintf(_T("Erro ao criar named Pipes do Servidor.\n"));
+		dadosPipes.terminar = 1;
+		terminar(&dados,&dadosPipes);
+		CloseHandle(hThreadConsumidor);
+		exit(1);
+	}
+	
+	//thread atendeCliente
+	HANDLE hThreadAClientes = CreateThread(NULL, 0, ThreadAceitaClientes, &dadosPipes, 0, NULL);
+	if (hThreadAClientes == NULL) {
+		_tprintf(TEXT("[Erro] ao criar thread!\n"));
+		return -1;
+	}
+
+	
+	//criacao da thread ESCREVER
+	hThreadEscrever = CreateThread(NULL, 0, ThreadEscrever, &dadosPipes, 0, NULL);
+	if (hThreadEscrever == NULL) {
+		_tprintf(TEXT("[Erro] ao criar thread!\n"));
+		return -1;
+	}
+
+	_tprintf(TEXT("[ESCRITOR] Criar uma cópia do pipe '%s' ... (CreateNamedPipe)\n"), NOME_PIPE_SERVIDOR);
+	dadosPipes.hThread[0] = hThreadEscrever;
+
+
+	//criacao da thread LER
+	hThreadLer = CreateThread(NULL, 0, ThreadLer, &dadosPipes, CREATE_SUSPENDED, NULL);
+	if (hThreadLer == NULL) {
+		_tprintf(TEXT("[Erro] ao criar thread!\n"));
+		return -1;
+	}
+	dadosPipes.hThread[1] = hThreadLer;
+
+
+
+
+
 	if (hThreadConsumidor != NULL && dados.hThreadAgua != NULL) {
 		_tprintf(_T("Escreva 'SAIR' para sair.\n"));
-		do { 
+		do {
 			fflush(stdin);
 			_fgetts(comando, MAX-2, stdin);
 			//Retirar \n
@@ -667,6 +888,8 @@ int _tmain(int argc, LPTSTR argv[]) {
 			for (int i = 0; i < _tcslen(comando); i++)
 				comando[i] = _totupper(comando[i]);
 			_tprintf(TEXT("Comando : %s\n"), comando);
+			ResumeThread(dadosPipes.hThread);
+
 			if (_tcscmp(comando, PAUSA) == 0) {
 				if (dados.iniciado == TRUE) {
 					WaitForSingleObject(dados.hMutexTabuleiro, INFINITE);
@@ -702,21 +925,35 @@ int _tmain(int argc, LPTSTR argv[]) {
 		WaitForMultipleObjects(2, hThreadsWait, TRUE, 100);
 	}
 
-	dados.tabuleiro1.tabuleiro = NULL;
-	dados.tabuleiro2.tabuleiro = NULL;
-	UnmapViewOfFile(dados.memPar);
-	//CloseHandles...
-	CloseHandle(dados.hMutexBufferCircular);
-	CloseHandle(dados.hSemEscrita);
-	CloseHandle(dados.hSemLeitura);
-	CloseHandle(dados.hMapFile);
+	dadosPipes.terminar = 1;
 	CloseHandle(hThreadConsumidor);
-
-	CloseHandle(dados.hThreadAgua);
-	CloseHandle(dados.hEventUpdateTabuleiro);
-	CloseHandle(dados.hMutexTabuleiro);
-	CloseHandle(dados.hEventTerminar);
-
+	terminar(&dados, &dadosPipes);
 	
 	return 0;
+}
+
+
+int terminar(DadosThread* dados, DadosThreadPipe* dadosPipe) {
+	dados->tabuleiro1.tabuleiro = NULL;
+	dados->tabuleiro2.tabuleiro = NULL;
+	UnmapViewOfFile(dados->memPar);
+	//CloseHandles...
+	CloseHandle(dados->hMutexBufferCircular);
+	CloseHandle(dados->hSemEscrita);
+	CloseHandle(dados->hSemLeitura);
+	CloseHandle(dados->hMapFile);
+	CloseHandle(dados->hThreadAgua);
+	CloseHandle(dados->hEventUpdateTabuleiro);
+	CloseHandle(dados->hMutexTabuleiro);
+	CloseHandle(dados->hEventTerminar);
+
+	for (int i = 0; i < NPIPES; i++)
+	{
+		if (dadosPipe->hPipe[i].activo == TRUE) {
+			if (!DisconnectNamedPipe(dadosPipe->hPipe[i].hPipe)) {
+				_tprintf(TEXT("[ERRO] Desligar o pipe! (DisconnectNamedPipe)"));
+				exit(-1);
+			}
+		}
+	}
 }

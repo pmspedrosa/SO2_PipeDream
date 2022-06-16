@@ -164,7 +164,8 @@ DWORD WINAPI ThreadDisplay(LPVOID params) {
 
 	if (hEventUpdateTabuleiro == NULL) {
 		_tprintf(_T("Erro: OpenEvent (%d)\n"), GetLastError());
-		return -1;
+		dados->terminar = 1;
+		return 0;
 	}
 	HANDLE hMutexTabuleiro = OpenMutex(SYNCHRONIZE, FALSE, MUTEX_TABULEIRO);
 	if (hEventUpdateTabuleiro == NULL) {

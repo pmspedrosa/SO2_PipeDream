@@ -20,6 +20,8 @@
 /*mutex*/
 #define MUTEX_BUFFER _T("MUTEX_BUFFER")							//nome da mutex do buffer circular
 #define MUTEX_TABULEIRO _T("MUTEX_TABULEIRO")					//nome mutex tabuleiro
+#define MUTEX_NPIPE_SV _T("MUTEX_NPIPE_SV")						//nome mutex named Pipe servidor
+#define MUTEX_NPIPE_CLI _T("MUTEX_NPIPE_CLI")					//nome mutex named Pipe cliente
 /*semaforos*/
 #define SEM_ESCRITA _T("SEM_ESCRITA")							//nome do semaforo de escrita
 #define SEM_LEITURA _T("SEM_LEITURA")							//nome do semaforo de leitura
@@ -27,6 +29,9 @@
 /*eventos*/
 #define EVENT_TERMINAR _T("EVENT_TERMINAR")						//nome eveto terminar
 #define EVENT_TABULEIRO _T("EVENT_TABULEIRO")					//nome evento tabuleiro
+#define EVENT_NAMEDPIPE_SV _T("EVENT_NAMEDPIPE_SV")				//nome evento named pipe servidor
+#define EVENT_NAMEDPIPE_CLI _T("EVENT_NAMEDPIPE_CLI")			//nome evento named pipe cliente
+
 
 #define TAM_H_OMISSAO 10										//tamanho horizontal default
 #define TAM_V_OMISSAO 7											//tamanho vertical default
@@ -35,6 +40,7 @@
 #define MAX 256									
 #define TAM_BUFFER 10											//tamanho buffer
 #define NUM_SV 1												//numero de servidor ativos possiveis
+#define NPIPES 2												//Numero de pipes		
 
 /*direções*/
 #define CIMA 0
@@ -50,6 +56,42 @@
 #define INICIAR _T("INICIAR")									//iniciar jogo
 #define PAUSA _T("PAUSA")										//pausar jogo
 #define RETOMAR _T("RETOMAR")									//retomar jogo
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+#define NOME_PIPE_CLIENTE _T("\\\\.\\pipe\\cliente")					//nome named pipe Cliente-Servidor
+#define NOME_PIPE_SERVIDOR _T("\\\\.\\pipe\\servidor")				//nome named pipe Servidor-Cliente
+
+
+typedef struct {
+	TCHAR cmd[MAX];									//comando da mensagem enviada. Ex: paraAgua, info, cliquedir
+	TCHAR args[MAX][TAM_BUFFER];					//argumentos associados aos comandos, pode ter ou não
+	int numargs;
+	//handle maybe do cliente
+}Msg;
+
+typedef struct {
+	HANDLE hPipe;									// handle do pipe
+	BOOL activo;									//representa se a instancia do named pipe está ou nao ativa, se ja tem um cliente ou nao
+}PipeDados;
+
+typedef struct {
+	PipeDados hPipe[NPIPES];
+	HANDLE hMutex;
+	HANDLE hEventoNamedPipe;
+	HANDLE hThread[2];
+	int numClientes;
+	int terminar;
+	TCHAR mensagem[MAX];
+	//handle cliente a enviar a msg?
+}DadosThreadPipe;
+
+
+////////////////////////////////////////////////////////////////////////////////
+
 
 
 typedef struct {									//estrutura que vai criar cada celula do buffer circular
