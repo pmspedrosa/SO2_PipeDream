@@ -112,9 +112,8 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 
 	do {
 		//ficar bloqueado à espera de um evento 
+		WaitForSingleObject(dados->hEventoNamedPipe, INFINITE);
 
-		//eventoooooooooooooooooooooooooooooo
-		Sleep(12000);
 		_tcscpy_s(dados->mensagem, MAX, buf);
 
 
@@ -746,7 +745,7 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX_NPIPE_SV); //Criação do mutex
 	if (dados->hMutex == NULL) {
 		_tprintf(TEXT("[Erro] ao criar mutex!\n"));
-		return -1;
+		return FALSE;
 	}
 
 	for (int i = 0; i < NPIPES; i++)
@@ -754,13 +753,21 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 		hPipe = CreateNamedPipe(NOME_PIPE_SERVIDOR, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, NPIPES, 256 * sizeof(TCHAR), 256 * sizeof(TCHAR), 1000, NULL);
 		if (hPipe == INVALID_HANDLE_VALUE) {
 			_tprintf(TEXT("[ERRO] Criar Named Pipe! (CreateNamedPipe)"));
-			exit(-1);
+			CloseHandle(dados->hMutex);
+			return FALSE;
 		}
 
 		WaitForSingleObject(dados->hMutex, INFINITE);
 		dados->hPipe[i].hPipe = hPipe;
 		dados->hPipe[i].activo = FALSE;
 		ReleaseMutex(dados->hMutex);
+	}
+
+	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, EVENT_NAMEDPIPE_SV);
+	if (dados->hEventoNamedPipe == NULL) {
+		_tprintf(_T("Erro: CreateEvent NamedPipe(%d)\n"), GetLastError());
+		CloseHandle(dados->hMutex);
+		return FALSE;
 	}
 }
 

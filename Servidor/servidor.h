@@ -29,6 +29,9 @@
 /*eventos*/
 #define EVENT_TERMINAR _T("EVENT_TERMINAR")						//nome eveto terminar
 #define EVENT_TABULEIRO _T("EVENT_TABULEIRO")					//nome evento tabuleiro
+#define EVENT_NAMEDPIPE_SV _T("EVENT_NAMEDPIPE_SV")				//nome evento named pipe servidor
+#define EVENT_NAMEDPIPE_CLI _T("EVENT_NAMEDPIPE_CLI")			//nome evento named pipe cliente
+
 
 #define TAM_H_OMISSAO 10										//tamanho horizontal default
 #define TAM_V_OMISSAO 7											//tamanho vertical default
@@ -78,6 +81,7 @@ typedef struct {
 typedef struct {
 	PipeDados hPipe[NPIPES];
 	HANDLE hMutex;
+	HANDLE hEventoNamedPipe;
 	HANDLE hThread[2];
 	int numClientes;
 	int terminar;

@@ -17,7 +17,10 @@
 #define NPIPES 2									//Numero de pipes		
 
 
-#define EVENT_TABULEIRO _T("EVENT_TABULEIRO")		//evento tabuleiro
+#define EVENT_TABULEIRO _T("EVENT_TABULEIRO")					//evento tabuleiro
+#define EVENT_NAMEDPIPE_SV _T("EVENT_NAMEDPIPE_SV")				//nome evento named pipe servidor
+#define EVENT_NAMEDPIPE_CLI _T("EVENT_NAMEDPIPE_CLI")			//nome evento named pipe cliente
+
 #define MUTEX_NPIPE_SV _T("MUTEX_NPIPE_SV")						//nome mutex named Pipe servidor
 #define MUTEX_NPIPE_CLI _T("MUTEX_NPIPE_CLI")					//nome mutex named Pipe cliente
 
@@ -48,7 +51,7 @@ typedef struct {
 }PipeDados;
 typedef struct {
 	PipeDados hPipe;
-	//HANDLE hEvents[NPIPES];
+	HANDLE hEventoNamedPipe;
 	HANDLE hMutex;
 	HANDLE hThread[2];
 	int terminar;

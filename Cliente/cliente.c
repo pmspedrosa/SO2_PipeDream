@@ -4,18 +4,7 @@
 #include "cliente.h"
 #define TAM_BITMAP 150
 #define NUM_BITMAPS 14
-/* ===================================================== */
-/* Programa base (esqueleto) para aplica��es Windows     */
-/* ===================================================== */
-// Cria uma janela de nome "Janela Principal" e pinta fundo de branco
-// Modelo para programas Windows:
-//  Composto por 2 fun��es: 
-//	WinMain()     = Ponto de entrada dos programas windows
-//			1) Define, cria e mostra a janela
-//			2) Loop de recep��o de mensagens provenientes do Windows
-//     TrataEventos()= Processamentos da janela (pode ter outro nome)
-//			1) � chamada pelo Windows (callback) 
-//			2) Executa c�digo em fun��o da mensagem recebida
+
 
 Msg msg;
 TCHAR mensagem[MAX];
@@ -96,15 +85,12 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 
 DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o servidor através do named pipe
-	//funcionamento -> evento ativa quando texto variável de Msg é alterada
 	DadosThreadPipe* dados = (DadosThreadPipe*)param;
 	DWORD n;
 	int i;
 
 
 	do {
-		//ficar bloqueado à espera de um evento qualquer
-		
 		//sistema de mensagens
 
 		/*para->água parada
@@ -116,11 +102,9 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 		...
 		*/
 
-		//eventooooooooooooooooooooo
+		//fica bloqueado à espera do evento
+		WaitForSingleObject(dados->hEventoNamedPipe, INFINITE);
 
-
-
-		Sleep(5000);
 		TCHAR buf[MAX] = _T("asdilvbna");
 		_tcscpy_s(cmd, MAX,buf);
 		
@@ -148,13 +132,14 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX_NPIPE_CLI); //Criação do mutex
 	if (dados->hMutex == NULL) {
 		_tprintf(TEXT("[Erro] ao criar mutex!\n"));
-		return -1;
+		return FALSE;
 	}
 
 	hPipe = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 1, MAX * sizeof(TCHAR),MAX * sizeof(TCHAR), 1000, NULL);
 	if (hPipe == INVALID_HANDLE_VALUE) {
 		_tprintf(TEXT("[ERRO] Criar Named Pipe! (CreateNamedPipe)"));
-		exit(-1);
+		CloseHandle(dados->hMutex);
+		return FALSE;
 	}
 
 	WaitForSingleObject(dados->hMutex, INFINITE);
@@ -166,13 +151,23 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 	//o cliente espera até ter um servidor conectado a esta instância
 	if (!ConnectNamedPipe(dados->hPipe.hPipe, NULL)) {
 		_tprintf(TEXT("[ERRO] Ligação ao servidor! (ConnectNamedPipe\n"));
-		exit(-1);
+		CloseHandle(dados->hMutex);
+		DisconnectNamedPipe(dados->hPipe.hPipe);
+		return FALSE;
 	}
 	_tprintf(TEXT(" Ligação ao servidor com sucesso! (ConnectNamedPipe\n"));
 
 	WaitForSingleObject(dados->hMutex, INFINITE);
 	dados->hPipe.activo = TRUE;
 	ReleaseMutex(dados->hMutex);
+
+	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, EVENT_NAMEDPIPE_SV);
+	if (dados->hEventoNamedPipe == NULL) {
+		_tprintf(_T("Erro: CreateEvent NamedPipe(%d)\n"), GetLastError());
+		CloseHandle(dados->hMutex);
+		DisconnectNamedPipe(dados->hPipe.hPipe);
+		return FALSE;
+	}
 }
 
 
@@ -209,7 +204,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 
 	if (!initNamedPipes(&dadosPipes)) {
-		_tprintf(_T("Erro ao criar named Pipes do Cliente.\n"));;
+		_tprintf(_T("Erro ao criar named Pipes do Cliente.\n"));
+		CloseHandle(hThreadLer);
 		exit(1);
 	}
 
@@ -217,6 +213,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	HANDLE hThreadEscrever = CreateThread(NULL, 0, ThreadEscrever, &dadosPipes, 0, NULL);
 	if (hThreadEscrever == NULL) {
 		_tprintf(TEXT("[Erro] ao criar thread!\n"));
+		//closehandle
 		return -1;
 	}
 	
