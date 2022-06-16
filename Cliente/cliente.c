@@ -41,25 +41,25 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	TCHAR buf[MAX];
 	DWORD n;
 
-	_tprintf(TEXT("[Cliente] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), NOME_PIPE_SERVIDOR);
+	OutputDebugString(TEXT("[Cliente] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), NOME_PIPE_SERVIDOR);
 
 	//espera que exista um named pipe para ler do mesmo
 	//bloqueia aqui
 	if (!WaitNamedPipe(NOME_PIPE_SERVIDOR, NMPWAIT_WAIT_FOREVER)) {
-		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (WaitNamedPipe)\n"), NOME_PIPE_SERVIDOR);
+		OutputDebugString(TEXT("[ERRO] Ligar ao pipe '%s'! (WaitNamedPipe)\n"), NOME_PIPE_SERVIDOR);
 		exit(-1);
 	}
 
-	_tprintf(TEXT("[Cliente] Ligação ao pipe do servidor... (CreateFile)\n"));
+	OutputDebugString(TEXT("[Cliente] Ligação ao pipe do servidor... (CreateFile)\n"));
 
 	HANDLE hPipe = CreateFile(NOME_PIPE_SERVIDOR, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if (hPipe == NULL) {
-		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), NOME_PIPE_SERVIDOR);
+		OutputDebugString(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), NOME_PIPE_SERVIDOR);
 		exit(-1);
 	}
 
-	_tprintf(TEXT("[Cliente] Liguei-me...\n"));
+	OutputDebugString(TEXT("[Cliente] Liguei-me...\n"));
 
 	while (dados->terminar == 0) {
 		//le as mensagens enviadas pelo cliente
@@ -67,11 +67,11 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		buf[n / sizeof(TCHAR)] = '\0';
 
 		if (!ret || !n) {
-			_tprintf(TEXT("[Cliente] %d %d... (ReadFile)\n"), ret, n);
+			OutputDebugString(TEXT("[Cliente] %d %d... (ReadFile)\n"), ret, n);
 			break;
 		}
 
-		_tprintf(TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
+		OutputDebugString(TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
 		_tcscpy_s(mensagem, MAX, buf);
 
 	}
@@ -112,9 +112,9 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 		WaitForSingleObject(dados->hMutex, INFINITE);
 		if (dados->hPipe.activo) {
 			if (!WriteFile(dados->hPipe.hPipe, cmd, _tcslen(cmd) * sizeof(TCHAR), &n, NULL))
-				_tprintf(TEXT("[ERRO] Escrever no pipe! (WriteFile)\n"));
+				OutputDebugString(TEXT("[ERRO] Escrever no pipe! (WriteFile)\n"));
 			else
-				_tprintf(TEXT("[ESCRITOR] Enviei %d bytes ao cliente ... (WriteFile)\n"), n);
+				OutputDebugString(TEXT("[ESCRITOR] Enviei %d bytes ao cliente ... (WriteFile)\n"), n);
 		}
 		ReleaseMutex(dados->hMutex);
 		Sleep(2000);
@@ -131,13 +131,13 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 
 	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX_NPIPE_CLI); //Criação do mutex
 	if (dados->hMutex == NULL) {
-		_tprintf(TEXT("[Erro] ao criar mutex!\n"));
+		OutputDebugString(TEXT("[Erro] ao criar mutex!\n"));
 		return FALSE;
 	}
 
 	hPipe = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 1, MAX * sizeof(TCHAR),MAX * sizeof(TCHAR), 1000, NULL);
 	if (hPipe == INVALID_HANDLE_VALUE) {
-		_tprintf(TEXT("[ERRO] Criar Named Pipe! (CreateNamedPipe)"));
+		OutputDebugString(TEXT("[ERRO] Criar Named Pipe! (CreateNamedPipe)"));
 		CloseHandle(dados->hMutex);
 		return FALSE;
 	}
@@ -150,20 +150,20 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 	_tprintf(TEXT("[CLIENTE] Esperar ligação de um servidor... (ConnectNamedPipe)\n"));
 	//o cliente espera até ter um servidor conectado a esta instância
 	if (!ConnectNamedPipe(dados->hPipe.hPipe, NULL)) {
-		_tprintf(TEXT("[ERRO] Ligação ao servidor! (ConnectNamedPipe\n"));
+		OutputDebugString(TEXT("[ERRO] Ligação ao servidor! (ConnectNamedPipe\n"));
 		CloseHandle(dados->hMutex);
 		DisconnectNamedPipe(dados->hPipe.hPipe);
 		return FALSE;
 	}
-	_tprintf(TEXT(" Ligação ao servidor com sucesso! (ConnectNamedPipe\n"));
-
+	//_tprintf(TEXT(" Ligação ao servidor com sucesso! (ConnectNamedPipe\n"));
+	OutputDebugString(TEXT(" Ligação ao servidor com sucesso! (ConnectNamedPipe\n"));
 	WaitForSingleObject(dados->hMutex, INFINITE);
 	dados->hPipe.activo = TRUE;
 	ReleaseMutex(dados->hMutex);
 
 	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, EVENT_NAMEDPIPE_SV);
 	if (dados->hEventoNamedPipe == NULL) {
-		_tprintf(_T("Erro: CreateEvent NamedPipe(%d)\n"), GetLastError());
+		OutputDebugString(_T("Erro: CreateEvent NamedPipe(%d)\n"), GetLastError());
 		CloseHandle(dados->hMutex);
 		DisconnectNamedPipe(dados->hPipe.hPipe);
 		return FALSE;
@@ -189,7 +189,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	HANDLE hEventUpdateTabuleiro = OpenEvent(EVENT_MODIFY_STATE | SYNCHRONIZE, FALSE, EVENT_TABULEIRO);
 
 	if (hEventUpdateTabuleiro == NULL) {
-		_tprintf(_T("Erro: OpenEvent (%d)\n"), GetLastError());
+		OutputDebugString(_T("Erro: OpenEvent (%d)\n"), GetLastError());
 		//dados->terminar = 1;
 		return 0;
 	}
@@ -198,13 +198,13 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	HANDLE hThreadLer = CreateThread(NULL, 0, ThreadLer, &dadosPipes, 0, NULL);
 	if (hThreadLer == NULL) {
-		_tprintf(TEXT("[Erro] ao criar thread!\n"));
+		OutputDebugString(TEXT("[Erro] ao criar thread!\n"));
 		return -1;
 	}
 
 
 	if (!initNamedPipes(&dadosPipes)) {
-		_tprintf(_T("Erro ao criar named Pipes do Cliente.\n"));
+		OutputDebugString(_T("Erro ao criar named Pipes do Cliente.\n"));
 		CloseHandle(hThreadLer);
 		exit(1);
 	}
@@ -212,7 +212,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	//criacao da thread
 	HANDLE hThreadEscrever = CreateThread(NULL, 0, ThreadEscrever, &dadosPipes, 0, NULL);
 	if (hThreadEscrever == NULL) {
-		_tprintf(TEXT("[Erro] ao criar thread!\n"));
+		OutputDebugString(TEXT("[Erro] ao criar thread!\n"));
 		//closehandle
 		return -1;
 	}
