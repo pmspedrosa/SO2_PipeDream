@@ -512,7 +512,7 @@ BOOL iniciaDetecaoHover(HWND hWnd) {
 	return TrackMouseEvent(&tme);
 }
 
-void processaHover(HWND hWnd, int tamX, int tamY, int posHoverX, int posHoverY) {
+void processaHover(HWND hWnd, int tamX, int tamY, int posHoverX, int posHoverY, BOOL* pause) {
 	RECT rect;
 	HDC hdc = GetDC(hWnd);
 	GetClientRect(hWnd, &rect);
@@ -537,10 +537,11 @@ void processaHover(HWND hWnd, int tamX, int tamY, int posHoverX, int posHoverY) 
 	int celulaAtivaX = 0, celulaAtivaY = 0;		//apenas aqui para referência futura. estes dados farão parte de uma estrutura que guarde também o tabuleiro e as suas dimensoes
 	if (coordX == celulaAtivaX && coordY == celulaAtivaY){
 		OutputDebugString(_T("Hover na Célula Ativa\n"));
-		//chama função para enviar mensagem ao servidor a avisar do evento hover
 		
-		// a receção de uma resposta por parte do servidor deve iniciar um evento de deteção de que mexeu o rato, para parar o hover
-		// não deve ser feito aqui, mas sim na thread de leitura de pipes
+		//chama função para enviar mensagem ao servidor a avisar do evento hover
+
+		*pause = TRUE;
+		// não deve ser feito aqui, mas sim na thread de leitura de pipes, apos a rececao de mensagem de pausa
 	}
 	else {			//se não for a célula correta, recomeça a deteção de hover
 		if (iniciaDetecaoHover(hWnd)) {
@@ -550,6 +551,13 @@ void processaHover(HWND hWnd, int tamX, int tamY, int posHoverX, int posHoverY) 
 			OutputDebugString(_T("NÃO CONSEGUIU INICIAR DETEÇÂO HOVER\n"));
 		}
 	}
+}
+void screamPosition(int x, int y) {
+	//DEBUG START
+	TCHAR a[512];
+	_stprintf_s(a, 512, _T("MouseMove %d, %d\n"), x, y);
+	OutputDebugString(a);
+	//DEBUG END
 }
 
 LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam) {
@@ -570,6 +578,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	static HDC memDC = NULL;
 	static int tabuleiro[20][20];
 	static int tamX = 10, tamY = 7;
+
+	static BOOL pause = FALSE;
 
 	switch (messg) {
 	case WM_CREATE:
@@ -628,7 +638,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		
 		break;
 	case WM_MOUSEHOVER:
-		processaHover(hWnd, tamX, tamY, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		processaHover(hWnd, tamX, tamY, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), &pause);
 		break;
 	case WM_PAINT:
 		
@@ -648,10 +658,18 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		rect.left = xPos;
 		rect.top = yPos;
 		DrawText(hdc, &mensagem, _tcslen(mensagem), &rect, DT_SINGLELINE | DT_NOCLIP);
-		ReleaseDC(hWnd, hdc);
-		break;*/
-
-
+		ReleaseDC(hWnd, hdc);*/
+		break;
+	case WM_MOUSEMOVE:
+		//Trocar esta variavel pela que estará na estrutura de dados (estrutura que tem o tabuleiro, etc)
+		if (pause){
+			//PARA TESTE
+			//Trocar isto pela funcao de enviar mensagem ao servidor
+			screamPosition(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+			pause = FALSE;		//Isto será feito pela thread de leitura do pipe, apos a rececao da mensagem de fim de pausa
+		}
+		//OutputDebugString(_T("WM_MOUSEMOVE\n"));
+		break;
 	case WM_CHAR:	//apanhar  teclado
 		c = (wchar_t)wParam;
 		break;
