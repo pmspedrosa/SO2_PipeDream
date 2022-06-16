@@ -176,6 +176,12 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 }
 
 
+
+
+
+
+
+
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow) {
 	HWND hWnd;		// hWnd � o handler da janela, gerado mais abaixo por CreateWindow()
 	MSG lpMsg;		// MSG � uma estrutura definida no Windows para as mensagens
@@ -581,7 +587,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		EndPaint(hWnd, &ps);
 		break;
 	case WM_RBUTTONDOWN:
-		xPos = GET_X_LPARAM(lParam);
+		/*xPos = GET_X_LPARAM(lParam);
 		yPos = GET_Y_LPARAM(lParam);
 		hdc = GetDC(hWnd);		//a função GetDC recupera um identificador para um contexto de dispositivo (DC) ...
 		GetClientRect(hWnd, &rect);
@@ -591,7 +597,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		rect.top = yPos;
 		DrawText(hdc, &mensagem, _tcslen(mensagem), &rect, DT_SINGLELINE | DT_NOCLIP);
 		ReleaseDC(hWnd, hdc);
-		break;
+		break;*/
 
 
 	case WM_CHAR:	//apanhar  teclado
