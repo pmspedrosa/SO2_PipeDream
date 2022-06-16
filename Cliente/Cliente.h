@@ -18,29 +18,41 @@
 
 
 #define EVENT_TABULEIRO _T("EVENT_TABULEIRO")		//evento tabuleiro
-
+#define MUTEX_NPIPE_SV _T("MUTEX_NPIPE_SV")						//nome mutex named Pipe servidor
+#define MUTEX_NPIPE_CLI _T("MUTEX_NPIPE_CLI")					//nome mutex named Pipe cliente
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
 
-#define NOME_PIPE_CLIENTE _T("\\\.\\pipe\\cs")				//nome named pipe Cliente-Servidor
-#define NOME_PIPE_SERVIDOR _T("\\\.\\pipe\\sc")				//nome named pipe Servidor-Cliente
+#define NOME_PIPE_CLIENTE _T("\\\\.\\pipe\\cliente")					//nome named pipe Cliente-Servidor
+#define NOME_PIPE_SERVIDOR _T("\\\\.\\pipe\\servidor")				//nome named pipe Servidor-Cliente
 
 
 typedef struct {
 	TCHAR cmd[MAX];									//comando da mensagem enviada. Ex: paraAgua, info, cliquedir
 	TCHAR args[MAX][TAM_BUFFER];					//argumentos associados aos comandos, pode ter ou não
+	int numargs;
 }Msg;
-
+/*
 typedef struct {
 	HANDLE hPipe;									// handle do pipe
 	OVERLAPPED overlap;
 	BOOL activo;									//representa se a instancia do named pipe está ou nao ativa, se ja tem um cliente ou nao
+}PipeDados;*/
+
+typedef struct {
+	HANDLE hPipe;									// handle do pipe
+	BOOL activo;									//representa se a instancia do named pipe está ou nao ativa, se ja tem um cliente ou nao
 }PipeDados;
-
-
+typedef struct {
+	PipeDados hPipe;
+	//HANDLE hEvents[NPIPES];
+	HANDLE hMutex;
+	HANDLE hThread[2];
+	int terminar;
+}DadosThreadPipe;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -72,14 +84,6 @@ typedef struct {									//estrutura para passar as threads
 	int terminar;									//flag para indicar a thread para terminar -> 1 para sair, 0 caso contrario
 	int id;											//id do produtor
 }DadosThread;
-
-typedef struct {
-	PipeDados hPipe;
-	HANDLE hEvent;
-	HANDLE hMutex;
-	int numClientes;
-	int terminar;
-}DadosThreadPipes;
 
 
 #endif

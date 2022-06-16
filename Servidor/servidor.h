@@ -20,6 +20,8 @@
 /*mutex*/
 #define MUTEX_BUFFER _T("MUTEX_BUFFER")							//nome da mutex do buffer circular
 #define MUTEX_TABULEIRO _T("MUTEX_TABULEIRO")					//nome mutex tabuleiro
+#define MUTEX_NPIPE_SV _T("MUTEX_NPIPE_SV")						//nome mutex named Pipe servidor
+#define MUTEX_NPIPE_CLI _T("MUTEX_NPIPE_CLI")					//nome mutex named Pipe cliente
 /*semaforos*/
 #define SEM_ESCRITA _T("SEM_ESCRITA")							//nome do semaforo de escrita
 #define SEM_LEITURA _T("SEM_LEITURA")							//nome do semaforo de leitura
@@ -57,28 +59,31 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 
-#define NOME_PIPE_CLIENTE _T("\\\.\\pipe\\cs")				//nome named pipe Cliente-Servidor
-#define NOME_PIPE_SERVIDOR _T("\\\.\\pipe\\sc")				//nome named pipe Servidor-Cliente
+#define NOME_PIPE_CLIENTE _T("\\\\.\\pipe\\cliente")					//nome named pipe Cliente-Servidor
+#define NOME_PIPE_SERVIDOR _T("\\\\.\\pipe\\servidor")				//nome named pipe Servidor-Cliente
 
 
 typedef struct {
 	TCHAR cmd[MAX];									//comando da mensagem enviada. Ex: paraAgua, info, cliquedir
 	TCHAR args[MAX][TAM_BUFFER];					//argumentos associados aos comandos, pode ter ou não
+	int numargs;
+	//handle maybe do cliente
 }Msg;
 
 typedef struct {
 	HANDLE hPipe;									// handle do pipe
-	OVERLAPPED overlap;
 	BOOL activo;									//representa se a instancia do named pipe está ou nao ativa, se ja tem um cliente ou nao
 }PipeDados;
 
 typedef struct {
-	PipeDados hPipes[NPIPES];
-	HANDLE hEvents[NPIPES];
+	PipeDados hPipe[NPIPES];
 	HANDLE hMutex;
+	HANDLE hThread[2];
 	int numClientes;
 	int terminar;
-}DadosThreadPipes;
+	TCHAR mensagem[MAX];
+	//handle cliente a enviar a msg?
+}DadosThreadPipe;
 
 
 ////////////////////////////////////////////////////////////////////////////////
