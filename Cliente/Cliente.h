@@ -24,6 +24,12 @@
 #define MUTEX_NPIPE_SV _T("MUTEX_NPIPE_SV")						//nome mutex named Pipe servidor
 #define MUTEX_NPIPE_CLI _T("MUTEX_NPIPE_CLI")					//nome mutex named Pipe cliente
 
+#define INFO _T("INFO")
+#define PECA _T("PECA")
+#define SEQ _T("SEQ")
+#define SUSPENDE _T("SUSPENDE")
+#define RETOMA _T("RETOMA")
+#define SAIR _T("SAIR")
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -53,40 +59,18 @@ typedef struct {
 	PipeDados hPipe;
 	HANDLE hEventoNamedPipe;
 	HANDLE hMutex;
-	HANDLE hThread[2];
+	HANDLE hThreadLer;
+	HANDLE hThreadEscrever;
 	int terminar;
+	TCHAR mensagem[MAX];
+	int tabuleiro[20][20];
+	int tamX, tamY;
+	int celulaAtivaX, celulaAtivaY;
+	HWND hWnd;
+	int seq[6];
+
 }DadosThreadPipe;
 
-////////////////////////////////////////////////////////////////////////////////
-
-
-
-typedef struct {									//estrutura que vai criar cada celula do buffer circular
-	int id;											//id do produtor 
-	TCHAR comando[MAX];								//comando produzido
-}CelulaBuffer;
-
-typedef struct {
-	unsigned int nP;								//numero de produtores
-	unsigned int posE;								//posicao de escrita
-	unsigned int posL;								//posicao de leitura
-	int tabuleiro1[20][20];							//tabuleiro jogador 1
-	int tabuleiro2[20][20];							//tabuleiro jogador 2
-	unsigned int tamX, tamY;						//tam tabuleiro
-	CelulaBuffer buffer[TAM_BUFFER];				//array buffer circular de estruturas CelulaBuffer
-	TCHAR estado[MAX];								//string que indica o estado do programa
-}MemPartilhada;
-
-typedef struct {									//estrutura para passar as threads
-	MemPartilhada* memPar;							//ponteiro para a memoria partilhada
-	HANDLE hSemEscrita;								//semaforo que controla as escritas
-	HANDLE hSemLeitura;								//semaforo que controla as leituras
-	HANDLE hMutexBufferCircular;					//mutex buffer circular
-	HANDLE hMapFile;								//map file
-	HANDLE hEventTerminar;							//evento assinalado pelo servidor para sair
-	int terminar;									//flag para indicar a thread para terminar -> 1 para sair, 0 caso contrario
-	int id;											//id do produtor
-}DadosThread;
 
 
 #endif
