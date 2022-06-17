@@ -37,6 +37,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	_tprintf(TEXT("[SV] Liguei-me...\n"));
 
 	while (dados->terminar == 0) {
+		TCHAR a[MAX];
 		//le as mensagens enviadas pelo cliente
 		BOOL ret = ReadFile(hPipe, buf, sizeof(buf), &n, NULL);
 		buf[n / sizeof(TCHAR)] = '\0';
@@ -63,15 +64,8 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		#define JOGOSINGLEP _T("JOGOSINGLEP")
 		#define JOGOMULTIP _T("JOGOMULTIP"
 		*/
-		if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
-			//verificar se tem 2 args
-			//verificar se local onde se clicou tem peça e esta peça não tem água e não é barreira (>0 e <=6)
-			//se sim altera no tabuleiro[arg[1]][arg[2]] = arg[3];
-			//	envia escreve msg para cliente a dizer que peça x y 0 
-			//senão escreve msg a dizer que não foi possivel colocar peça
-		}
-		else if (_tcscmp(arrayComandos[0], RCLICK) == 0) {
-			if (nrArgs >= 3) {	//x,y,tipopeça
+		if (_tcscmp(arrayComandos[0], LCLICK) == 0 || _tcscmp(arrayComandos[0], RCLICK) == 0) {
+			if (nrArgs >= 2) {	//x,y,tipopeça
 				unsigned int x, y, t;
 				if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
 					x = _tstoi(arrayComandos[1]);
@@ -89,26 +83,36 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				}
 				else
 					y = 0;
-				if (_tcscmp(arrayComandos[3], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
-					t = _tstoi(arrayComandos[3]);
-					if (t == 0) {
-						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+
+				if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
+					//t = dados.sequencia[0];
+				}
+				else {
+					t = 0;
+				}
+
+				WaitForSingleObject(dados->hMutexTabuleiro,INFINITE);
+				BOOL colocou = verificaColocarPeca(dados, x, y, t);
+				ReleaseMutex(dados->hMutexTabuleiro);
+
+				
+				if (colocou == TRUE) {
+					_stprintf_s(a, MAX, _T("PECA %d %d %d\n"), x, y, t);
+					escreveNamedPipe(dados,a);
+					//sequencia atualiza
+				}
+				else {
+					if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
+						_stprintf_s(a, MAX, _T("INFO NaoFoiPossivelColocarPeca\n"));
+						escreveNamedPipe(dados, a);
+					}
+					else {
+						_stprintf_s(a, MAX, _T("INFO NaoFoiPossivelEliminarPeca\n"));
+						escreveNamedPipe(dados, a);
 					}
 				}
-				else
-					t = 0;
-
-				BOOL colocou = verificaColocarPeca(dados,x,y,t);
-
 			}
-
-			//verificar se tem 2 args
-			//verificar se local onde se clicou tem peça e esta peça não tem água e não é barreira (>0 e <=6)
-			//se sim altera no tabuleiro[arg[1]][arg[2]] = 0;
-			//	envia escreve msg para cliente a dizer que peça x y 0 
-			//senão escreve msg a dizer que não foi possivel eliminar peça
-		}
-		else if (_tcscmp(arrayComandos[0], HOVER) == 0) {
+		}else if (_tcscmp(arrayComandos[0], HOVER) == 0) {
 
 
 
@@ -155,29 +159,38 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 }
 
 
+BOOL escreveNamedPipe(DadosThread* dados, TCHAR* a) {
+	WaitForSingleObject(dados->hMutexNamedPipe, INFINITE);
+	_tcscpy_s(dados->mensagem, MAX, a);
+	ReleaseMutex(dados->hMutexNamedPipe);
+	SetEvent(dados->hEventoNamedPipe);
+}
+
+
+
+
 BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t) {		//adicionar depois qual o tabuleiro a verificar (int tab)
 	//verificar se celula é água ou verificar se célula é o fim jogo ou barr
 	int tab = 1;
-	if (tab == 1) {
-		//if(dados->tabuleiro1.<0 )
+	if (tab == 1) {	//tabuleiro 1
+		if (*dados->tabuleiro1.tabuleiro[x][y] < 0 || (dados->posfX == x && dados->posfY == y) || *dados->tabuleiro1.tabuleiro[x][y] == 7) {
+			return FALSE;
+		}
+		else{
+			*dados->tabuleiro1.tabuleiro[x][y] = t;
+			return TRUE;
+		}
+	}
+	else { //tabuleiro 2
+		if (*dados->tabuleiro2.tabuleiro[x][y] < 0 || (dados->posfX == x && dados->posfY == y) || *dados->tabuleiro2.tabuleiro[x][y] == 7) {
+			return FALSE;
+		}else {
+			*dados->tabuleiro2.tabuleiro[x][y] = t;
+			return TRUE;
+		}
 	}
 
-
-	if (t == 0) {//eliminar peça
-		//verifica se é !=0 
-		//se for vazia não faz nada
-
-
-
-	}
-	else {	//adicionar/alterar celula tabuleiro com peça t
-		//coloca/troca peça
-
-
-
-	}
-
-
+	return FALSE;
 }
 
 

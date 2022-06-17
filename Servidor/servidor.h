@@ -86,18 +86,6 @@ typedef struct {
 	BOOL activo;									//representa se a instancia do named pipe está ou nao ativa, se ja tem um cliente ou nao
 }PipeDados;
 
-//typedef struct {
-//	PipeDados hPipe[NPIPES];
-//	HANDLE hMutexNamedPipe;
-//	HANDLE hEventoNamedPipe;
-//	HANDLE hThreadLer;
-//	HANDLE hThreadEscrever;
-//	int numClientes;
-//	TCHAR mensagem[MAX];
-//	//handle cliente a enviar a msg?
-//}DadosThreadPipe;
-
-
 ////////////////////////////////////////////////////////////////////////////////
 
 
