@@ -1,41 +1,16 @@
 ﻿#include "servidor.h"
+#include "utils.h"
+
 
 TCHAR info[MAX];
 
 
-TCHAR** divideString(TCHAR * comando, const TCHAR * delim, unsigned int* tam) {
-	TCHAR* proxToken = NULL, ** temp, ** arrayCmd = NULL;
-	TCHAR* token = _tcstok_s(comando, delim, &proxToken);
-
-	if (comando == NULL || _tcslen(comando) == 0) {						//verifica se string está vazia
-		_ftprintf(stderr, TEXT("[ERRO] String comando vazia!"));
-		return NULL;
-	}
-	
-	*tam = 0;
-
-	while (token != NULL) {
-		//realocar a memória para integrar mais um argumento
-		//realloc retorna um ponteiro para a nova memoria alocada, ou NULL quando falha
-		temp = realloc(arrayCmd, sizeof(TCHAR*) * (*tam + 1));		
-
-		if (temp == NULL) {
-			_ftprintf(stderr, TEXT("[ERRO] Falha ao alocar memoria!"));
-			return NULL;
-		}
-		arrayCmd = temp;												//apontar para a nova memoria alocada				
-		arrayCmd[(*tam)++] = token;
-
-		token = _tcstok_s(NULL, delim, &proxToken);						//copia o proximo token para a "token"
-	}
-	return arrayCmd;
-}
 
 
 DWORD WINAPI ThreadLer(LPVOID param) {
 	//fica sempre á escuta de ler coisas vindas do named pipe
 	//escreve diretamente no ecrã
-	DadosThreadPipe* dados = (DadosThreadPipe*)param;
+	DadosThread* dados = (DadosThread*)param;
 	TCHAR buf[MAX];
 	DWORD n;
 
@@ -75,6 +50,10 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 		//divide string recebida e aciona as funções adequadas aos comandos
 
+		TCHAR ** arrayComandos = NULL;
+		unsigned int nrArgs = 0;
+		const TCHAR delim[2] = _T(" ");
+		arrayComandos = divideString(buf, delim, &nrArgs);			//divisão da string para um array com o comando e args
 
 
 		//sistema de mensagens
@@ -103,7 +82,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o cliente através do named pipe
 	//funcionamento -> evento ativa quando texto variável de "escrita" é alterada
-	DadosThreadPipe* dados = (DadosThreadPipe*)param;
+	DadosThread* dados = (DadosThread*)param;
 	DWORD n;
 	TCHAR buf[MAX]=_T("yodvbasucansdo");
 	int i;
@@ -119,7 +98,7 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 
 		//escreve no named pipe
 		for (i = 0; i < NPIPES; i++) {
-			WaitForSingleObject(dados->hMutex, INFINITE);
+			WaitForSingleObject(dados->hMutexNamedPipe, INFINITE);
 			if (dados->hPipe[i].activo) {
 				if (!WriteFile(dados->hPipe[i].hPipe, dados->mensagem, _tcslen(dados->mensagem) * sizeof(TCHAR), &n, NULL))
 					_tprintf(TEXT("[ERRO] Escrever no pipe! (WriteFile)\n"));
@@ -127,7 +106,7 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 					_tprintf(TEXT("[SV] Enviei %d bytes ao cliente ... (WriteFile)\n"), n);
 			}
 			//libertamos o mutex
-			ReleaseMutex(dados->hMutex);
+			ReleaseMutex(dados->hMutexNamedPipe);
 		}
 			Sleep(1000);
 
@@ -140,7 +119,7 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 
 
 DWORD WINAPI ThreadAceitaClientes(LPVOID param) {
-	DadosThreadPipe* dados = (DadosThreadPipe*)param; 
+	DadosThread* dados = (DadosThread*)param; 
 	
 	do {
 		if(dados->numClientes<2){
@@ -152,11 +131,11 @@ DWORD WINAPI ThreadAceitaClientes(LPVOID param) {
 				exit(-1);
 			}
 			//bloqueamos no mutex
-			WaitForSingleObject(dados->hMutex, INFINITE);
+			WaitForSingleObject(dados->hMutexNamedPipe, INFINITE);
 			dados->hPipe[dados->numClientes].activo = TRUE;
 			dados->numClientes++;
-			ResumeThread(dados->hThread[1]);
-			ReleaseMutex(dados->hMutex);
+			ResumeThread(dados->hThreadLer);
+			ReleaseMutex(dados->hMutexNamedPipe);
 		}
 		//se já tiver 2 clientes ligados 
 		Sleep(2000);
@@ -736,14 +715,14 @@ DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeVal
 
 
 
-BOOL initNamedPipes(DadosThreadPipe* dados) {
+BOOL initNamedPipes(DadosThread* dados) {
 	HANDLE hPipe, hThread;
 	dados->terminar = 0;
 	dados->numClientes = 0;
 
 
-	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX_NPIPE_SV); //Criação do mutex
-	if (dados->hMutex == NULL) {
+	dados->hMutexNamedPipe = CreateMutex(NULL, FALSE, MUTEX_NPIPE_SV); //Criação do mutex
+	if (dados->hMutexNamedPipe == NULL) {
 		_tprintf(TEXT("[Erro] ao criar mutex!\n"));
 		return FALSE;
 	}
@@ -753,20 +732,20 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 		hPipe = CreateNamedPipe(NOME_PIPE_SERVIDOR, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, NPIPES, 256 * sizeof(TCHAR), 256 * sizeof(TCHAR), 1000, NULL);
 		if (hPipe == INVALID_HANDLE_VALUE) {
 			_tprintf(TEXT("[ERRO] Criar Named Pipe! (CreateNamedPipe)"));
-			CloseHandle(dados->hMutex);
+			CloseHandle(dados->hMutexNamedPipe);
 			return FALSE;
 		}
 
-		WaitForSingleObject(dados->hMutex, INFINITE);
+		WaitForSingleObject(dados->hMutexNamedPipe, INFINITE);
 		dados->hPipe[i].hPipe = hPipe;
 		dados->hPipe[i].activo = FALSE;
-		ReleaseMutex(dados->hMutex);
+		ReleaseMutex(dados->hMutexNamedPipe);
 	}
 
 	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, EVENT_NAMEDPIPE_SV);
 	if (dados->hEventoNamedPipe == NULL) {
 		_tprintf(_T("Erro: CreateEvent NamedPipe(%d)\n"), GetLastError());
-		CloseHandle(dados->hMutex);
+		CloseHandle(dados->hMutexNamedPipe);
 		return FALSE;
 	}
 }
@@ -784,8 +763,6 @@ int _tmain(int argc, LPTSTR argv[]) {
 	DadosThread dados;
 	TCHAR comando[MAX];
 	//unsigned int tab[20][20];
-
-	DadosThreadPipe dadosPipes;
 
 
 #ifdef UNICODE
@@ -838,16 +815,16 @@ int _tmain(int argc, LPTSTR argv[]) {
 	dados.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dados, CREATE_SUSPENDED, NULL);					//thread criada suspensa até que monitor inicie o jogo
 
 
-	if (!initNamedPipes(&dadosPipes)) {
+	if (!initNamedPipes(&dados)) {
 		_tprintf(_T("Erro ao criar named Pipes do Servidor.\n"));
-		dadosPipes.terminar = 1;
-		terminar(&dados,&dadosPipes);
+		dados.terminar = 1;
+		terminar(&dados,&dados);
 		CloseHandle(hThreadConsumidor);
 		exit(1);
 	}
 	
 	//thread atendeCliente
-	HANDLE hThreadAClientes = CreateThread(NULL, 0, ThreadAceitaClientes, &dadosPipes, 0, NULL);
+	HANDLE hThreadAClientes = CreateThread(NULL, 0, ThreadAceitaClientes, &dados, 0, NULL);
 	if (hThreadAClientes == NULL) {
 		_tprintf(TEXT("[Erro] ao criar thread!\n"));
 		return -1;
@@ -855,23 +832,23 @@ int _tmain(int argc, LPTSTR argv[]) {
 
 	
 	//criacao da thread ESCREVER
-	hThreadEscrever = CreateThread(NULL, 0, ThreadEscrever, &dadosPipes, 0, NULL);
+	hThreadEscrever = CreateThread(NULL, 0, ThreadEscrever, &dados, 0, NULL);
 	if (hThreadEscrever == NULL) {
 		_tprintf(TEXT("[Erro] ao criar thread!\n"));
 		return -1;
 	}
 
 	_tprintf(TEXT("[ESCRITOR] Criar uma cópia do pipe '%s' ... (CreateNamedPipe)\n"), NOME_PIPE_SERVIDOR);
-	dadosPipes.hThread[0] = hThreadEscrever;
+	dados.hThreadEscrever = hThreadEscrever;
 
 
 	//criacao da thread LER
-	hThreadLer = CreateThread(NULL, 0, ThreadLer, &dadosPipes, CREATE_SUSPENDED, NULL);
+	hThreadLer = CreateThread(NULL, 0, ThreadLer, &dados, CREATE_SUSPENDED, NULL);
 	if (hThreadLer == NULL) {
 		_tprintf(TEXT("[Erro] ao criar thread!\n"));
 		return -1;
 	}
-	dadosPipes.hThread[1] = hThreadLer;
+	dados.hThreadLer = hThreadLer;
 
 
 
@@ -888,7 +865,6 @@ int _tmain(int argc, LPTSTR argv[]) {
 			for (int i = 0; i < _tcslen(comando); i++)
 				comando[i] = _totupper(comando[i]);
 			_tprintf(TEXT("Comando : %s\n"), comando);
-			ResumeThread(dadosPipes.hThread);
 
 			if (_tcscmp(comando, PAUSA) == 0) {
 				if (dados.iniciado == TRUE) {
@@ -924,16 +900,14 @@ int _tmain(int argc, LPTSTR argv[]) {
 
 		WaitForMultipleObjects(2, hThreadsWait, TRUE, 100);
 	}
-
-	dadosPipes.terminar = 1;
 	CloseHandle(hThreadConsumidor);
-	terminar(&dados, &dadosPipes);
+	terminar(&dados);
 	
 	return 0;
 }
 
 
-int terminar(DadosThread* dados, DadosThreadPipe* dadosPipe) {
+int terminar(DadosThread* dados) {
 	dados->tabuleiro1.tabuleiro = NULL;
 	dados->tabuleiro2.tabuleiro = NULL;
 	UnmapViewOfFile(dados->memPar);
@@ -949,8 +923,8 @@ int terminar(DadosThread* dados, DadosThreadPipe* dadosPipe) {
 
 	for (int i = 0; i < NPIPES; i++)
 	{
-		if (dadosPipe->hPipe[i].activo == TRUE) {
-			if (!DisconnectNamedPipe(dadosPipe->hPipe[i].hPipe)) {
+		if (dados->hPipe[i].activo == TRUE) {
+			if (!DisconnectNamedPipe(dados->hPipe[i].hPipe)) {
 				_tprintf(TEXT("[ERRO] Desligar o pipe! (DisconnectNamedPipe)"));
 				exit(-1);
 			}

@@ -78,16 +78,16 @@ typedef struct {
 	BOOL activo;									//representa se a instancia do named pipe está ou nao ativa, se ja tem um cliente ou nao
 }PipeDados;
 
-typedef struct {
-	PipeDados hPipe[NPIPES];
-	HANDLE hMutex;
-	HANDLE hEventoNamedPipe;
-	HANDLE hThread[2];
-	int numClientes;
-	int terminar;
-	TCHAR mensagem[MAX];
-	//handle cliente a enviar a msg?
-}DadosThreadPipe;
+//typedef struct {
+//	PipeDados hPipe[NPIPES];
+//	HANDLE hMutexNamedPipe;
+//	HANDLE hEventoNamedPipe;
+//	HANDLE hThreadLer;
+//	HANDLE hThreadEscrever;
+//	int numClientes;
+//	TCHAR mensagem[MAX];
+//	//handle cliente a enviar a msg?
+//}DadosThreadPipe;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -135,6 +135,15 @@ typedef struct {									//estrutura para passar as threads
 	DWORD tempoInicioAgua;							//tempo até água começar a fluir
 	BOOL iniciado;									//True -  jogo foi iniciado, False - não
 
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	PipeDados hPipe[NPIPES];
+	HANDLE hMutexNamedPipe;
+	HANDLE hEventoNamedPipe;
+	HANDLE hThreadLer;
+	HANDLE hThreadEscrever;
+	int numClientes;
+	TCHAR mensagem[MAX];
 }DadosThread;
 
 TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam);

@@ -140,13 +140,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="servidor.c" />
+    <ClCompile Include="utils.c" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="namedpipe.txt" />
     <Text Include="README.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="servidor.h" />
+    <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -5,16 +5,43 @@
 #define TAM_BITMAP 150
 #define NUM_BITMAPS 14
 
-
+DadosThreadPipe dadosPipes;
 Msg msg;
 TCHAR mensagem[MAX];
 TCHAR cmd[MAX];
+
 
 LRESULT CALLBACK TrataEventos(HWND, UINT, WPARAM, LPARAM);
 
 TCHAR szProgName[] = TEXT("Base2022");
 
+TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam) {
+	TCHAR* proxToken = NULL, ** temp, ** arrayCmd = NULL;
+	TCHAR* token = _tcstok_s(comando, delim, &proxToken);
 
+	if (comando == NULL || _tcslen(comando) == 0) {						//verifica se string está vazia
+		_ftprintf(stderr, TEXT("[ERRO] String comando vazia!"));
+		return NULL;
+	}
+
+	*tam = 0;
+
+	while (token != NULL) {
+		//realocar a memória para integrar mais um argumento
+		//realloc retorna um ponteiro para a nova memoria alocada, ou NULL quando falha
+		temp = realloc(arrayCmd, sizeof(TCHAR*) * (*tam + 1));
+
+		if (temp == NULL) {
+			_ftprintf(stderr, TEXT("[ERRO] Falha ao alocar memoria!"));
+			return NULL;
+		}
+		arrayCmd = temp;												//apontar para a nova memoria alocada				
+		arrayCmd[(*tam)++] = token;
+
+		token = _tcstok_s(NULL, delim, &proxToken);						//copia o proximo token para a "token"
+	}
+	return arrayCmd;
+}
 
 TCHAR comandosParaString(Msg msg) {
 	TCHAR str[MAX] = _T("");
@@ -183,7 +210,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	WNDCLASSEX wcApp;	// WNDCLASSEX � uma estrutura cujos membros servem para 
 			  // definir as caracter�sticas da classe da janela
 
-	DadosThreadPipe dadosPipes;
 
 	//utilizar a teentativa de abrir o evento como forma de saber se o servidor está ativo
 	HANDLE hEventUpdateTabuleiro = OpenEvent(EVENT_MODIFY_STATE | SYNCHRONIZE, FALSE, EVENT_TABULEIRO);
