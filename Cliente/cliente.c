@@ -410,17 +410,34 @@ void loadImages(BOOL set, BitmapInfo bitmap[], HWND hWnd) {
 	SelectObject(bitmap[13].bmpDC, hBmp);
 }
 
-int getPaddings(int tamX, int tamY, RECT* rect, int* paddingX, int* paddingY) {			
-	// Recebe dimensoes do tabuleiro, o rect do ecrã e ponteiros para as variáveis que guardaram os paddings
+int getPaddings(int tamX, int tamY, RECT* rect, int* paddingX, int* paddingY, int* larguraSeq, int* paddingSeq) {			
+	// Recebe dimensoes do tabuleiro, o rect do ecrã e ponteiros para as variáveis que guardaram os paddings 
+	// Recebe também ponteiro para variaveis que guardam o padding vertical da barra de sequencia e a largura da barra de sequencia (largura da barra indica o tamanho de celula da barra de sequencia)
 	// Devolve o tamanho de célula
 
+	*larguraSeq = rect->right / 5;								//largura máxima de barra de sequencia é 1/5 do ecrâ
+	int tempPaddingSeq = rect->bottom / 6;						//altura maxima de cada celula (uma vez que há 6 celulas na sequencia)
+
+
+	if (*larguraSeq >= tempPaddingSeq) {							// se tamanho maximo de celula em largura >= tamanho maximo de celula em altura 
+		*larguraSeq = tempPaddingSeq;								// tamanho de celula = altura máxima
+		tempPaddingSeq = 0;											// uma vez que o tamanho de celula é ditado pela altura, a barra vai ocupar a altura inteira do ecrã
+	}
+	else {															// se tamanho maximo de celula em largura < tamanho maximo de celula em altura
+																	// tamanho de celula = largura maxima (logo não é preciso mudar o valor de *larguraSeq)
+		tempPaddingSeq = (rect->bottom - (6 * (*larguraSeq))) / 2;	// padding é igual a metade da diferenca entre a altura disponivel e a altura necessaria para mostrar a barra de sequencia (6 celulas)
+	}
+	if (paddingSeq != NULL){
+		*paddingSeq = tempPaddingSeq;
+	}
+
 	int tamCelula;
-	*paddingX = rect->right / tamX;
+	*paddingX = (rect->right - *larguraSeq) / tamX;
 	*paddingY = rect->bottom / tamY;
 
 	if (*paddingX >= *paddingY) {
 		tamCelula = *paddingY;
-		*paddingX = (rect->right - tamCelula * tamX) / 2;
+		*paddingX = ((rect->right - *larguraSeq) - (tamCelula * tamX)) / 2;
 		*paddingY = 0;
 	}
 	else {
@@ -432,25 +449,29 @@ int getPaddings(int tamX, int tamY, RECT* rect, int* paddingX, int* paddingY) {
 	return tamCelula;
 }
 
-void imprimirTabuleiro(HWND hWnd, DadosThreadPipe* dados, BitmapInfo bitmap[]) {
+void atualizarDisplay(HWND hWnd, DadosThreadPipe* dados, BitmapInfo bitmap[]) {
 	RECT rect;
 	HDC hdc = GetDC(hWnd);
 	GetClientRect(hWnd, &rect);
-	int paddingX, paddingY;
-	int tamCelula = getPaddings(dados->tamX, dados->tamY, &rect, &paddingX, &paddingY);
+	int paddingX, paddingY, paddingSeq, larguraSeq;
+	int tamCelula = getPaddings(dados->tamX, dados->tamY, &rect, &paddingX, &paddingY, &larguraSeq, &paddingSeq);
 
 	BITMAP currBitmap;
 
 
 	FillRect(hdc, &rect, CreateSolidBrush(RGB(100, 100, 100)));
+	
+	//BARRA DE SEQUENCIA
+	for (int i = 0; i < 6; i++) {
+		currBitmap = bitmap[dados->seq[i] + 6].bmp;
+		StretchBlt(hdc, 0, (larguraSeq * i) + paddingSeq, larguraSeq, larguraSeq, bitmap[dados->seq[i] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
+	}
+	
+	//TABULEIRO
 	for (int x = 0; x < dados->tamX; x++){
 		for (int y = 0; y < dados->tamY; y++){
 			currBitmap = bitmap[dados->tabuleiro[x][y] + 6].bmp;
-			StretchBlt(hdc, (tamCelula * x) + paddingX, (tamCelula * y) + paddingY, tamCelula, tamCelula, bitmap[dados->tabuleiro[x][y] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
-			rect.left = (tamCelula * x) + paddingX;
-			rect.top = (tamCelula * y) + paddingY;
-			rect.bottom = rect.top + tamCelula;
-			rect.right = rect.left + tamCelula;
+			StretchBlt(hdc, (tamCelula * x) + paddingX + larguraSeq, (tamCelula * y) + paddingY, tamCelula, tamCelula, bitmap[dados->tabuleiro[x][y] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
 		}
 	}
 }
@@ -474,19 +495,19 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 	RECT rect;
 	HDC hdc = GetDC(hWnd);
 	GetClientRect(hWnd, &rect);
-	int paddingX, paddingY;
+	int paddingX, paddingY, larguraSeq;
 	WaitForSingleObject(dados->hMutex, INFINITE);
-	int tamCelula = getPaddings(dados->tamX, dados->tamY, &rect, &paddingX, &paddingY);
+	int tamCelula = getPaddings(dados->tamX, dados->tamY, &rect, &paddingX, &paddingY, &larguraSeq, NULL);
 
-	if (posX < paddingX || posY < paddingY)
+	if (posX < paddingX + larguraSeq || posY < paddingY)
 		return;
-	if (posX > (dados->tamX * tamCelula) + paddingX || posY > (dados->tamY * tamCelula) + paddingY) {
+	if (posX > (dados->tamX * tamCelula) + paddingX + larguraSeq || posY > (dados->tamY * tamCelula) + paddingY) {
 		return;
 	}
 	ReleaseMutex(dados->hMutex);
 
 	int coordX, coordY;
-	coordX = (posX - paddingX) / tamCelula;
+	coordX = (posX - paddingX - larguraSeq) / tamCelula;
 	coordY = (posY - paddingY) / tamCelula;
 
 	//DEBUG START
@@ -614,6 +635,13 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		dados.tabuleiro[9][6] = 3;
 		dados.tabuleiro[0][0] = 5;
 
+		dados.tamX = 10;
+		dados.tamY = 7;
+
+		for (int i = 0; i < 6; i++)
+			dados.seq[i] = i;
+
+
 		//GetObject(hBmp, sizeof(bmp), &bmp);
 		hdc = GetDC(hWnd);
 		ReleaseDC(hWnd, hdc);
@@ -647,7 +675,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	case WM_PAINT:
 		//Mostra no ecrã as informações do jogo
 		hdc = BeginPaint(hWnd, &ps);
-		imprimirTabuleiro(hWnd, &dados, bitmap);
+		atualizarDisplay(hWnd, &dados, bitmap);
 		EndPaint(hWnd, &ps);
 		break;
 	case WM_RBUTTONDOWN:
