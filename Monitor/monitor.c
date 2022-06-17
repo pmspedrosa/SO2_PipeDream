@@ -139,10 +139,17 @@ VOID displayTabuleiro(int tab[20][20], int tamX, int tamY, HANDLE hConsole, WORD
 
 VOID updateDisplay(DadosThread* dados, HANDLE hConsole, WORD atributosBase) {
 	//system("cls");
-	_tprintf(_T("TABULEIRO 1\n"));
-	displayTabuleiro(dados->memPar->tabuleiro1, dados->memPar->tamX, dados->memPar->tamY, hConsole, atributosBase);
-	_tprintf(_T("\n\n\nTABULEIRO 2\n"));
-	displayTabuleiro(dados->memPar->tabuleiro2, dados->memPar->tamX, dados->memPar->tamY, hConsole, atributosBase);
+	if (dados->memPar->dadosTabuleiro1.jogadorAtivo){
+		_tprintf(_T("TABULEIRO 1\n"));
+		displayTabuleiro(dados->memPar->dadosTabuleiro1.tabuleiro, dados->memPar->tamX, dados->memPar->tamY, hConsole, atributosBase);
+	}
+	else {
+		_tprintf(_T("TABULEIRO 1 não ativo\n"));
+	}
+	if (dados->memPar->dadosTabuleiro2.jogadorAtivo) {
+		_tprintf(_T("\n\n\nTABULEIRO 2\n"));
+		displayTabuleiro(dados->memPar->dadosTabuleiro2.tabuleiro, dados->memPar->tamX, dados->memPar->tamY, hConsole, atributosBase);
+	}
 	_tprintf(_T("\n"));
 	TCHAR estado[MAX];
 	_tcscpy_s(estado, MAX, dados->memPar->estado);
