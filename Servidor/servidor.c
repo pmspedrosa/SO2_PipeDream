@@ -55,27 +55,58 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 		arrayComandos = divideString(buf, delim, &nrArgs);			//divisão da string para um array com o comando e args
 		/*
-		#define INFO _T("LCLICK")
-		#define PEÇA _T("RCLICK")
-		#define SEQ _T("HOVER")
-		#define SEQ _T("RETOMAHOVER")
-		#define SUSPENDE _T("SAIRCLI")
-		#define RETOMA _T("JOGOSINGLEP")
-		#define SAIR _T("JOGOMULTIP")
+		#define LCLICK _T("LCLICK")
+		#define RCLICK _T("RCLICK")
+		#define HOVER _T("HOVER")
+		#define RETOMAHOVER _T("RETOMAHOVER")
+		#define SAIRCLI _T("SAIRCLI")
+		#define JOGOSINGLEP _T("JOGOSINGLEP")
+		#define JOGOMULTIP _T("JOGOMULTIP"
 		*/
-		if (_tcscmp(arrayComandos[0], INFO) == 0) {
-			//to do
+		if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
+			//verificar se tem 2 args
+			//verificar se local onde se clicou tem peça e esta peça não tem água e não é barreira (>0 e <=6)
+			//se sim altera no tabuleiro[arg[1]][arg[2]] = arg[3];
+			//	envia escreve msg para cliente a dizer que peça x y 0 
+			//senão escreve msg a dizer que não foi possivel colocar peça
 		}
-		else if (_tcscmp(arrayComandos[0], PEÇA) == 0) {
-			if (nrArgs >= 3) {	//x,y,tipopeça
-				unsigned int x, y, t;
-				if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
-					x = _tstoi(arrayComandos[1]);
-					if (x == 0) {
-						_tprintf(_T("Valor passado como argumento não é aceite\n"));
-					}
-				}
-			}
+		else if (_tcscmp(arrayComandos[0], RCLICK) == 0) {
+			//if (nrArgs >= 3) {	//x,y,tipopeça
+			//	unsigned int x, y, t;
+			//	if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+			//		x = _tstoi(arrayComandos[1]);
+			//		if (x == 0) {
+			//			_tprintf(_T("Valor passado como argumento não é aceite\n"));
+			//		}
+			//	}
+			//}
+
+			//verificar se tem 2 args
+			//verificar se local onde se clicou tem peça e esta peça não tem água e não é barreira (>0 e <=6)
+			//se sim altera no tabuleiro[arg[1]][arg[2]] = 0;
+			//	envia escreve msg para cliente a dizer que peça x y 0 
+			//senão escreve msg a dizer que não foi possivel eliminar peça
+		}
+		else if (_tcscmp(arrayComandos[0], HOVER) == 0) {
+
+
+
+		}else if (_tcscmp(arrayComandos[0], RETOMAHOVER) == 0) {
+
+
+
+		}else if (_tcscmp(arrayComandos[0], SAIRCLI) == 0) {
+
+
+
+		}else if (_tcscmp(arrayComandos[0], JOGOSINGLEP) == 0) {
+			//iniciar jogo
+
+
+		}else if (_tcscmp(arrayComandos[0], JOGOMULTIP) == 0) {
+
+
+
 		}
 
 

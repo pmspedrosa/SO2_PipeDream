@@ -57,13 +57,13 @@
 #define PAUSA _T("PAUSA")										//pausar jogo
 #define RETOMAR _T("RETOMAR")									//retomar jogo
 
-#define INFO _T("LCLICK")
-#define PEÇA _T("RCLICK")
-#define SEQ _T("HOVER")
-#define SEQ _T("RETOMAHOVER")
-#define SUSPENDE _T("SAIRCLI")
-#define RETOMA _T("JOGOSINGLEP")
-#define SAIR _T("JOGOMULTIP")
+#define LCLICK _T("LCLICK")
+#define RCLICK _T("RCLICK")
+#define HOVER _T("HOVER")
+#define RETOMAHOVER _T("RETOMAHOVER")
+#define SAIRCLI _T("SAIRCLI")
+#define JOGOSINGLEP _T("JOGOSINGLEP")
+#define JOGOMULTIP _T("JOGOMULTIP")
 
 
 

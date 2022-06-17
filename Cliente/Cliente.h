@@ -25,7 +25,7 @@
 #define MUTEX_NPIPE_CLI _T("MUTEX_NPIPE_CLI")					//nome mutex named Pipe cliente
 
 #define INFO _T("INFO")
-#define PEÇA _T("PEÇA")
+#define PECA _T("PECA")
 #define SEQ _T("SEQ")
 #define SUSPENDE _T("SUSPENDE")
 #define RETOMA _T("RETOMA")

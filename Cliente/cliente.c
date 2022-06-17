@@ -102,7 +102,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		if (_tcscmp(arrayComandos[0], INFO) == 0) {
 			//to do
 		}
-		else if (_tcscmp(arrayComandos[0], PEÇA) == 0) {
+		else if (_tcscmp(arrayComandos[0], PECA) == 0) {
 			if (nrArgs >= 3) {	//x,y,tipopeça
 				unsigned int x, y, t;
 				if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
