@@ -127,10 +127,8 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	}
 
 	CloseHandle(hPipe);
-	Sleep(200);
 
 	return 0;
-
 }
 
 
@@ -163,7 +161,7 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 			//libertamos o mutex
 			ReleaseMutex(dados->hMutexNamedPipe);
 		}
-			Sleep(1000);
+		ResetEvent(dados->hEventoNamedPipe);
 
 	} while (dados->terminar==0);
 	dados->terminar = 1;
