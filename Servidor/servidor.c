@@ -71,15 +71,36 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			//senão escreve msg a dizer que não foi possivel colocar peça
 		}
 		else if (_tcscmp(arrayComandos[0], RCLICK) == 0) {
-			//if (nrArgs >= 3) {	//x,y,tipopeça
-			//	unsigned int x, y, t;
-			//	if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
-			//		x = _tstoi(arrayComandos[1]);
-			//		if (x == 0) {
-			//			_tprintf(_T("Valor passado como argumento não é aceite\n"));
-			//		}
-			//	}
-			//}
+			if (nrArgs >= 3) {	//x,y,tipopeça
+				unsigned int x, y, t;
+				if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+					x = _tstoi(arrayComandos[1]);
+					if (x == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					x = 0;
+				if (_tcscmp(arrayComandos[2], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+					y = _tstoi(arrayComandos[2]);
+					if (y == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					y = 0;
+				if (_tcscmp(arrayComandos[3], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+					t = _tstoi(arrayComandos[3]);
+					if (t == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					t = 0;
+
+				BOOL colocou = verificaColocarPeca(dados,x,y,t);
+
+			}
 
 			//verificar se tem 2 args
 			//verificar se local onde se clicou tem peça e esta peça não tem água e não é barreira (>0 e <=6)
@@ -132,6 +153,35 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	return 0;
 
 }
+
+
+BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t) {		//adicionar depois qual o tabuleiro a verificar (int tab)
+	//verificar se celula é água ou verificar se célula é o fim jogo ou barr
+	int tab = 1;
+	if (tab == 1) {
+		//if(dados->tabuleiro1.<0 )
+	}
+
+
+	if (t == 0) {//eliminar peça
+		//verifica se é !=0 
+		//se for vazia não faz nada
+
+
+
+	}
+	else {	//adicionar/alterar celula tabuleiro com peça t
+		//coloca/troca peça
+
+
+
+	}
+
+
+}
+
+
+
 
 
 DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o cliente através do named pipe
