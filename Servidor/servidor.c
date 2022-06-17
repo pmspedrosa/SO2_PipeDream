@@ -11,8 +11,10 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	//fica sempre á escuta de ler coisas vindas do named pipe
 	//escreve diretamente no ecrã
 	DadosThread* dados = (DadosThread*)param;
-	TCHAR buf[MAX];
+	TCHAR buf[MAX], ** arrayComandos = NULL;
 	DWORD n;
+	unsigned int nrArgs = 0;
+	const TCHAR delim[2] = _T(" ");
 
 	_tprintf(TEXT("[SV] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), NOME_PIPE_CLIENTE);
 
@@ -47,13 +49,34 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		_tprintf(TEXT("[SV] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
 
 
+		//funções 
+		// comando arg0 arg1 ....
+		//msg= info_0_barreira colocada local tal e tal
 
-		//divide string recebida e aciona as funções adequadas aos comandos
-
-		TCHAR ** arrayComandos = NULL;
-		unsigned int nrArgs = 0;
-		const TCHAR delim[2] = _T(" ");
 		arrayComandos = divideString(buf, delim, &nrArgs);			//divisão da string para um array com o comando e args
+		/*
+		#define INFO _T("LCLICK")
+		#define PEÇA _T("RCLICK")
+		#define SEQ _T("HOVER")
+		#define SEQ _T("RETOMAHOVER")
+		#define SUSPENDE _T("SAIRCLI")
+		#define RETOMA _T("JOGOSINGLEP")
+		#define SAIR _T("JOGOMULTIP")
+		*/
+		if (_tcscmp(arrayComandos[0], INFO) == 0) {
+			//to do
+		}
+		else if (_tcscmp(arrayComandos[0], PEÇA) == 0) {
+			if (nrArgs >= 3) {	//x,y,tipopeça
+				unsigned int x, y, t;
+				if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+					x = _tstoi(arrayComandos[1]);
+					if (x == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+			}
+		}
 
 
 		//sistema de mensagens
@@ -88,6 +111,7 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 	int i;
 	//_tcscpy_s(buf, MAX, _T("aygfhilvanvoadf\n"));
 	
+	//alteras str -> acionas evento -> envia info (str) pela thread
 
 	do {
 		//ficar bloqueado à espera de um evento 

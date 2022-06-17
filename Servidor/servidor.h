@@ -57,6 +57,14 @@
 #define PAUSA _T("PAUSA")										//pausar jogo
 #define RETOMAR _T("RETOMAR")									//retomar jogo
 
+#define INFO _T("LCLICK")
+#define PEÇA _T("RCLICK")
+#define SEQ _T("HOVER")
+#define SEQ _T("RETOMAHOVER")
+#define SUSPENDE _T("SAIRCLI")
+#define RETOMA _T("JOGOSINGLEP")
+#define SAIR _T("JOGOMULTIP")
+
 
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -5,7 +5,6 @@
 #define TAM_BITMAP 150
 #define NUM_BITMAPS 14
 
-DadosThreadPipe dadosPipes;
 Msg msg;
 TCHAR mensagem[MAX];
 TCHAR cmd[MAX];
@@ -43,30 +42,16 @@ TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam) {
 	return arrayCmd;
 }
 
-TCHAR comandosParaString(Msg msg) {
-	TCHAR str[MAX] = _T("");
-	TCHAR tk[MAX] = _T(" ");
-
-	_tcscat_s(str, MAX, msg.cmd);
-	if (msg.numargs > 0) {
-		for (int i = 0; i < msg.numargs; i++)
-		{
-			_tcscat_s(str, MAX, tk);
-			_tcscat_s(str, MAX, msg.args[i]);
-		}
-	}
-
-	return str;
-}
-
 
 
 DWORD WINAPI ThreadLer(LPVOID param) {						
 	//fica sempre á escuta de ler coisas vindas do named pipe
 	//escreve diretamente no ecrã
 	DadosThreadPipe* dados = (DadosThreadPipe*)param;
-	TCHAR buf[MAX];
+	TCHAR buf[MAX], ** arrayComandos = NULL;
 	DWORD n;
+	unsigned int nrArgs = 0;
+	const TCHAR delim[2] = _T(" ");
 
 	OutputDebugString(TEXT("[Cliente] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), NOME_PIPE_SERVIDOR);
 
@@ -101,6 +86,85 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		OutputDebugString(TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
 		_tcscpy_s(mensagem, MAX, buf);
 
+		//funções 
+		// comando arg0 arg1 ....
+		//msg= info_0_barreira colocada local tal e tal
+		
+		arrayComandos = divideString(buf, delim, &nrArgs);			//divisão da string para um array com o comando e args
+		/*
+		#define INFO _T("INFO")
+		#define PEÇA _T("PEÇA")
+		#define SEQ _T("SEQ")
+		#define SUSPENDE _T("SUSPENDE")
+		#define RETOMA _T("RETOMA")
+		#define SAIR _T("SAIR")
+		*/
+		if (_tcscmp(arrayComandos[0], INFO) == 0) {
+			//to do
+		}
+		else if (_tcscmp(arrayComandos[0], PEÇA) == 0) {
+			if (nrArgs >= 3) {	//x,y,tipopeça
+				unsigned int x, y, t;
+				if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+					x = _tstoi(arrayComandos[1]);
+					if (x == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					x = 0;
+				if (_tcscmp(arrayComandos[2], _T("0")) != 0) {	
+					y = _tstoi(arrayComandos[2]);
+					if (y == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					y = 0;
+				if (_tcscmp(arrayComandos[3], _T("0")) != 0) {	
+					t = _tstoi(arrayComandos[3]);
+					if (t == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					t = 0;
+				WaitForSingleObject(dados->hMutex, INFINITE);
+				dados->tabuleiro[x][y] = t;
+				ReleaseMutex(dados->hMutex);
+				InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
+			}
+		}
+		else if (_tcscmp(arrayComandos[0], SEQ) == 0) {			//msg: seq tipopeça1 tipopeça2 ...
+			if (nrArgs >= 6) {
+				for (int i = 1; i < 7; i++)
+				{
+					int t;
+					if (_tcscmp(arrayComandos[3], _T("0")) != 0) {
+						t = _tstoi(arrayComandos[3]);
+						if (t == 0) {
+							_tprintf(_T("Valor passado como argumento não é aceite\n"));
+						}
+					}
+					WaitForSingleObject(dados->hMutex, INFINITE);
+					dados->seq[i] = t;
+					ReleaseMutex(dados->hMutex);
+					InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
+				}	
+			}
+		}
+		else if (_tcscmp(arrayComandos[0], SUSPENDE) == 0) {
+			//cria uma textbox com a informação de que o jogo está parado
+
+		}
+		else if (_tcscmp(arrayComandos[0], RETOMA) == 0) {
+			//desativa a textbox e continua o jogo
+
+		}
+		else if (_tcscmp(arrayComandos[0], SAIR) == 0) {
+			//fechar tudoooo
+		}
+
 	}
 
 	CloseHandle(hPipe);
@@ -114,31 +178,15 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o servidor através do named pipe
 	DadosThreadPipe* dados = (DadosThreadPipe*)param;
 	DWORD n;
-	int i;
-
 
 	do {
-		//sistema de mensagens
-
-		/*para->água parada
-		pi-> impossivel colocar peça no local indicado
-		pc-> peça colocada com sucesso
-		perdeu -> perdeu
-		ganhou -> ganhou
-		barr -> barreira adicionada
-		...
-		*/
 
 		//fica bloqueado à espera do evento
 		WaitForSingleObject(dados->hEventoNamedPipe, INFINITE);
 
-		TCHAR buf[MAX] = _T("asdilvbna");
-		_tcscpy_s(cmd, MAX,buf);
-		
-
 		WaitForSingleObject(dados->hMutex, INFINITE);
 		if (dados->hPipe.activo) {
-			if (!WriteFile(dados->hPipe.hPipe, cmd, _tcslen(cmd) * sizeof(TCHAR), &n, NULL))
+			if (!WriteFile(dados->hPipe.hPipe, dados->mensagem, _tcslen(dados->mensagem) * sizeof(TCHAR), &n, NULL))
 				OutputDebugString(TEXT("[ERRO] Escrever no pipe! (WriteFile)\n"));
 			else
 				OutputDebugString(TEXT("[ESCRITOR] Enviei %d bytes ao cliente ... (WriteFile)\n"), n);
@@ -147,7 +195,6 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 		Sleep(2000);
 
 	} while (dados->terminar == 0);
-	CloseHandle(dados->hThread);
 	return 0;
 }
 
@@ -200,18 +247,13 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 
 
 
-
-
-
-
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow) {
 	HWND hWnd;		// hWnd � o handler da janela, gerado mais abaixo por CreateWindow()
 	MSG lpMsg;		// MSG � uma estrutura definida no Windows para as mensagens
 	WNDCLASSEX wcApp;	// WNDCLASSEX � uma estrutura cujos membros servem para 
 			  // definir as caracter�sticas da classe da janela
-
-
-	//utilizar a teentativa de abrir o evento como forma de saber se o servidor está ativo
+	
+	//verificar se existe sv ativo
 	HANDLE hEventUpdateTabuleiro = OpenEvent(EVENT_MODIFY_STATE | SYNCHRONIZE, FALSE, EVENT_TABULEIRO);
 
 	if (hEventUpdateTabuleiro == NULL) {
@@ -220,40 +262,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 		return 0;
 	}
 
-	dadosPipes.terminar = 0;
-
-	HANDLE hThreadLer = CreateThread(NULL, 0, ThreadLer, &dadosPipes, 0, NULL);
-	if (hThreadLer == NULL) {
-		OutputDebugString(TEXT("[Erro] ao criar thread!\n"));
-		return -1;
-	}
-
-
-	if (!initNamedPipes(&dadosPipes)) {
-		OutputDebugString(_T("Erro ao criar named Pipes do Cliente.\n"));
-		CloseHandle(hThreadLer);
-		exit(1);
-	}
-
-	//criacao da thread
-	HANDLE hThreadEscrever = CreateThread(NULL, 0, ThreadEscrever, &dadosPipes, 0, NULL);
-	if (hThreadEscrever == NULL) {
-		OutputDebugString(TEXT("[Erro] ao criar thread!\n"));
-		//closehandle
-		return -1;
-	}
-	
-	
-
-	//dadosPipes.hThread = hThreadEscrever;
-	
-
-
-
-	// ============================================================================
-	// 1. Defini��o das caracter�sticas da janela "wcApp" 
-	//    (Valores dos elementos da estrutura "wcApp" do tipo WNDCLASSEX)
-	// ============================================================================
 	wcApp.cbSize = sizeof(WNDCLASSEX);      // Tamanho da estrutura WNDCLASSEX
 	wcApp.hInstance = hInst;		         // Inst�ncia da janela actualmente exibida 
 								   // ("hInst" � par�metro de WinMain e vem 
@@ -279,18 +287,10 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	wcApp.cbClsExtra = 0;				// Livre, para uso particular
 	wcApp.cbWndExtra = 0;				// Livre, para uso particular
 	wcApp.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
-	// "hbrBackground" = handler para "brush" de pintura do fundo da janela. Devolvido por
-	// "GetStockObject".Neste caso o fundo ser� branco
 
-	// ============================================================================
-	// 2. Registar a classe "wcApp" no Windows
-	// ============================================================================
 	if (!RegisterClassEx(&wcApp))
 		return(0);
 
-	// ============================================================================
-	// 3. Criar a janela
-	// ============================================================================
 	hWnd = CreateWindow(
 		szProgName,			// Nome da janela (programa) definido acima
 		TEXT("Exemplo de Janela Principal em C"),// Texto que figura na barra do t�tulo
@@ -314,28 +314,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 					  // normal/modal); � passado como par�metro de WinMain()
 	UpdateWindow(hWnd);		// Refrescar a janela (Windows envia � janela uma 
 					  // mensagem para pintar, mostrar dados, (refrescar)� 
-	// ============================================================================
-	// 5. Loop de Mensagens
-	// ============================================================================
-	// O Windows envia mensagens �s janelas (programas). Estas mensagens ficam numa fila de
-	// espera at� que GetMessage(...) possa ler "a mensagem seguinte"	
-	// Par�metros de "getMessage":
-	// 1)"&lpMsg"=Endere�o de uma estrutura do tipo MSG ("MSG lpMsg" ja foi declarada no  
-	//   in�cio de WinMain()):
-	//			HWND hwnd		handler da janela a que se destina a mensagem
-	//			UINT message		Identificador da mensagem
-	//			WPARAM wParam		Par�metro, p.e. c�digo da tecla premida
-	//			LPARAM lParam		Par�metro, p.e. se ALT tamb�m estava premida
-	//			DWORD time		Hora a que a mensagem foi enviada pelo Windows
-	//			POINT pt		Localiza��o do mouse (x, y) 
-	// 2)handle da window para a qual se pretendem receber mensagens (=NULL se se pretendem
-	//   receber as mensagens para todas as
-	// janelas pertencentes � thread actual)
-	// 3)C�digo limite inferior das mensagens que se pretendem receber
-	// 4)C�digo limite superior das mensagens que se pretendem receber
-
-	// NOTA: GetMessage() devolve 0 quando for recebida a mensagem de fecho da janela,
-	// 	  terminando ent�o o loop de recep��o de mensagens, e o programa 
 
 	while (GetMessage(&lpMsg, NULL, 0, 0)) {
 		TranslateMessage(&lpMsg);	// Pr�-processamento da mensagem (p.e. obter c�digo 
@@ -344,34 +322,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 					   // aguarda at� que a possa reenviar � fun��o de 
 					   // tratamento da janela, CALLBACK TrataEventos (abaixo)
 	}
-
-	// ============================================================================
-	// 6. Fim do programa
-	// ============================================================================
 	return((int)lpMsg.wParam);	// Retorna sempre o par�metro wParam da estrutura lpMsg
 }
-
-// ============================================================================
-// FUN��O DE PROCESSAMENTO DA JANELA
-// Esta fun��o pode ter um nome qualquer: Apenas � neces�rio que na inicializa��o da
-// estrutura "wcApp", feita no in�cio de // WinMain(), se identifique essa fun��o. Neste
-// caso "wcApp.lpfnWndProc = WndProc"
-//
-// WndProc recebe as mensagens enviadas pelo Windows (depois de lidas e pr�-processadas
-// no loop "while" da fun��o WinMain()
-// Par�metros:
-//		hWnd	O handler da janela, obtido no CreateWindow()
-//		messg	Ponteiro para a estrutura mensagem (ver estrutura em 5. Loop...
-//		wParam	O par�metro wParam da estrutura messg (a mensagem)
-//		lParam	O par�metro lParam desta mesma estrutura
-//
-// NOTA:Estes par�metros est�o aqui acess�veis o que simplifica o acesso aos seus valores
-//
-// A fun��o EndProc � sempre do tipo "switch..." com "cases" que descriminam a mensagem
-// recebida e a tratar.
-// Estas mensagens s�o identificadas por constantes (p.e. 
-// WM_DESTROY, WM_CHAR, WM_KEYDOWN, WM_PAINT...) definidas em windows.h
-// ============================================================================
 
 typedef struct PosChar {
 	DWORD xPos, yPos;
@@ -480,21 +432,21 @@ int getPaddings(int tamX, int tamY, RECT* rect, int* paddingX, int* paddingY) {
 	return tamCelula;
 }
 
-void imprimirTabuleiro(HWND hWnd, int tabuleiro[20][20], int tamX, int tamY, BitmapInfo bitmap[]) {
+void imprimirTabuleiro(HWND hWnd, DadosThreadPipe* dados, BitmapInfo bitmap[]) {
 	RECT rect;
 	HDC hdc = GetDC(hWnd);
 	GetClientRect(hWnd, &rect);
 	int paddingX, paddingY;
-	int tamCelula = getPaddings(tamX, tamY, &rect, &paddingX, &paddingY);
+	int tamCelula = getPaddings(dados->tamX, dados->tamY, &rect, &paddingX, &paddingY);
 
 	BITMAP currBitmap;
 
 
 	FillRect(hdc, &rect, CreateSolidBrush(RGB(100, 100, 100)));
-	for (int x = 0; x < tamX; x++){
-		for (int y = 0; y < tamY; y++){	
-			currBitmap = bitmap[tabuleiro[x][y] + 6].bmp;
-			StretchBlt(hdc, (tamCelula * x) + paddingX, (tamCelula * y) + paddingY, tamCelula, tamCelula, bitmap[tabuleiro[x][y] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
+	for (int x = 0; x < dados->tamX; x++){
+		for (int y = 0; y < dados->tamY; y++){
+			currBitmap = bitmap[dados->tabuleiro[x][y] + 6].bmp;
+			StretchBlt(hdc, (tamCelula * x) + paddingX, (tamCelula * y) + paddingY, tamCelula, tamCelula, bitmap[dados->tabuleiro[x][y] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
 			rect.left = (tamCelula * x) + paddingX;
 			rect.top = (tamCelula * y) + paddingY;
 			rect.bottom = rect.top + tamCelula;
@@ -503,30 +455,6 @@ void imprimirTabuleiro(HWND hWnd, int tabuleiro[20][20], int tamX, int tamY, Bit
 	}
 }
 
-void processaClique(HWND hWnd, int tamX, int tamY, int posCliqueX, int posCliqueY) {
-	RECT rect;
-	HDC hdc = GetDC(hWnd);
-	GetClientRect(hWnd, &rect);
-	int paddingX, paddingY;
-	int tamCelula = getPaddings(tamX, tamY, &rect, &paddingX, &paddingY);
-
-	if (posCliqueX < paddingX || posCliqueY < paddingY)
-		return;
-	if (posCliqueX > (tamX * tamCelula) + paddingX || posCliqueY > (tamY * tamCelula) + paddingY){
-		return;
-	}
-	int coordX, coordY;
-	coordX = (posCliqueX - paddingX) / tamCelula;
-	coordY = (posCliqueY - paddingY) / tamCelula;
-
-	//DEBUG START
-	TCHAR a[512];
-	_stprintf_s(a, 512, _T("TAM_CELULA = %d ,Clique %d, %d, Celula %d, %d\n"), tamCelula, posCliqueX, posCliqueY, coordX, coordY);
-	OutputDebugString(a);
-	//DEBUG END
-
-	//aqui chama a função para enviar mensagem ao servidor, para avisar do clique
-}
 
 BOOL iniciaDetecaoHover(HWND hWnd) {
 	TRACKMOUSEEVENT tme;
@@ -538,45 +466,74 @@ BOOL iniciaDetecaoHover(HWND hWnd) {
 	return TrackMouseEvent(&tme);
 }
 
-void processaHover(HWND hWnd, int tamX, int tamY, int posHoverX, int posHoverY) {
+
+
+void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, int tipo) {
+	//tipo -> 1 = clique esq;2 = clique dir;3 = mouse hover
+
 	RECT rect;
 	HDC hdc = GetDC(hWnd);
 	GetClientRect(hWnd, &rect);
 	int paddingX, paddingY;
-	int tamCelula = getPaddings(tamX, tamY, &rect, &paddingX, &paddingY);
+	WaitForSingleObject(dados->hMutex, INFINITE);
+	int tamCelula = getPaddings(dados->tamX, dados->tamY, &rect, &paddingX, &paddingY);
 
-	if (posHoverX < paddingX || posHoverY < paddingY)
+	if (posX < paddingX || posY < paddingY)
 		return;
-	if (posHoverX > (tamX * tamCelula) + paddingX || posHoverY > (tamY * tamCelula) + paddingY) {
+	if (posX > (dados->tamX * tamCelula) + paddingX || posY > (dados->tamY * tamCelula) + paddingY) {
 		return;
 	}
+	ReleaseMutex(dados->hMutex);
+
 	int coordX, coordY;
-	coordX = (posHoverX - paddingX) / tamCelula;
-	coordY = (posHoverY - paddingY) / tamCelula;
+	coordX = (posX - paddingX) / tamCelula;
+	coordY = (posY - paddingY) / tamCelula;
 
 	//DEBUG START
 	TCHAR a[512];
 	_stprintf_s(a, 512, _T("Hovered célula %d, %d\n"), coordX, coordY);
 	OutputDebugString(a);
-	//DEBUG END
 
-	int celulaAtivaX = 0, celulaAtivaY = 0;		//apenas aqui para referência futura. estes dados farão parte de uma estrutura que guarde também o tabuleiro e as suas dimensoes
-	if (coordX == celulaAtivaX && coordY == celulaAtivaY){
-		OutputDebugString(_T("Hover na Célula Ativa\n"));
-		//chama função para enviar mensagem ao servidor a avisar do evento hover
-		
-		// a receção de uma resposta por parte do servidor deve iniciar um evento de deteção de que mexeu o rato, para parar o hover
-		// não deve ser feito aqui, mas sim na thread de leitura de pipes
-	}
-	else {			//se não for a célula correta, recomeça a deteção de hover
-		if (iniciaDetecaoHover(hWnd)) {
-			OutputDebugString(_T("INICIOU DETEÇÂO HOVER\n"));
+	switch (tipo)
+	{
+	case 1:
+		WaitForSingleObject(dados->hMutex, INFINITE);
+		_stprintf_s(a, MAX, _T("LCLICK %d %d\n"), coordX, coordY);
+		_tcscpy_s(dados->mensagem, MAX, a);
+		ReleaseMutex(dados->hMutex);
+		SetEvent(dados->hEventoNamedPipe);
+		break;
+	case 2:
+		WaitForSingleObject(dados->hMutex, INFINITE);
+		_stprintf_s(a, MAX, _T("RCLICK %d %d\n"), coordX, coordY);
+		_tcscpy_s(dados->mensagem, MAX, a);
+		ReleaseMutex(dados->hMutex);
+		SetEvent(dados->hEventoNamedPipe);
+		break;
+	case 3:
+		if (coordX == dados->celulaAtivaX && coordY == dados->celulaAtivaY) {
+			OutputDebugString(_T("Hover na Célula Ativa\n"));
+			//chama função para enviar mensagem ao servidor a avisar do evento hover
+			WaitForSingleObject(dados->hMutex, INFINITE);
+			_tcscpy_s(dados->mensagem, MAX, _T("HOVER"));
+			ReleaseMutex(dados->hMutex);
+			SetEvent(dados->hEventoNamedPipe);
+			// a receção de uma resposta por parte do servidor deve iniciar um evento de deteção de que mexeu o rato, para parar o hover
+			// não deve ser feito aqui, mas sim na thread de leitura de pipes
 		}
-		else {
-			OutputDebugString(_T("NÃO CONSEGUIU INICIAR DETEÇÂO HOVER\n"));
+		else {			//se não for a célula correta, recomeça a deteção de hover
+			if (iniciaDetecaoHover(hWnd)) {
+				OutputDebugString(_T("INICIOU DETEÇÂO HOVER\n"));
+			}
+			else {
+				OutputDebugString(_T("NÃO CONSEGUIU INICIAR DETEÇÂO HOVER\n"));
+			}
 		}
+		break;
 	}
 }
+
+
 
 LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam) {
 	RECT rect;
@@ -594,40 +551,68 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	static int xpto = 0;
 	static int limDir;
 	static HDC memDC = NULL;
-	static int tabuleiro[20][20];
-	static int tamX = 10, tamY = 7;
+	static DadosThreadPipe dados;
+	HANDLE hThreadLer, hThreadEscrever;
+
 
 	switch (messg) {
 	case WM_CREATE:
+		dados.terminar = 0;
+		dados.hWnd = hWnd;
+
+		hThreadLer = CreateThread(NULL, 0, ThreadLer, &dados, 0, NULL);
+		if (hThreadLer == NULL) {
+			OutputDebugString(TEXT("[Erro] ao criar thread!\n"));
+			return -1;
+		}
+		dados.hThreadLer = hThreadLer;
+
+
+		if (!initNamedPipes(&dados)) {
+			OutputDebugString(_T("Erro ao criar named Pipes do Cliente.\n"));
+			CloseHandle(hThreadLer);
+			exit(1);
+		}
+
+		//criacao da thread
+		hThreadEscrever = CreateThread(NULL, 0, ThreadEscrever, &dados, 0, NULL);
+		if (hThreadEscrever == NULL) {
+			OutputDebugString(TEXT("[Erro] ao criar thread!\n"));
+			//closehandle
+			return -1;
+		}
+		dados.hThreadEscrever = hThreadEscrever;
+
+
 		loadImages(TRUE, bitmap, hWnd);
 
 		//CARREGAR MAPA PRE-DEFINIDO PARA TESTE
 		for (int x = 0; x < 20; x++){
 			for (int y = 0; y < 20; y++)
 			{
-				tabuleiro[x][y] = 0;
+				dados.tabuleiro[x][y] = 0;
 			}
 		}
-		tabuleiro[0][2] = -1;
-		tabuleiro[1][2] = 1;
-		tabuleiro[2][2] = 1;
-		tabuleiro[3][2] = 1;
-		tabuleiro[4][2] = 4;
-		tabuleiro[4][3] = 2;
-		tabuleiro[4][4] = 5;
-		tabuleiro[3][4] = 3;
-		tabuleiro[3][5] = 2;
-		tabuleiro[3][6] = 6;
-		tabuleiro[4][6] = 1;
-		tabuleiro[5][6] = 1;
-		tabuleiro[6][6] = 1;
-		tabuleiro[7][6] = 1;
-		tabuleiro[8][6] = 5;
-		tabuleiro[8][5] = 3;
-		tabuleiro[9][5] = 1;
+		dados.tabuleiro[0][2] = -1;
+		dados.tabuleiro[1][2] = 1;
+		dados.tabuleiro[2][2] = 1;
+		dados.tabuleiro[3][2] = 1;
+		dados.tabuleiro[4][2] = 4;
+		dados.tabuleiro[4][3] = 2;
+		dados.tabuleiro[4][4] = 5;
+		dados.tabuleiro[3][4] = 3;
+		dados.tabuleiro[3][5] = 2;
+		dados.tabuleiro[3][6] = 6;
+		dados.tabuleiro[4][6] = 1;
+		dados.tabuleiro[5][6] = 1;
+		dados.tabuleiro[6][6] = 1;
+		dados.tabuleiro[7][6] = 1;
+		dados.tabuleiro[8][6] = 5;
+		dados.tabuleiro[8][5] = 3;
+		dados.tabuleiro[9][5] = 1;
 		
-		tabuleiro[9][6] = 3;
-		tabuleiro[0][0] = 5;
+		dados.tabuleiro[9][6] = 3;
+		dados.tabuleiro[0][0] = 5;
 
 		//GetObject(hBmp, sizeof(bmp), &bmp);
 		hdc = GetDC(hWnd);
@@ -638,6 +623,14 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		if (MessageBox(hWnd, _T("Queres mesmo sair?"), _T("SAIR"),
 			MB_ICONQUESTION | MB_YESNO | MB_HELP) == IDYES)
 		{
+			//mandar mensagem ao sv a dizer que cliente saiu
+			//escrever a msg
+			WaitForSingleObject(dados.hMutex, INFINITE);
+				_tcscpy_s(dados.mensagem,MAX, _T("SAIRCLI"));
+			ReleaseMutex(dados.hMutex);
+			SetEvent(dados.hEventoNamedPipe);
+			CloseHandle(dados.hThreadEscrever);
+			CloseHandle(dados.hThreadLer);
 			DestroyWindow(hWnd);
 		}
 		break;
@@ -646,38 +639,20 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		break;
 
 	case WM_LBUTTONDOWN:	//apanhar evento que escuta tecla rato	
-		processaClique(hWnd, tamX, tamY, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
-		//InvalidateRect(hWnd, NULL, TRUE);		//Chama WM_PAINT
-		
-		// APENAS PARA TESTE. SERÁ REMOVIDO DAQUI E CHAMADO QUANDO RECEBER INFORMAÇÃO DO SERVIDOR DE QUE SE INICIOU O JOGO
-		iniciaDetecaoHover(hWnd);
-		
+		processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam),1);
 		break;
 	case WM_MOUSEHOVER:
-		processaHover(hWnd, tamX, tamY, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam),3);
 		break;
 	case WM_PAINT:
-		
+		//Mostra no ecrã as informações do jogo
 		hdc = BeginPaint(hWnd, &ps);
-
-		imprimirTabuleiro(hWnd, tabuleiro, tamX, tamY, bitmap);
-
+		imprimirTabuleiro(hWnd, &dados, bitmap);
 		EndPaint(hWnd, &ps);
 		break;
 	case WM_RBUTTONDOWN:
-		/*xPos = GET_X_LPARAM(lParam);
-		yPos = GET_Y_LPARAM(lParam);
-		hdc = GetDC(hWnd);		//a função GetDC recupera um identificador para um contexto de dispositivo (DC) ...
-		GetClientRect(hWnd, &rect);
-		SetTextColor(hdc, RGB(0, 0, 0));
-		SetBkMode(hdc, TRANSPARENT);
-		rect.left = xPos;
-		rect.top = yPos;
-		DrawText(hdc, &mensagem, _tcslen(mensagem), &rect, DT_SINGLELINE | DT_NOCLIP);
-		ReleaseDC(hWnd, hdc);
-		break;*/
-
-
+		processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam),2);
+		break;
 	case WM_CHAR:	//apanhar  teclado
 		c = (wchar_t)wParam;
 		break;
