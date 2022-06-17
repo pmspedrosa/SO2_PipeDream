@@ -35,11 +35,16 @@ typedef struct {									//estrutura que vai criar cada celula do buffer circula
 }CelulaBuffer;
 
 typedef struct {
+	BOOL jogadorAtivo;								//indica se esta estrutura é de um jogador que existe. Para o monitor saber se deve mostrar este tabuleiro
+	int tabuleiro[20][20];							//tabuleiro
+}MemPartilhadaTabuleiro;
+
+typedef struct {
 	unsigned int nP;								//numero de produtores
 	unsigned int posE;								//posicao de escrita
 	unsigned int posL;								//posicao de leitura
-	int tabuleiro1[20][20];							//tabuleiro jogador 1
-	int tabuleiro2[20][20];							//tabuleiro jogador 2
+	MemPartilhadaTabuleiro dadosTabuleiro1;			//dados do tabuleiro 1
+	MemPartilhadaTabuleiro dadosTabuleiro2;			//dados do tabuleiro 2
 	unsigned int tamX, tamY;						//tam tabuleiro
 	CelulaBuffer buffer[TAM_BUFFER];				//array buffer circular de estruturas CelulaBuffer
 	TCHAR estado[MAX];								//string que indica o estado do programa

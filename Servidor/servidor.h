@@ -100,17 +100,24 @@ typedef struct {									//estrutura que vai criar cada celula do buffer circula
 }CelulaBuffer;
 
 typedef struct {
+	BOOL jogadorAtivo;								//indica se esta estrutura é de um jogador que existe.
+	int tabuleiro[20][20];							//tabuleiro
+}MemPartilhadaTabuleiro;
+
+typedef struct {
 	unsigned int nP;								//numero de produtores
 	unsigned int posE;								//posicao de escrita
 	unsigned int posL;								//posicao de leitura
-	int tabuleiro1[20][20];							//tabuleiro jogador 1
-	int tabuleiro2[20][20];							//tabuleiro jogador 2
+	MemPartilhadaTabuleiro dadosTabuleiro1;			//dados do tabuleiro 1
+	MemPartilhadaTabuleiro dadosTabuleiro2;			//dados do tabuleiro 2
 	unsigned int tamX, tamY;						//tam tabuleiro
 	CelulaBuffer buffer[TAM_BUFFER];				//array buffer circular de estruturas CelulaBuffer
 	TCHAR estado[MAX];								//string que indica o estado do programa
 }MemPartilhada;
 
 typedef struct {
+	BOOL* jogadorAtivo;								//indica se esta estrutura esta a ser utilizada. Para testar antes de tentar aceder à thread
+	HANDLE hThreadAgua;								//handle thread agua
 	int(*tabuleiro)[20][20];						//ponteiro para o tabuleiro referente na memória partilhada
 	int posX, posY;									//posição da água
 	unsigned int dirAgua;							//direção da água	// 0 > cima , 1 > direita, 2 > baixo, 3 > esquerda
@@ -127,7 +134,6 @@ typedef struct {									//estrutura para passar as threads
 	HANDLE hMapFile;								//map file
 	HANDLE hEventUpdateTabuleiro;					//evento que indica aos monitores que houve alterações nos tabuleiros
 	HANDLE hEventTerminar;							//evento para informar monitores (e clientes na meta 2) que devem terminar
-	HANDLE hThreadAgua;								//handle thread agua
 	int posfX, posfY;								//posição peça final da água
 	int terminar;									//flag para indicar a thread para terminar -> 1 para sair, 0 caso contrario
 	int id;											//id do produtor
@@ -145,6 +151,11 @@ typedef struct {									//estrutura para passar as threads
 	int numClientes;
 	TCHAR mensagem[MAX];
 }DadosThread;
+
+typedef struct {
+	DadosThread* dados;
+	int numTabuleiro;
+}DadosThreadAgua;
 
 TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam);
 

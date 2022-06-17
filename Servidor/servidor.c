@@ -217,7 +217,10 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 					_tprintf(_T("Jogo já está em curso\n"));
 				}
 				else {
-					ResumeThread(dados->hThreadAgua);
+					if(*dados->tabuleiro1.jogadorAtivo)
+						ResumeThread(dados->tabuleiro1.hThreadAgua);
+					if (*dados->tabuleiro2.jogadorAtivo)
+						ResumeThread(dados->tabuleiro2.hThreadAgua);
 					WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
 					_tcscpy_s(dados->memPar->estado, MAX, _T("Jogo iniciado"));
 					ReleaseMutex(dados->hMutexTabuleiro);
@@ -244,16 +247,28 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 					WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);	//bloqueia à espera do unlock do mutex
 					
 					if (x < dados->memPar->tamX && x >= 0 && y < dados->memPar->tamY && y >= 0) {		//se for válido ou de 2s a 25s
-						if ((*dados->tabuleiro1.tabuleiro)[x][y] == 0){		//espaço livre
-							(*dados->tabuleiro1.tabuleiro)[x][y] = 7;
-							_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira adicionada"));
-							SetEvent(dados->hEventUpdateTabuleiro);			//assinala evento de atualização do tabuleiro
+						if (*dados->tabuleiro1.jogadorAtivo) {
+							if ((*dados->tabuleiro1.tabuleiro)[x][y] == 0) {		//espaço livre
+								(*dados->tabuleiro1.tabuleiro)[x][y] = 7;
+								_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira adicionada"));
+							}
+							else {
+								_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira não pôde ser adicionada"));
+								_tprintf(_T("Não foi possivel adicionar a barreira\n"));
+							}
 						}
-						else {
-							_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira não pôde ser adicionada"));
-							_tprintf(_T("Não foi possivel adicionar a barreira\n"));
-							SetEvent(dados->hEventUpdateTabuleiro);			//assinala evento de atualização do tabuleiro
+						if (*dados->tabuleiro2.jogadorAtivo) {
+							if ((*dados->tabuleiro2.tabuleiro)[x][y] == 0) {		//espaço livre
+								(*dados->tabuleiro2.tabuleiro)[x][y] = 7;
+								_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira adicionada"));
+							}
+							else {
+								_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira não pôde ser adicionada"));
+								_tprintf(_T("Não foi possivel adicionar a barreira\n"));
+							}
 						}
+						SetEvent(dados->hEventUpdateTabuleiro);			//assinala evento de atualização do tabuleiro
+
 					}
 					else {
 						_tprintf(_T("Valor passado como argumento não é aceite\n"));
@@ -436,95 +451,95 @@ BOOL definirInicioFim(DadosThread* dados) {
 }
 
 
-BOOL fluirAgua(DadosThread* dados) {
-	switch(dados->tabuleiro1.dirAgua){
+BOOL fluirAgua(DadosThread* dados, DadosTabuleiro* dadosTabuleiro) {
+	switch(dadosTabuleiro->dirAgua){
 	case CIMA:
-		if (dados->tabuleiro1.posY - 1 < 0) {
+		if (dadosTabuleiro->posY - 1 < 0) {
 			return FALSE;
 		}
-		switch ((*dados->tabuleiro1.tabuleiro)[dados->tabuleiro1.posX][dados->tabuleiro1.posY - 1]) {
+		switch ((*dadosTabuleiro->tabuleiro)[dadosTabuleiro->posX][dadosTabuleiro->posY - 1]) {
 		case 2:				// peça ┃
 			_tprintf(_T("encontrei peça ┃, direcao: CIMA\n"));
 			break;
 		case 3:				// peça ┏
-			dados->tabuleiro1.dirAgua = DIREITA;
+			dadosTabuleiro->dirAgua = DIREITA;
 			_tprintf(_T("encontrei peça ┏, direcao: DIREITA\n"));
 			break;
 		case 4:				// peça ┓
-			dados->tabuleiro1.dirAgua = ESQUERDA;
+			dadosTabuleiro->dirAgua = ESQUERDA;
 			_tprintf(_T("encontrei peça ┓, direcao: ESQUERDA\n"));
 			break;
 		default:			//encontra peça inutilizável ou vazio ou barreira
 			return FALSE;
 		}
-		dados->tabuleiro1.posY--;															//avança a posição ativa da água na direção de fluxo
-		(*dados->tabuleiro1.tabuleiro)[dados->tabuleiro1.posX][dados->tabuleiro1.posY] *= -1;				//coloca a peça ativa como tendo água
+		dadosTabuleiro->posY--;															//avança a posição ativa da água na direção de fluxo
+		(*dadosTabuleiro->tabuleiro)[dadosTabuleiro->posX][dadosTabuleiro->posY] *= -1;				//coloca a peça ativa como tendo água
 		break;
 	case DIREITA:
-		if (dados->tabuleiro1.posX + 1 >= dados->memPar->tamX) {
+		if (dadosTabuleiro->posX + 1 >= dados->memPar->tamX) {
 			return FALSE;
 		}
-		switch ((*dados->tabuleiro1.tabuleiro)[dados->tabuleiro1.posX+1][dados->tabuleiro1.posY]) {
+		switch ((*dadosTabuleiro->tabuleiro)[dadosTabuleiro->posX+1][dadosTabuleiro->posY]) {
 		case 1:				// peça ━
 			_tprintf(_T("encontrei peça ━, direcao: DIREITA\n"));
 			break;
 		case 4:				// peça ┓
-			dados->tabuleiro1.dirAgua = BAIXO;
+			dadosTabuleiro->dirAgua = BAIXO;
 			_tprintf(_T("encontrei peça ┓, direcao: BAIXO\n"));
 			break;
 		case 5:				// peça ┛
-			dados->tabuleiro1.dirAgua = CIMA;
+			dadosTabuleiro->dirAgua = CIMA;
 			_tprintf(_T("encontrei peça ┛, direcao: CIMA\n"));
 			break;
 		default:			//encontra peça inutilizável ou vazio ou barreira
 			return FALSE;
 		}
-		dados->tabuleiro1.posX++;															//avança a posição ativa da água na direção de fluxo
-		(*dados->tabuleiro1.tabuleiro)[dados->tabuleiro1.posX][dados->tabuleiro1.posY] *= -1;				//coloca a peça ativa como tendo água
+		dadosTabuleiro->posX++;															//avança a posição ativa da água na direção de fluxo
+		(*dadosTabuleiro->tabuleiro)[dadosTabuleiro->posX][dadosTabuleiro->posY] *= -1;				//coloca a peça ativa como tendo água
 		break;
 	case BAIXO:
-		if (dados->tabuleiro1.posY + 1 >= dados->memPar->tamY) {
+		if (dadosTabuleiro->posY + 1 >= dados->memPar->tamY) {
 			return FALSE;
 		}
-		switch ((*dados->tabuleiro1.tabuleiro)[dados->tabuleiro1.posX][dados->tabuleiro1.posY + 1]) {
+		switch ((*dadosTabuleiro->tabuleiro)[dadosTabuleiro->posX][dadosTabuleiro->posY + 1]) {
 		case 2:				// peça ┃
 			_tprintf(_T("encontrei peça ┃, direcao: BAIXO\n"));
 			break;
 		case 5:				// peça ┛
-			dados->tabuleiro1.dirAgua = ESQUERDA;
+			dadosTabuleiro->dirAgua = ESQUERDA;
 			_tprintf(_T("encontrei peça ┛, direcao: ESQUERDA\n"));
 			break;
 		case 6:				// peça ┗
-			dados->tabuleiro1.dirAgua = DIREITA;
+			dadosTabuleiro->dirAgua = DIREITA;
 			_tprintf(_T("encontrei peça ┗, direcao: DIREITA\n"));
 			break;
 		default:			//encontra peça inutilizável ou vazio ou barreira
 			return FALSE;
 		}
-		dados->tabuleiro1.posY++;															//avança a posição ativa da água na direção de fluxo
-		(*dados->tabuleiro1.tabuleiro)[dados->tabuleiro1.posX][dados->tabuleiro1.posY] *= -1;				//coloca a peça ativa como tendo água
+		dadosTabuleiro->posY++;															//avança a posição ativa da água na direção de fluxo
+		(*dadosTabuleiro->tabuleiro)[dadosTabuleiro->posX][dadosTabuleiro->posY] *= -1;				//coloca a peça ativa como tendo água
 		break;
 	case ESQUERDA:
-		if (dados->tabuleiro1.posX - 1 < 0) {
+		if (dadosTabuleiro->posX - 1 < 0) {
 			return FALSE;
 		}
-		switch ((*dados->tabuleiro1.tabuleiro)[dados->tabuleiro1.posX - 1][dados->tabuleiro1.posY]) {
+		switch ((*dadosTabuleiro->tabuleiro)[dadosTabuleiro->posX - 1][dadosTabuleiro->posY]) {
 		case 1:				// peça ━
 			_tprintf(_T("encontrei peça ━, direcao: ESQUERDA\n"));
 			break;
 		case 3:				// peça ┏
-			dados->tabuleiro1.dirAgua = BAIXO;
+			dadosTabuleiro->dirAgua = BAIXO;
 			_tprintf(_T("encontrei peça ┏, direcao: BAIXO\n"));
 			break;
 		case 6:				// peça ┗
-			dados->tabuleiro1.dirAgua = CIMA;
+			dadosTabuleiro->dirAgua = CIMA;
 			_tprintf(_T("encontrei peça ┗, direcao: CIMA\n"));
 			break;
 		default:			//encontra peça inutilizável ou vazio ou barreira
 			return FALSE;
 		}
-		dados->tabuleiro1.posX--;															//avança a posição ativa da água na direção de fluxo
-		(*dados->tabuleiro1.tabuleiro)[dados->tabuleiro1.posX][dados->tabuleiro1.posY] *= -1;				//coloca a peça ativa como tendo água
+		dadosTabuleiro->posX--;															//avança a posição ativa da água na direção de fluxo
+		(*dadosTabuleiro->tabuleiro)[dadosTabuleiro->posX][dadosTabuleiro->posY] *= -1;				//coloca a peça ativa como tendo água
 		break;
 	default:
 		return FALSE;
@@ -533,7 +548,20 @@ BOOL fluirAgua(DadosThread* dados) {
 }
 
 DWORD WINAPI ThreadAgua(LPVOID param) {
-	DadosThread* dados = (DadosThread*)param;
+	DadosThreadAgua* paramStruct = (DadosThreadAgua*)param;
+	DadosThread* dados = paramStruct->dados;
+	DadosTabuleiro* dadosTabuleiro;
+	switch (paramStruct->numTabuleiro){
+	case 1:
+		dadosTabuleiro = &(dados->tabuleiro1);
+		break;
+	case 2:
+		dadosTabuleiro = &(dados->tabuleiro2);
+		break;
+	default:
+		return;
+	}
+	
 
 	SetEvent(dados->hEventUpdateTabuleiro);														//assinala evento de atualização do tabuleiro
 	_tprintf(_T("(ThreadAgua) Sleep %d"), dados->tempoInicioAgua * 1000);			
@@ -542,8 +570,11 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 		while (!dados->terminar) {
 			if (dados->parafluxo == 0) {
 				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
-				if (fluirAgua(dados)) {															//verifica se a água fluiu com sucesso
-					if (dados->tabuleiro1.posX == dados->posfX && dados->tabuleiro1.posY == dados->posfY){
+				if (dadosTabuleiro->jogadorAtivo){
+					_tprintf(_T("TABULEIRO %d ATIVO"), paramStruct->numTabuleiro);
+				}
+				if (fluirAgua(dados, dadosTabuleiro)) {															//verifica se a água fluiu com sucesso
+					if (dadosTabuleiro->posX == dados->posfX && dadosTabuleiro->posY == dados->posfY){
 						_tcscpy_s(dados->memPar->estado, MAX, _T("Ganhou!!!"));					//muda o estado do jogo 
 						_tprintf(_T("(ThreadAgua) Ganhou!!!"));
 						SetEvent(dados->hEventUpdateTabuleiro);
@@ -609,8 +640,11 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 	dados->memPar->tamX = 10;
 	dados->memPar->tamY = 7;
 
-	dados->tabuleiro1.tabuleiro = &(dados->memPar->tabuleiro1);
-	dados->tabuleiro2.tabuleiro = &(dados->memPar->tabuleiro2);
+	dados->tabuleiro1.tabuleiro = &(dados->memPar->dadosTabuleiro1.tabuleiro);
+	dados->tabuleiro1.jogadorAtivo = &(dados->memPar->dadosTabuleiro1.jogadorAtivo);
+	dados->tabuleiro2.tabuleiro = &(dados->memPar->dadosTabuleiro2.tabuleiro);
+	dados->tabuleiro2.jogadorAtivo = &(dados->memPar->dadosTabuleiro2.jogadorAtivo);
+	
 	for (int i = 0; i < tamH; i++) {
 		for (int j = 0; j < tamV; j++) {
 			(*dados->tabuleiro1.tabuleiro)[i][j] = 0;
@@ -619,8 +653,14 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 		}
 	}
 
+	*dados->tabuleiro1.jogadorAtivo = FALSE;
+	*dados->tabuleiro2.jogadorAtivo = FALSE;
+
+
 	//	MAPA PRÉ-DEFINIDO
 	carregaMapaPreDefinido(dados, dados->tabuleiro1.tabuleiro);
+	
+	*dados->tabuleiro1.jogadorAtivo = TRUE;
 
 	// Define início e fim
 	definirInicioFim(dados);
@@ -759,7 +799,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 
 	DWORD tamHorizontal, tamVertical;
 
-	HANDLE hThreadConsumidor, hThreadAgua, hThreadEscrever, hThreadLer;
+	HANDLE hThreadConsumidor, hThreadEscrever, hThreadLer;
 	DadosThread dados;
 	TCHAR comando[MAX];
 	//unsigned int tab[20][20];
@@ -812,7 +852,15 @@ int _tmain(int argc, LPTSTR argv[]) {
 	}
 	
 	hThreadConsumidor = CreateThread(NULL, 0, ThreadConsumidor, &dados, 0, NULL);
-	dados.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dados, CREATE_SUSPENDED, NULL);					//thread criada suspensa até que monitor inicie o jogo
+	DadosThreadAgua dadosAguaTabuleiro1;
+	dadosAguaTabuleiro1.dados = &dados;
+	dadosAguaTabuleiro1.numTabuleiro = 1;
+	dados.tabuleiro1.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosAguaTabuleiro1, CREATE_SUSPENDED, NULL);					//thread criada suspensa até que monitor inicie o jogo
+
+	DadosThreadAgua dadosAguaTabuleiro2;
+	dadosAguaTabuleiro2.dados = &dados;
+	dadosAguaTabuleiro2.numTabuleiro = 2;
+	dados.tabuleiro2.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosAguaTabuleiro2, CREATE_SUSPENDED, NULL);					//thread criada suspensa até que monitor inicie o jogo
 
 
 	if (!initNamedPipes(&dados)) {
@@ -854,7 +902,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 
 
 
-	if (hThreadConsumidor != NULL && dados.hThreadAgua != NULL) {
+	if (hThreadConsumidor != NULL && dados.tabuleiro1.hThreadAgua != NULL && dados.tabuleiro2.hThreadAgua != NULL) {
 		_tprintf(_T("Escreva 'SAIR' para sair.\n"));
 		do {
 			fflush(stdin);
@@ -871,7 +919,11 @@ int _tmain(int argc, LPTSTR argv[]) {
 					WaitForSingleObject(dados.hMutexTabuleiro, INFINITE);
 					_tcscpy_s(dados.memPar->estado, MAX, _T("Jogo em pausa"));
 					_tprintf(TEXT("Jogo em pausa\n"));
-					SuspendThread(dados.hThreadAgua);
+					if (dados.tabuleiro1.jogadorAtivo)
+						SuspendThread(dados.tabuleiro1.hThreadAgua);
+					if (dados.tabuleiro2.jogadorAtivo)
+						SuspendThread(dados.tabuleiro2.hThreadAgua);
+					
 					ReleaseMutex(dados.hMutexTabuleiro);
 					SetEvent(dados.hEventUpdateTabuleiro);
 				}
@@ -885,7 +937,10 @@ int _tmain(int argc, LPTSTR argv[]) {
 					_tcscpy_s(dados.memPar->estado, MAX, _T("Jogo retomado"));
 					ReleaseMutex(dados.hMutexTabuleiro);
 					_tprintf(TEXT("Jogo retomado\n"));
-					ResumeThread(dados.hThreadAgua);
+					if (dados.tabuleiro1.jogadorAtivo)
+						ResumeThread(dados.tabuleiro1.hThreadAgua);
+					if (dados.tabuleiro2.jogadorAtivo)
+						ResumeThread(dados.tabuleiro2.hThreadAgua);
 					SetEvent(dados.hEventUpdateTabuleiro);
 				}
 				else {
@@ -896,7 +951,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 		dados.terminar = 1;
 		SetEvent(dados.hEventTerminar);
 		
-		HANDLE hThreadsWait[] = { hThreadConsumidor, dados.hThreadAgua };
+		HANDLE hThreadsWait[] = { hThreadConsumidor, dados.tabuleiro1.hThreadAgua, dados.tabuleiro2.hThreadAgua};
 
 		WaitForMultipleObjects(2, hThreadsWait, TRUE, 100);
 	}
@@ -916,7 +971,8 @@ int terminar(DadosThread* dados) {
 	CloseHandle(dados->hSemEscrita);
 	CloseHandle(dados->hSemLeitura);
 	CloseHandle(dados->hMapFile);
-	CloseHandle(dados->hThreadAgua);
+	CloseHandle(dados->tabuleiro1.hThreadAgua);
+	CloseHandle(dados->tabuleiro2.hThreadAgua);
 	CloseHandle(dados->hEventUpdateTabuleiro);
 	CloseHandle(dados->hMutexTabuleiro);
 	CloseHandle(dados->hEventTerminar);
