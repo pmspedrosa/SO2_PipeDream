@@ -1,6 +1,29 @@
 ﻿#include "servidor.h"
 #include "utils.h"
 
+
+
+void alteraSequencia(DadosThread* dados, DadosTabuleiro* tabuleiro) {
+	//TALVEZ MUTEX. DEPENDE SE ESTÁ DENTRO DE MUTEX QUANDO A FUNÇÂO É CHAMADA
+	
+	for (int i = 0; i < 5; i++) {									//passa os tubos uma posição para baixo //tecnicamente, apaga o tubo que se acabou de utilizar
+		tabuleiro->sequencia[i] = tabuleiro->sequencia[i + 1];
+	}
+
+	if (dados->modoRandom){
+		tabuleiro->sequencia[5] = (rand() % 6) + 1;				//numero aleatorio entre 1 e 6
+		return;
+	}
+
+	//Se não for modo random:
+	if (tabuleiro->sequencia[5] >= 6) {							//se for o tubo 6, adiciona o tubo 1
+		tabuleiro->sequencia[5] = 1;
+		return;
+	}
+	tabuleiro->sequencia[5] = tabuleiro->sequencia[5] + 1;		//se não, o tubo é o proximo da sequencia
+
+}
+
 DWORD WINAPI ThreadLer(LPVOID param) {
 	//fica sempre á escuta de ler coisas vindas do named pipe
 	//escreve diretamente no ecrã
@@ -192,9 +215,6 @@ BOOL escreveNamedPipe(DadosThread* dados, TCHAR* a) {
 	SetEvent(dados->hEventoNamedPipe);
 }
 
-
-
-
 BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t) {		//adicionar depois qual o tabuleiro a verificar (int tab)
 	//verificar se celula é água ou verificar se célula é o fim jogo ou barr
 	int tab = 1;
@@ -217,10 +237,6 @@ BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t) {		//adicionar
 	}
 
 	return FALSE;
-}
-
-
-
 
 
 DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o cliente através do named pipe
@@ -252,7 +268,7 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 			//libertamos o mutex
 			ReleaseMutex(dados->hMutexNamedPipe);
 		}
-			Sleep(1000);
+		ResetEvent(dados->hEventoNamedPipe);
 
 	} while (dados->terminar==0);
 	dados->terminar = 1;

@@ -118,6 +118,7 @@ typedef struct {
 	int(*tabuleiro)[20][20];						//ponteiro para o tabuleiro referente na memória partilhada
 	int posX, posY;									//posição da água
 	unsigned int dirAgua;							//direção da água	// 0 > cima , 1 > direita, 2 > baixo, 3 > esquerda
+	int sequencia[6];								//sequencia de tubos
 }DadosTabuleiro;
 
 typedef struct {									//estrutura para passar as threads
@@ -137,6 +138,7 @@ typedef struct {									//estrutura para passar as threads
 	int parafluxo;									//para thread fluxo agua por determinado tempo
 	DWORD tempoInicioAgua;							//tempo até água começar a fluir
 	BOOL iniciado;									//True -  jogo foi iniciado, False - não
+	BOOL modoRandom;								//TRUE -> modo de sequencia random //FALSE -> modo de sequencia definida
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

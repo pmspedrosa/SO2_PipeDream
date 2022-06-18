@@ -162,10 +162,8 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	}
 
 	CloseHandle(hPipe);
-	Sleep(200);
 
 	return 0;
-
 }
 
 
@@ -186,7 +184,7 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 				OutputDebugString(TEXT("[ESCRITOR] Enviei %d bytes ao cliente ... (WriteFile)\n"), n);
 		}
 		ReleaseMutex(dados->hMutex);
-		Sleep(2000);
+		ResetEvent(dados->hEventoNamedPipe);
 
 	} while (dados->terminar == 0);
 	return 0;
@@ -506,7 +504,7 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 
 	//DEBUG START
 	TCHAR a[512];
-	_stprintf_s(a, 512, _T("Hovered célula %d, %d\n"), coordX, coordY);
+	_stprintf_s(a, 512, _T("Evento na célula %d, %d\n"), coordX, coordY);
 	OutputDebugString(a);
 
 	switch (tipo)
@@ -526,6 +524,7 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 		SetEvent(dados->hEventoNamedPipe);
 		break;
 	case 3:
+		OutputDebugString(_T("Hover\n"));
 		if (coordX == dados->celulaAtivaX && coordY == dados->celulaAtivaY) {
 			OutputDebugString(_T("Hover na Célula Ativa\n"));
 			//chama função para enviar mensagem ao servidor a avisar do evento hover
@@ -555,7 +554,6 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	PAINTSTRUCT ps;
 	HDC hdc;
 	static TCHAR lastChar = '?';
-	static TCHAR c;
 	static PosChar posicoes[1000];
 	static DWORD count = 0;
 	static HBITMAP hBmp[7];
@@ -635,6 +633,10 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		for (int i = 0; i < 6; i++)
 			dados.seq[i] = i;
 
+		dados.celulaAtivaX = 0;
+		dados.celulaAtivaY = 0;
+
+
 
 		//GetObject(hBmp, sizeof(bmp), &bmp);
 		hdc = GetDC(hWnd);
@@ -676,7 +678,11 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam),2);
 		break;
 	case WM_CHAR:	//apanhar  teclado
-		c = (wchar_t)wParam;
+		//PARA TESTE
+		if (wParam == _T('d')){
+			iniciaDetecaoHover(hWnd);
+		}
+
 		break;
 
 	case WM_DESTROY:	//Destruir janela
