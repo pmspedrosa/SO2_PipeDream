@@ -25,39 +25,67 @@ void alteraSequencia(DadosThread* dados, DadosTabuleiro* tabuleiro) {
 }
 
 DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[]) {
-	BOOL ret;
+	BOOL isPipe1Pending, isPipe2Pending;
 
 	if (ReadFile(dados->tabuleiro1.pipes.hPipeIn, buf, sizeof(buf), n, &(dados->tabuleiro1.pipes.overlap)) != FALSE) {					//se TRUE, significa que conseguiu ler imediatamente, sem assinalar o evento de OVERLAP
+		_tprintf(TEXT("[SV] LI LOGO PIPE 1: %d %s\n"), *n, buf);
 		return &dados->tabuleiro1;																											//retorna-se logo, indicando qual o tabuleiro que enviou mensagem
 		
 	}
 
-	ret = (GetLastError() != ERROR_IO_PENDING);																							//ERROR_IO_PENDING significa que o vai ativar o evento OVERLAP quando receber dados
+	isPipe1Pending = GetLastError() == ERROR_IO_PENDING;																							//ERROR_IO_PENDING significa que o vai ativar o evento OVERLAP quando receber dados
 																																		//Se o erro for diferente, significa que houve outro erro, como por exemplo o pipe não ter ligação do outro lado.
 
+	if (isPipe1Pending)
+	{
+		_tprintf(TEXT("pipe 1 IO PENFDING\n"));
+	}
+	else {
+		_tprintf(TEXT("NOT IO PENFDING 1 !!!\n"));
+	}
+
 	if (ReadFile(dados->tabuleiro2.pipes.hPipeIn, buf, sizeof(buf), n, &(dados->tabuleiro2.pipes.overlap)) != FALSE) {					//repete-se para o pipe do outro tabuleiro
+		_tprintf(TEXT("[SV] LI LOGO PIPE 2: %d %s\n"), *n, buf);
+
 		return &dados->tabuleiro2;
 	}
 
-	if (ret && (GetLastError() != ERROR_IO_PENDING)) {																					//se nenhum retornar o erro de IO_PENDING, significa que nenhum dos pipes está preparado para ler
+	isPipe2Pending = GetLastError() == ERROR_IO_PENDING;
+	if (isPipe2Pending)
+	{
+		_tprintf(TEXT("pipe 2 IO PENFDING\n"));
+	}
+	else {
+		_tprintf(TEXT("NOT IO PENFDING 2 !!!\n"));
+	}
+
+	if (!isPipe1Pending && !isPipe2Pending)
+	{
+		//_tprintf(TEXT("NONE OF THE FUCKERS ARE PENDING!!!\n"));
+		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent);
 		return NULL;
 	}
+	_tprintf(_T("\n\n%p\n\n"), dados->tabuleiro1.pipes.hPipeIn);
 
+	_tprintf(TEXT("[SV] VOU ESPERAR AGORA\n"));
 	WaitForSingleObject(dados->tabuleiro1.pipes.overlap.hEvent, INFINITE);																//espera pelo evento de overlap. Não faz utilizar o OVERLAPPED da tabuleiro1 ou tabuleiro2, uma vez que utilizam o mesmo evento
 
-	if (GetOverlappedResult(dados->tabuleiro1.pipes.hPipeIn, &dados->tabuleiro1.pipes.overlap, n, FALSE)) {							//se GetOverlappedResult retornar TRUE para o pipe indicado, significa que este pipe recebeu mensagem
+	if (GetOverlappedResult(dados->tabuleiro1.pipes.hPipeIn, &(dados->tabuleiro1.pipes.overlap), n, FALSE)) {							//se GetOverlappedResult retornar TRUE para o pipe indicado, significa que este pipe recebeu mensagem
 		_tprintf(TEXT("[SV] Recebi de pipe1 overlapped: %d %s\n"), *n, buf);																	//reset ao evento para a proxima iteração
-		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent, INFINITE);																		//retorna indicando qual o tabuleiro que enviou mensagem
-		return &dados->tabuleiro1;
+		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent);																						//retorna indicando qual o tabuleiro que enviou mensagem
+		return &(dados->tabuleiro1);
 	
 	}
-	else if(GetOverlappedResult(dados->tabuleiro2.pipes.hPipeIn, &dados->tabuleiro2.pipes.overlap, n, FALSE)) {						//caso contrário, só pode ter sido o outro pipe a receber mensagem. Mas convém testar com if pelo sim pelo não
+	else if(GetOverlappedResult(dados->tabuleiro2.pipes.hPipeIn, &(dados->tabuleiro2.pipes.overlap), n, FALSE)) {						//caso contrário, só pode ter sido o outro pipe a receber mensagem. Mas convém testar com if pelo sim pelo não
 		_tprintf(TEXT("[SV] Recebi de pipe2 overlapped: %d %s\n"), *n, buf);
-		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent, INFINITE);
+		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent);
 		return &dados->tabuleiro2;
 	}
 	else {
-		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent, INFINITE);																	//tecnicamente nunca deve chegar aqui. se chegar é porque houve algum erro
+		_tprintf(TEXT("[SV] \n\nerror: %d\n\n"), GetLastError());																	//reset ao evento para a proxima iteração
+
+		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent);																	//tecnicamente nunca deve chegar aqui. se chegar é porque houve algum erro
+		_tprintf(TEXT("[SV] GetOverlappedResult nao devolveu nenhum resultado esperado\n"));
 		return NULL;
 	}
 }
@@ -71,32 +99,38 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	int multi=0;
 	unsigned int nrArgs = 0;
 	const TCHAR delim[2] = _T(" ");
-	OVERLAPPED o = { 0 };
+	OVERLAPPED o1 = { 0 };
+	OVERLAPPED o2 = { 0 };
+
 
 	_tprintf(TEXT("[SV] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), NOME_PIPE_CLIENTE);
 
 	//espera que exista um named pipe para ler do mesmo
 	//bloqueia aqui
+	/*
 	if (!WaitNamedPipe(NOME_PIPE_CLIENTE, NMPWAIT_WAIT_FOREVER)) {
 		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (WaitNamedPipe)\n"), NOME_PIPE_CLIENTE);
 		exit(-1);
 	}
+	*/
 
 	_tprintf(TEXT("[SV] Ligação ao pipe do cliente... (CreateFile)\n"));
-	dados->tabuleiro1.pipes.hPipeIn = CreateFile(NOME_PIPE_CLIENTE, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+
+	dados->tabuleiro1.pipes.hPipeIn = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 3, MAX * sizeof(TCHAR), MAX * sizeof(TCHAR), 1000, NULL);
 	if (dados->tabuleiro1.pipes.hPipeIn == NULL) {
-		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), NOME_PIPE_CLIENTE);
+		_tprintf(TEXT("[ERRO] Criar instacia do pipe '%s'! (CreateNamedPipe)\n"), NOME_PIPE_CLIENTE);
 		exit(-1);
 	}
+	_tprintf(_T("\n\n%p\n\n"), dados->tabuleiro1.pipes.hPipeIn);
 	
-	dados->tabuleiro2.pipes.hPipeIn = CreateFile(NOME_PIPE_CLIENTE, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+	dados->tabuleiro2.pipes.hPipeIn = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 3, MAX * sizeof(TCHAR), MAX * sizeof(TCHAR), 1000, NULL);
 	if (dados->tabuleiro2.pipes.hPipeIn == NULL) {
-		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), NOME_PIPE_CLIENTE);
+		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateNamedPipe)\n"), NOME_PIPE_CLIENTE);
 		exit(-1);
 	}
 
-	dados->tabuleiro1.pipes.overlap = o;
-	dados->tabuleiro2.pipes.overlap = dados->tabuleiro1.pipes.overlap;
+	dados->tabuleiro1.pipes.overlap = o1;
+	dados->tabuleiro2.pipes.overlap = o2;
 
 	dados->tabuleiro1.pipes.overlap.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (dados->tabuleiro1.pipes.overlap.hEvent == NULL) {
@@ -106,15 +140,15 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	dados->tabuleiro2.pipes.overlap.hEvent = dados->tabuleiro1.pipes.overlap.hEvent;
 
 	_tprintf(TEXT("[SV] Liguei-me...\n"));
+	DadosTabuleiro* sourceTabuleiro;
 
 	while (dados->terminar == 0) {
 		TCHAR a[MAX];
 		//le as mensagens enviadas pelo cliente
 	
 		
-		DadosTabuleiro* sourceTabuleiro = leDePipesOverlapped(&dados, &n, buf);
+		sourceTabuleiro = leDePipesOverlapped(dados, &n, buf);
 		
-
 		if (!n){
 			_tprintf(TEXT("[SV] n == 0... (ReadFile)\n"));
 			//continue;
@@ -122,10 +156,11 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 		if (sourceTabuleiro == NULL) {
 			_tprintf(TEXT("[SV] sourceTabuleiro NULL... %d (ReadFile)\n"), n);
+			Sleep(1000);
 			continue;
 		}
 
-		buf[n / sizeof(TCHAR) - 1] = '\0';
+		buf[n / sizeof(TCHAR)] = '\0';
 
 		_tprintf(TEXT("[SV] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
 
@@ -208,7 +243,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			//if jogo ainda não se encontra em curso
 				//if cliente1
 					ResumeThread(dados->tabuleiro1.hThreadAgua);
-					_stprintf_s(a, MAX, _T("INICIA %d\n", dados->tempoInicioAgua));
+					_stprintf_s(a, MAX, _T("INICIA %d\n"),  dados->tempoInicioAgua);
 					escreveNamedPipe(dados, a);
 				//else
 					//ResumeThread(dados->tabuleiro1.hThreadAgua);
@@ -359,7 +394,7 @@ DWORD WINAPI ThreadAceitaClientes(LPVOID param) {
 			WaitForSingleObject(dados->hMutexNamedPipe, INFINITE);
 			dados->hPipe[dados->numClientes].activo = TRUE;
 			dados->numClientes++;
-			ResumeThread(dados->hThreadLer);
+			//ResumeThread(dados->hThreadLer);
 			ReleaseMutex(dados->hMutexNamedPipe);
 		}
 		//se já tiver 2 clientes ligados 
@@ -1116,7 +1151,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 
 
 	//criacao da thread LER
-	hThreadLer = CreateThread(NULL, 0, ThreadLer, &dados, CREATE_SUSPENDED, NULL);
+	hThreadLer = CreateThread(NULL, 0, ThreadLer, &dados, 0, NULL);
 	if (hThreadLer == NULL) {
 		_tprintf(TEXT("[Erro] ao criar thread!\n"));
 		return -1;
