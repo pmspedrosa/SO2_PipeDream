@@ -408,7 +408,7 @@ int getPaddings(int tamX, int tamY, RECT* rect, int* paddingX, int* paddingY, in
 	// Devolve o tamanho de célula
 
 	*larguraSeq = rect->right / 5;								//largura máxima de barra de sequencia é 1/5 do ecrâ
-	int tempPaddingSeq = rect->bottom / 6;						//altura maxima de cada celula (uma vez que há 6 celulas na sequencia)
+	int tempPaddingSeq = (rect->bottom-ALTURA_INFO) / 6;						//altura maxima de cada celula (uma vez que há 6 celulas na sequencia)
 
 
 	if (*larguraSeq >= tempPaddingSeq) {							// se tamanho maximo de celula em largura >= tamanho maximo de celula em altura 
@@ -425,7 +425,7 @@ int getPaddings(int tamX, int tamY, RECT* rect, int* paddingX, int* paddingY, in
 
 	int tamCelula;
 	*paddingX = (rect->right - *larguraSeq) / tamX;
-	*paddingY = rect->bottom / tamY;
+	*paddingY = (rect->bottom - ALTURA_INFO) / tamY;
 
 	if (*paddingX >= *paddingY) {
 		tamCelula = *paddingY;
@@ -456,16 +456,23 @@ void atualizarDisplay(HWND hWnd, DadosThreadPipe* dados, BitmapInfo bitmap[]) {
 	//BARRA DE SEQUENCIA
 	for (int i = 0; i < 6; i++) {
 		currBitmap = bitmap[dados->seq[i] + 6].bmp;
-		StretchBlt(hdc, 0, (larguraSeq * i) + paddingSeq, larguraSeq, larguraSeq, bitmap[dados->seq[i] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
+		StretchBlt(hdc, 0, (larguraSeq * i) + paddingSeq + ALTURA_INFO, larguraSeq, larguraSeq, bitmap[dados->seq[i] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
 	}
 	
 	//TABULEIRO
 	for (int x = 0; x < dados->tamX; x++){
 		for (int y = 0; y < dados->tamY; y++){
 			currBitmap = bitmap[dados->tabuleiro[x][y] + 6].bmp;
-			StretchBlt(hdc, (tamCelula * x) + paddingX + larguraSeq, (tamCelula * y) + paddingY, tamCelula, tamCelula, bitmap[dados->tabuleiro[x][y] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
+			StretchBlt(hdc, (tamCelula * x) + paddingX + larguraSeq, (tamCelula * y) + paddingY + ALTURA_INFO, tamCelula, tamCelula, bitmap[dados->tabuleiro[x][y] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
 		}
 	}
+
+	//PRINT INFO
+	SetTextColor(hdc, RGB(0, 0, 0));
+	SetBkMode(hdc, TRANSPARENT);
+	rect.left = 0;
+	rect.top = 0;
+	DrawText(hdc, &dados->mensagem, -1, &rect, DT_SINGLELINE, DT_NOCLIP);
 }
 
 
@@ -635,6 +642,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 		dados.celulaAtivaX = 0;
 		dados.celulaAtivaY = 0;
+
+		_stprintf_s(&dados.mensagem, MAX, _T("Isto é uma mensagem pré-definida, apenas para teste\0"));
 
 
 
