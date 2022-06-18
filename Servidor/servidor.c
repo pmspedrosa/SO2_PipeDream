@@ -1,18 +1,13 @@
 ﻿#include "servidor.h"
 #include "utils.h"
 
-
-TCHAR info[MAX];
-
-
-
-
 DWORD WINAPI ThreadLer(LPVOID param) {
 	//fica sempre á escuta de ler coisas vindas do named pipe
 	//escreve diretamente no ecrã
 	DadosThread* dados = (DadosThread*)param;
 	TCHAR buf[MAX], ** arrayComandos = NULL;
 	DWORD n;
+	int multi=0;
 	unsigned int nrArgs = 0;
 	const TCHAR delim[2] = _T(" ");
 
@@ -49,15 +44,10 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 		_tprintf(TEXT("[SV] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
 
-
-		//funções 
-		// comando arg0 arg1 ....
-		//msg= info_0_barreira colocada local tal e tal
-
 		arrayComandos = divideString(buf, delim, &nrArgs);			//divisão da string para um array com o comando e args
 		/*
-		#define LCLICK _T("LCLICK")
-		#define RCLICK _T("RCLICK")
+		#define LCLICK _T("LCLICK")-
+		#define RCLICK _T("RCLICK")-
 		#define HOVER _T("HOVER")
 		#define RETOMAHOVER _T("RETOMAHOVER")
 		#define SAIRCLI _T("SAIRCLI")
@@ -81,8 +71,9 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 						_tprintf(_T("Valor passado como argumento não é aceite\n"));
 					}
 				}
-				else
+				else {
 					y = 0;
+				}
 
 				if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
 					//t = dados.sequencia[0];
@@ -113,24 +104,63 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				}
 			}
 		}else if (_tcscmp(arrayComandos[0], HOVER) == 0) {
-
-
-
+			//if cliente1
+				//if numero de paragens cliente1 <=3
+					SuspendThread(dados->tabuleiro1.hThreadAgua);
+					_stprintf_s(a, MAX, _T("INFO AguaParada\n"));
+					escreveNamedPipe(dados, a);
+				//else 
+					//_stprintf_s(a, MAX, _T("INFO JáUtilizouTodasAsSuasPausas\n"));
+					//escreveNamedPipe(dados, a);
+			//if cliente2
+				//SuspendThread(dados.tabuleiro2.hThreadAgua);
 		}else if (_tcscmp(arrayComandos[0], RETOMAHOVER) == 0) {
-
-
-
-		}else if (_tcscmp(arrayComandos[0], SAIRCLI) == 0) {
-
-
-
+			ResumeThread(dados->tabuleiro1.hThreadAgua);
+			_stprintf_s(a, MAX, _T("INFO RetomaAgua\n"));
+			escreveNamedPipe(dados, a);
 		}else if (_tcscmp(arrayComandos[0], JOGOSINGLEP) == 0) {
 			//iniciar jogo
-
-
+			//if jogo ainda não se encontra em curso
+				//if cliente1
+					ResumeThread(dados->tabuleiro1.hThreadAgua);
+					_stprintf_s(a, MAX, _T("INICIA %d\n", dados->tempoInicioAgua));
+					escreveNamedPipe(dados, a);
+				//else
+					//ResumeThread(dados->tabuleiro1.hThreadAgua);
+			//else jogo já se encontra em curso
+				//_stprintf_s(a, MAX, _T("INFO JogoEmCurso\n"));
+				//escreveNamedPipe(dados, a);
 		}else if (_tcscmp(arrayComandos[0], JOGOMULTIP) == 0) {
+			// variavel com a quantidade de jogadores a querer jogar multiplayer
+			if (multi > 0) {	//existe um jogador em espera
+				//iniciar jogo multiplayer...
+				//ResumeThread(dados.tabuleiro1.hThreadAgua);
+				//_stprintf_s(a, MAX, _T("JOGOMULTIP INICIA\n"));
+				//escreveNamedPipe(dados, a);
+			}
+			else {
+				//verificar se cliente2 está ativo
+				//if (dados->tabuleiro2.jogadorAtivo == FALSE)
+				//	  esperar que um cliente se ligue
+				//    _stprintf_s(a, MAX, _T("JOGOMULTIP ESPERA\n"));
+				//	  escreveNamedPipe(dados, a);
+				//else
+				//	  mandar informação de que existe um jogador a tentar jogar multiplayer
+
+			}
 
 
+		}
+		else if (_tcscmp(arrayComandos[0], JOGOMULTIPCANCEL) == 0) {
+			multi--;
+		}
+		else if (_tcscmp(arrayComandos[0], SAIRCLI) == 0) {
+			//verificar se jogo ainda se encontra a correr
+			//se for multiplayer -> informar ao outro cliente que ganhou
+			// 
+			//eliminar info cli
+			//desconectar named pipes
+			DisconnectNamedPipe(hPipe);
 
 		}
 
@@ -150,10 +180,6 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		//_tcscpy_s(mensagem, MAX, buf);
 
 	}
-
-	CloseHandle(hPipe);
-	Sleep(200);
-
 	return 0;
 
 }
