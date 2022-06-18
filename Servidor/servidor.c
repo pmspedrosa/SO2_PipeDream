@@ -5,7 +5,26 @@
 TCHAR info[MAX];
 
 
+void alteraSequencia(DadosThread* dados, DadosTabuleiro* tabuleiro) {
+	//TALVEZ MUTEX. DEPENDE SE ESTÁ DENTRO DE MUTEX QUANDO A FUNÇÂO É CHAMADA
+	
+	for (int i = 0; i < 5; i++) {									//passa os tubos uma posição para baixo //tecnicamente, apaga o tubo que se acabou de utilizar
+		tabuleiro->sequencia[i] = tabuleiro->sequencia[i + 1];
+	}
 
+	if (dados->modoRandom){
+		tabuleiro->sequencia[5] = (rand() % 6) + 1;				//numero aleatorio entre 1 e 6
+		return;
+	}
+
+	//Se não for modo random:
+	if (tabuleiro->sequencia[5] >= 6) {							//se for o tubo 6, adiciona o tubo 1
+		tabuleiro->sequencia[5] = 1;
+		return;
+	}
+	tabuleiro->sequencia[5] = tabuleiro->sequencia[5] + 1;		//se não, o tubo é o proximo da sequencia
+
+}
 
 DWORD WINAPI ThreadLer(LPVOID param) {
 	//fica sempre á escuta de ler coisas vindas do named pipe
