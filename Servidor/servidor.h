@@ -112,6 +112,13 @@ typedef struct {
 	TCHAR estado[MAX];								//string que indica o estado do programa
 }MemPartilhada;
 
+
+typedef struct {
+	OVERLAPPED overlap;								//OVERLAPPED para leitura por parte do servidor
+	HANDLE hPipeOut;								//pipe para comunição // servidor -> cliente
+	HANDLE hPipeIn;									//pipe para comunição // cliente -> servidor
+}InfoPipesTabuleiro;
+
 typedef struct {
 	BOOL* jogadorAtivo;								//indica se esta estrutura esta a ser utilizada. Para testar antes de tentar aceder à thread
 	HANDLE hThreadAgua;								//handle thread agua
@@ -119,7 +126,9 @@ typedef struct {
 	int posX, posY;									//posição da água
 	unsigned int dirAgua;							//direção da água	// 0 > cima , 1 > direita, 2 > baixo, 3 > esquerda
 	int sequencia[6];								//sequencia de tubos
+	InfoPipesTabuleiro pipes;						//pipes utilizados por este tabueleiro
 }DadosTabuleiro;
+
 
 typedef struct {									//estrutura para passar as threads
 	MemPartilhada* memPar;							//ponteiro para a memoria partilhada

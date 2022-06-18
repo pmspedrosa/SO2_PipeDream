@@ -133,7 +133,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			if (nrArgs >= 6) {
 				for (int i = 1; i < 7; i++)
 				{
-					int t;
+					int t = 0;
 					if (_tcscmp(arrayComandos[3], _T("0")) != 0) {
 						t = _tstoi(arrayComandos[3]);
 						if (t == 0) {
@@ -141,7 +141,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 						}
 					}
 					WaitForSingleObject(dados->hMutex, INFINITE);
-					dados->seq[i] = t;
+					dados->seq[i-1] = t;
 					ReleaseMutex(dados->hMutex);
 					InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
 				}	
@@ -201,7 +201,7 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 		return FALSE;
 	}
 
-	hPipe = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 1, MAX * sizeof(TCHAR),MAX * sizeof(TCHAR), 1000, NULL);
+	hPipe = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 3, MAX * sizeof(TCHAR),MAX * sizeof(TCHAR), 1000, NULL);
 	if (hPipe == INVALID_HANDLE_VALUE) {
 		OutputDebugString(TEXT("[ERRO] Criar Named Pipe! (CreateNamedPipe)"));
 		CloseHandle(dados->hMutex);

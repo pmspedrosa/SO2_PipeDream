@@ -24,6 +24,44 @@ void alteraSequencia(DadosThread* dados, DadosTabuleiro* tabuleiro) {
 
 }
 
+DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[]) {
+	BOOL ret;
+
+	if (ReadFile(dados->tabuleiro1.pipes.hPipeIn, buf, sizeof(buf), n, &(dados->tabuleiro1.pipes.overlap)) != FALSE) {					//se TRUE, significa que conseguiu ler imediatamente, sem assinalar o evento de OVERLAP
+		return &dados->tabuleiro1;																											//retorna-se logo, indicando qual o tabuleiro que enviou mensagem
+		
+	}
+
+	ret = (GetLastError() != ERROR_IO_PENDING);																							//ERROR_IO_PENDING significa que o vai ativar o evento OVERLAP quando receber dados
+																																		//Se o erro for diferente, significa que houve outro erro, como por exemplo o pipe não ter ligação do outro lado.
+
+	if (ReadFile(dados->tabuleiro2.pipes.hPipeIn, buf, sizeof(buf), n, &(dados->tabuleiro2.pipes.overlap)) != FALSE) {					//repete-se para o pipe do outro tabuleiro
+		return &dados->tabuleiro2;
+	}
+
+	if (ret && (GetLastError() != ERROR_IO_PENDING)) {																					//se nenhum retornar o erro de IO_PENDING, significa que nenhum dos pipes está preparado para ler
+		return NULL;
+	}
+
+	WaitForSingleObject(dados->tabuleiro1.pipes.overlap.hEvent, INFINITE);																//espera pelo evento de overlap. Não faz utilizar o OVERLAPPED da tabuleiro1 ou tabuleiro2, uma vez que utilizam o mesmo evento
+
+	if (GetOverlappedResult(dados->tabuleiro1.pipes.hPipeIn, &dados->tabuleiro1.pipes.overlap, n, FALSE)) {							//se GetOverlappedResult retornar TRUE para o pipe indicado, significa que este pipe recebeu mensagem
+		_tprintf(TEXT("[SV] Recebi de pipe1 overlapped: %d %s\n"), *n, buf);																	//reset ao evento para a proxima iteração
+		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent, INFINITE);																		//retorna indicando qual o tabuleiro que enviou mensagem
+		return &dados->tabuleiro1;
+	
+	}
+	else if(GetOverlappedResult(dados->tabuleiro2.pipes.hPipeIn, &dados->tabuleiro2.pipes.overlap, n, FALSE)) {						//caso contrário, só pode ter sido o outro pipe a receber mensagem. Mas convém testar com if pelo sim pelo não
+		_tprintf(TEXT("[SV] Recebi de pipe2 overlapped: %d %s\n"), *n, buf);
+		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent, INFINITE);
+		return &dados->tabuleiro2;
+	}
+	else {
+		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent, INFINITE);																	//tecnicamente nunca deve chegar aqui. se chegar é porque houve algum erro
+		return NULL;
+	}
+}
+
 DWORD WINAPI ThreadLer(LPVOID param) {
 	//fica sempre á escuta de ler coisas vindas do named pipe
 	//escreve diretamente no ecrã
@@ -33,6 +71,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	int multi=0;
 	unsigned int nrArgs = 0;
 	const TCHAR delim[2] = _T(" ");
+	OVERLAPPED o = { 0 };
 
 	_tprintf(TEXT("[SV] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), NOME_PIPE_CLIENTE);
 
@@ -44,26 +83,49 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	}
 
 	_tprintf(TEXT("[SV] Ligação ao pipe do cliente... (CreateFile)\n"));
-
-	HANDLE hPipe = CreateFile(NOME_PIPE_CLIENTE, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-
-	if (hPipe == NULL) {
+	dados->tabuleiro1.pipes.hPipeIn = CreateFile(NOME_PIPE_CLIENTE, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+	if (dados->tabuleiro1.pipes.hPipeIn == NULL) {
 		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), NOME_PIPE_CLIENTE);
 		exit(-1);
 	}
+	
+	dados->tabuleiro2.pipes.hPipeIn = CreateFile(NOME_PIPE_CLIENTE, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+	if (dados->tabuleiro2.pipes.hPipeIn == NULL) {
+		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), NOME_PIPE_CLIENTE);
+		exit(-1);
+	}
+
+	dados->tabuleiro1.pipes.overlap = o;
+	dados->tabuleiro2.pipes.overlap = dados->tabuleiro1.pipes.overlap;
+
+	dados->tabuleiro1.pipes.overlap.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (dados->tabuleiro1.pipes.overlap.hEvent == NULL) {
+		_tprintf(TEXT("[ERRO] Criar Event! (CreateEvent)"));
+		exit(-1);
+	}
+	dados->tabuleiro2.pipes.overlap.hEvent = dados->tabuleiro1.pipes.overlap.hEvent;
 
 	_tprintf(TEXT("[SV] Liguei-me...\n"));
 
 	while (dados->terminar == 0) {
 		TCHAR a[MAX];
 		//le as mensagens enviadas pelo cliente
-		BOOL ret = ReadFile(hPipe, buf, sizeof(buf), &n, NULL);
-		buf[n / sizeof(TCHAR)] = '\0';
+	
+		
+		DadosTabuleiro* sourceTabuleiro = leDePipesOverlapped(&dados, &n, buf);
+		
 
-		if (!ret || !n) {
-			_tprintf(TEXT("[SV] %d %d... (ReadFile)\n"), ret, n);
-			break;
+		if (!n){
+			_tprintf(TEXT("[SV] n == 0... (ReadFile)\n"));
+			//continue;
 		}
+
+		if (sourceTabuleiro == NULL) {
+			_tprintf(TEXT("[SV] sourceTabuleiro NULL... %d (ReadFile)\n"), n);
+			continue;
+		}
+
+		buf[n / sizeof(TCHAR) - 1] = '\0';
 
 		_tprintf(TEXT("[SV] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
 
@@ -183,7 +245,9 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			// 
 			//eliminar info cli
 			//desconectar named pipes
-			DisconnectNamedPipe(hPipe);
+			DisconnectNamedPipe(dados->tabuleiro1.pipes.hPipeIn);
+			DisconnectNamedPipe(dados->tabuleiro2.pipes.hPipeIn);
+
 
 		}
 
