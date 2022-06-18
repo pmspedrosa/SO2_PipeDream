@@ -15,6 +15,7 @@
 #define MAX 256
 #define TAM_BUFFER 10								//tamanho buffer
 #define NPIPES 2									//Numero de pipes		
+#define ALTURA_INFO	20								//Altura da barra de informação
 
 
 #define EVENT_TABULEIRO _T("EVENT_TABULEIRO")					//evento tabuleiro
