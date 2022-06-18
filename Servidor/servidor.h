@@ -64,6 +64,7 @@
 #define SAIRCLI _T("SAIRCLI")
 #define JOGOSINGLEP _T("JOGOSINGLEP")
 #define JOGOMULTIP _T("JOGOMULTIP")
+#define JOGOMULTIPCANCEL _T("JOGOMULTIPCANCEL")
 
 
 
@@ -85,18 +86,6 @@ typedef struct {
 	HANDLE hPipe;									// handle do pipe
 	BOOL activo;									//representa se a instancia do named pipe está ou nao ativa, se ja tem um cliente ou nao
 }PipeDados;
-
-//typedef struct {
-//	PipeDados hPipe[NPIPES];
-//	HANDLE hMutexNamedPipe;
-//	HANDLE hEventoNamedPipe;
-//	HANDLE hThreadLer;
-//	HANDLE hThreadEscrever;
-//	int numClientes;
-//	TCHAR mensagem[MAX];
-//	//handle cliente a enviar a msg?
-//}DadosThreadPipe;
-
 
 ////////////////////////////////////////////////////////////////////////////////
 

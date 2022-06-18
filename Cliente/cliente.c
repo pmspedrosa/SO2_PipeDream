@@ -5,10 +5,6 @@
 #define TAM_BITMAP 150
 #define NUM_BITMAPS 14
 
-Msg msg;
-TCHAR mensagem[MAX];
-TCHAR cmd[MAX];
-
 
 LRESULT CALLBACK TrataEventos(HWND, UINT, WPARAM, LPARAM);
 
@@ -84,9 +80,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		}
 
 		OutputDebugString(TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
-		_tcscpy_s(mensagem, MAX, buf);
-
-		//funções 
+		
 		// comando arg0 arg1 ....
 		//msg= info_0_barreira colocada local tal e tal
 		

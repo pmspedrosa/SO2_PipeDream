@@ -2,8 +2,6 @@
 #include "utils.h"
 
 
-TCHAR info[MAX];
-
 
 void alteraSequencia(DadosThread* dados, DadosTabuleiro* tabuleiro) {
 	//TALVEZ MUTEX. DEPENDE SE ESTÁ DENTRO DE MUTEX QUANDO A FUNÇÂO É CHAMADA
@@ -32,6 +30,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	DadosThread* dados = (DadosThread*)param;
 	TCHAR buf[MAX], ** arrayComandos = NULL;
 	DWORD n;
+	int multi=0;
 	unsigned int nrArgs = 0;
 	const TCHAR delim[2] = _T(" ");
 
@@ -56,6 +55,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	_tprintf(TEXT("[SV] Liguei-me...\n"));
 
 	while (dados->terminar == 0) {
+		TCHAR a[MAX];
 		//le as mensagens enviadas pelo cliente
 		BOOL ret = ReadFile(hPipe, buf, sizeof(buf), &n, NULL);
 		buf[n / sizeof(TCHAR)] = '\0';
@@ -67,64 +67,123 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 		_tprintf(TEXT("[SV] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
 
-
-		//funções 
-		// comando arg0 arg1 ....
-		//msg= info_0_barreira colocada local tal e tal
-
 		arrayComandos = divideString(buf, delim, &nrArgs);			//divisão da string para um array com o comando e args
 		/*
-		#define LCLICK _T("LCLICK")
-		#define RCLICK _T("RCLICK")
+		#define LCLICK _T("LCLICK")-
+		#define RCLICK _T("RCLICK")-
 		#define HOVER _T("HOVER")
 		#define RETOMAHOVER _T("RETOMAHOVER")
 		#define SAIRCLI _T("SAIRCLI")
 		#define JOGOSINGLEP _T("JOGOSINGLEP")
 		#define JOGOMULTIP _T("JOGOMULTIP"
 		*/
-		if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
-			//verificar se tem 2 args
-			//verificar se local onde se clicou tem peça e esta peça não tem água e não é barreira (>0 e <=6)
-			//se sim altera no tabuleiro[arg[1]][arg[2]] = arg[3];
-			//	envia escreve msg para cliente a dizer que peça x y 0 
-			//senão escreve msg a dizer que não foi possivel colocar peça
-		}
-		else if (_tcscmp(arrayComandos[0], RCLICK) == 0) {
-			//if (nrArgs >= 3) {	//x,y,tipopeça
-			//	unsigned int x, y, t;
-			//	if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
-			//		x = _tstoi(arrayComandos[1]);
-			//		if (x == 0) {
-			//			_tprintf(_T("Valor passado como argumento não é aceite\n"));
-			//		}
-			//	}
-			//}
+		if (_tcscmp(arrayComandos[0], LCLICK) == 0 || _tcscmp(arrayComandos[0], RCLICK) == 0) {
+			if (nrArgs >= 2) {	//x,y,tipopeça
+				unsigned int x, y, t;
+				if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+					x = _tstoi(arrayComandos[1]);
+					if (x == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					x = 0;
+				if (_tcscmp(arrayComandos[2], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+					y = _tstoi(arrayComandos[2]);
+					if (y == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else {
+					y = 0;
+				}
 
-			//verificar se tem 2 args
-			//verificar se local onde se clicou tem peça e esta peça não tem água e não é barreira (>0 e <=6)
-			//se sim altera no tabuleiro[arg[1]][arg[2]] = 0;
-			//	envia escreve msg para cliente a dizer que peça x y 0 
-			//senão escreve msg a dizer que não foi possivel eliminar peça
-		}
-		else if (_tcscmp(arrayComandos[0], HOVER) == 0) {
+				if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
+					//t = dados.sequencia[0];
+				}
+				else {
+					t = 0;
+				}
 
+				WaitForSingleObject(dados->hMutexTabuleiro,INFINITE);
+				BOOL colocou = verificaColocarPeca(dados, x, y, t);
+				ReleaseMutex(dados->hMutexTabuleiro);
 
-
+				
+				if (colocou == TRUE) {
+					_stprintf_s(a, MAX, _T("PECA %d %d %d\n"), x, y, t);
+					escreveNamedPipe(dados,a);
+					//sequencia atualiza
+				}
+				else {
+					if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
+						_stprintf_s(a, MAX, _T("INFO NaoFoiPossivelColocarPeca\n"));
+						escreveNamedPipe(dados, a);
+					}
+					else {
+						_stprintf_s(a, MAX, _T("INFO NaoFoiPossivelEliminarPeca\n"));
+						escreveNamedPipe(dados, a);
+					}
+				}
+			}
+		}else if (_tcscmp(arrayComandos[0], HOVER) == 0) {
+			//if cliente1
+				//if numero de paragens cliente1 <=3
+					SuspendThread(dados->tabuleiro1.hThreadAgua);
+					_stprintf_s(a, MAX, _T("INFO AguaParada\n"));
+					escreveNamedPipe(dados, a);
+				//else 
+					//_stprintf_s(a, MAX, _T("INFO JáUtilizouTodasAsSuasPausas\n"));
+					//escreveNamedPipe(dados, a);
+			//if cliente2
+				//SuspendThread(dados.tabuleiro2.hThreadAgua);
 		}else if (_tcscmp(arrayComandos[0], RETOMAHOVER) == 0) {
-
-
-
-		}else if (_tcscmp(arrayComandos[0], SAIRCLI) == 0) {
-
-
-
+			ResumeThread(dados->tabuleiro1.hThreadAgua);
+			_stprintf_s(a, MAX, _T("INFO RetomaAgua\n"));
+			escreveNamedPipe(dados, a);
 		}else if (_tcscmp(arrayComandos[0], JOGOSINGLEP) == 0) {
 			//iniciar jogo
-
-
+			//if jogo ainda não se encontra em curso
+				//if cliente1
+					ResumeThread(dados->tabuleiro1.hThreadAgua);
+					_stprintf_s(a, MAX, _T("INICIA %d\n", dados->tempoInicioAgua));
+					escreveNamedPipe(dados, a);
+				//else
+					//ResumeThread(dados->tabuleiro1.hThreadAgua);
+			//else jogo já se encontra em curso
+				//_stprintf_s(a, MAX, _T("INFO JogoEmCurso\n"));
+				//escreveNamedPipe(dados, a);
 		}else if (_tcscmp(arrayComandos[0], JOGOMULTIP) == 0) {
+			// variavel com a quantidade de jogadores a querer jogar multiplayer
+			if (multi > 0) {	//existe um jogador em espera
+				//iniciar jogo multiplayer...
+				//ResumeThread(dados.tabuleiro1.hThreadAgua);
+				//_stprintf_s(a, MAX, _T("JOGOMULTIP INICIA\n"));
+				//escreveNamedPipe(dados, a);
+			}
+			else {
+				//verificar se cliente2 está ativo
+				//if (dados->tabuleiro2.jogadorAtivo == FALSE)
+				//	  esperar que um cliente se ligue
+				//    _stprintf_s(a, MAX, _T("JOGOMULTIP ESPERA\n"));
+				//	  escreveNamedPipe(dados, a);
+				//else
+				//	  mandar informação de que existe um jogador a tentar jogar multiplayer
+
+			}
 
 
+		}
+		else if (_tcscmp(arrayComandos[0], JOGOMULTIPCANCEL) == 0) {
+			multi--;
+		}
+		else if (_tcscmp(arrayComandos[0], SAIRCLI) == 0) {
+			//verificar se jogo ainda se encontra a correr
+			//se for multiplayer -> informar ao outro cliente que ganhou
+			// 
+			//eliminar info cli
+			//desconectar named pipes
+			DisconnectNamedPipe(hPipe);
 
 		}
 
@@ -144,11 +203,40 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		//_tcscpy_s(mensagem, MAX, buf);
 
 	}
-
-	CloseHandle(hPipe);
-
 	return 0;
+
 }
+
+
+BOOL escreveNamedPipe(DadosThread* dados, TCHAR* a) {
+	WaitForSingleObject(dados->hMutexNamedPipe, INFINITE);
+	_tcscpy_s(dados->mensagem, MAX, a);
+	ReleaseMutex(dados->hMutexNamedPipe);
+	SetEvent(dados->hEventoNamedPipe);
+}
+
+BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t) {		//adicionar depois qual o tabuleiro a verificar (int tab)
+	//verificar se celula é água ou verificar se célula é o fim jogo ou barr
+	int tab = 1;
+	if (tab == 1) {	//tabuleiro 1
+		if (*dados->tabuleiro1.tabuleiro[x][y] < 0 || (dados->posfX == x && dados->posfY == y) || *dados->tabuleiro1.tabuleiro[x][y] == 7) {
+			return FALSE;
+		}
+		else{
+			*dados->tabuleiro1.tabuleiro[x][y] = t;
+			return TRUE;
+		}
+	}
+	else { //tabuleiro 2
+		if (*dados->tabuleiro2.tabuleiro[x][y] < 0 || (dados->posfX == x && dados->posfY == y) || *dados->tabuleiro2.tabuleiro[x][y] == 7) {
+			return FALSE;
+		}else {
+			*dados->tabuleiro2.tabuleiro[x][y] = t;
+			return TRUE;
+		}
+	}
+
+	return FALSE;
 
 
 DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o cliente através do named pipe
