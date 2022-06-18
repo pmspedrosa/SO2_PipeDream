@@ -222,7 +222,7 @@ BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t) {		//adicionar
 		if (*dados->tabuleiro1.tabuleiro[x][y] < 0 || (dados->posfX == x && dados->posfY == y) || *dados->tabuleiro1.tabuleiro[x][y] == 7) {
 			return FALSE;
 		}
-		else{
+		else {
 			*dados->tabuleiro1.tabuleiro[x][y] = t;
 			return TRUE;
 		}
@@ -230,14 +230,15 @@ BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t) {		//adicionar
 	else { //tabuleiro 2
 		if (*dados->tabuleiro2.tabuleiro[x][y] < 0 || (dados->posfX == x && dados->posfY == y) || *dados->tabuleiro2.tabuleiro[x][y] == 7) {
 			return FALSE;
-		}else {
+		}
+		else {
 			*dados->tabuleiro2.tabuleiro[x][y] = t;
 			return TRUE;
 		}
 	}
 
 	return FALSE;
-
+}
 
 DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o cliente através do named pipe
 	//funcionamento -> evento ativa quando texto variável de "escrita" é alterada
