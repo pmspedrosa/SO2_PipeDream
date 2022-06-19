@@ -515,7 +515,7 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 	HDC hdc = GetDC(hWnd);
 	GetClientRect(hWnd, &rect);
 	int paddingX, paddingY, larguraSeq;
-	WaitForSingleObject(dados->hMutex, INFINITE);
+	//WaitForSingleObject(dados->hMutex, INFINITE);
 	int tamCelula = getPaddings(dados->tamX, dados->tamY, &rect, &paddingX, &paddingY, &larguraSeq, NULL);
 
 	if (posX < paddingX + larguraSeq || posY < paddingY)
@@ -523,7 +523,7 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 	if (posX > (dados->tamX * tamCelula) + paddingX + larguraSeq || posY > (dados->tamY * tamCelula) + paddingY) {
 		return;
 	}
-	ReleaseMutex(dados->hMutex);
+	//ReleaseMutex(dados->hMutex);
 
 	int coordX, coordY;
 	coordX = (posX - paddingX - larguraSeq) / tamCelula;
@@ -569,8 +569,11 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 			else {
 				OutputDebugString(_T("NÃO CONSEGUIU INICIAR DETEÇÂO HOVER\n"));
 			}
+			ReleaseMutex(dados->hMutex);
 		}
 		break;
+	default:
+		ReleaseMutex(dados->hMutex);
 	}
 }
 
