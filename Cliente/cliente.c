@@ -887,7 +887,13 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		if (wParam == _T('s')){
 			dados.jogoCorrer = TRUE;
 		}
-
+		if (wParam == _T('p')){
+			WaitForSingleObject(dados.hMutex, INFINITE);
+			_stprintf_s(a, MAX, _T("PROXNIVEL\n"));
+			_tcscpy_s(dados.mensagem, MAX, a);
+			ReleaseMutex(dados.hMutex);
+			SetEvent(dados.hEventoNamedPipe);
+		}
 		break;
 
 	case WM_DESTROY:	//Destruir janela

@@ -67,6 +67,7 @@
 #define JOGOMULTIP _T("JOGOMULTIP")
 #define JOGOMULTIPCANCEL _T("JOGOMULTIPCANCEL")
 #define INICIAJOGO _T("INICIAJOGO")									//Inicia Jogo
+#define PROXNIVEL _T("PROXNIVEL")
 
 
 
@@ -128,6 +129,7 @@ typedef struct {
 	int sequencia[6];								//sequencia de tubos
 	InfoPipesTabuleiro pipes;						//pipes utilizados por este tabueleiro
 	int numParagensDisponiveis;
+	BOOL correrAgua;
 }DadosTabuleiro;
 
 
@@ -164,7 +166,7 @@ typedef struct {									//estrutura para passar as threads
 
 typedef struct {
 	DadosThread* dados;
-	int numTabuleiro;
+	DadosTabuleiro* dadosTabuleiro;
 }DadosThreadAgua;
 
 TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam);
