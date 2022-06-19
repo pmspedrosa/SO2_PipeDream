@@ -58,6 +58,7 @@
 #define INICIAR _T("INICIAR")									//iniciar jogo
 #define PAUSA _T("PAUSA")										//pausar jogo
 #define RETOMAR _T("RETOMAR")									//retomar jogo
+#define PONTUACAO _T("PONTUACAO")								//mostrar pontuacoes
 
 #define LCLICK _T("LCLICK")
 #define RCLICK _T("RCLICK")
@@ -122,6 +123,12 @@ typedef struct {
 }InfoPipesTabuleiro;
 
 typedef struct {
+	TCHAR nome[MAX];
+	int vitorias;
+	int derrotas;
+}DadosPontuacao;
+
+typedef struct {
 	BOOL* jogadorAtivo;								//indica se esta estrutura esta a ser utilizada. Para testar antes de tentar aceder à thread
 	HANDLE hThreadAgua;								//handle thread agua
 	int(*tabuleiro)[20][20];						//ponteiro para o tabuleiro referente na memória partilhada
@@ -131,8 +138,8 @@ typedef struct {
 	InfoPipesTabuleiro pipes;						//pipes utilizados por este tabueleiro
 	int numParagensDisponiveis;
 	BOOL correrAgua;
+	DadosPontuacao pontuacao;
 }DadosTabuleiro;
-
 
 typedef struct {									//estrutura para passar as threads
 	MemPartilhada* memPar;							//ponteiro para a memoria partilhada
