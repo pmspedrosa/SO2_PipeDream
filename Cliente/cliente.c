@@ -57,7 +57,14 @@ BOOL CALLBACK DlgProc2(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
 	return FALSE;
 }
 
-
+void clearTabuleiro(DadosThreadPipe* dados) {
+	for (int x = 0; x < 20; x++) {
+		for (int y = 0; y < 20; y++)
+		{
+			dados->tabuleiro[x][y] = 0;
+		}
+	}
+}
 
 TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam) {
 	TCHAR* proxToken = NULL, ** temp, ** arrayCmd = NULL;
@@ -158,14 +165,20 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		if (_tcscmp(arrayComandos[0], INICIAJOGO) == 0) {	//msg: iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
-			if (nrArgs >= 6) {
-				unsigned int initx, inity, pecai, fimx, fimy, pecaf;
-				initx = atoicmd(arrayComandos, 1);
-				inity = atoicmd(arrayComandos, 2);
-				fimx = atoicmd(arrayComandos, 4);
-				fimy = atoicmd(arrayComandos, 5);
-				pecai = atoicmd(arrayComandos,3);
-				pecaf = atoicmd(arrayComandos,6);
+			if (nrArgs >= 8) {
+				unsigned int initx, inity, pecai, fimx, fimy, pecaf, tamX, tamY;
+				
+				dados->tamX = atoicmd(arrayComandos, 1);
+				dados->tamY = atoicmd(arrayComandos, 2);
+
+				clearTabuleiro(dados);
+
+				initx = atoicmd(arrayComandos, 3);
+				inity = atoicmd(arrayComandos, 4);
+				pecai = atoicmd(arrayComandos, 5);
+				fimx = atoicmd(arrayComandos, 6);
+				fimy = atoicmd(arrayComandos, 7);
+				pecaf = atoicmd(arrayComandos,8);
 
 				dados->tabuleiro[initx][inity] = pecai;
 				dados->tabuleiro[fimx][fimy] = pecaf;
@@ -794,12 +807,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		loadImages(dados.hMutexBitmap, dados.texturas, bitmap, hWnd);
 
 		////CARREGAR MAPA PRE-DEFINIDO PARA TESTE
-		for (int x = 0; x < 20; x++){
-			for (int y = 0; y < 20; y++)
-			{
-				dados.tabuleiro[x][y] = 0;
-			}
-		}
+		clearTabuleiro(&dados);
 		//dados.tabuleiro[3][2] = 7;
 		/*dados.tabuleiro[0][2] = -1;
 		dados.tabuleiro[1][2] = 1;
@@ -822,8 +830,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		dados.tabuleiro[9][6] = 3;
 		dados.tabuleiro[0][0] = 5;*/
 
-		dados.tamX = 10;
-		dados.tamY = 7;
+		dados.tamX = 1;
+		dados.tamY = 1;
 
 		for (int i = 0; i < 6; i++)
 			dados.seq[i] = i+2;
@@ -889,7 +897,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		}
 		if (wParam == _T('p')){
 			WaitForSingleObject(dados.hMutex, INFINITE);
-			_stprintf_s(a, MAX, _T("PROXNIVEL\n"));
+			_stprintf_s(a, MAX, _T("PROXNIVEL"));
 			_tcscpy_s(dados.mensagem, MAX, a);
 			ReleaseMutex(dados.hMutex);
 			SetEvent(dados.hEventoNamedPipe);

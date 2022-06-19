@@ -235,11 +235,13 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOSINGLEP) == 0) {
 			if (dados->iniciado == FALSE) {//if jogo ainda não se encontra em curso
+				dados->velocidadeAgua = TIMER_FLUIR;
 				sourceTabuleiro->correrAgua = TRUE;
 				ResumeThread(sourceTabuleiro->hThreadAgua);
+				dados->iniciado = TRUE;
 				//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
 				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
-				_stprintf_s(a, MAX, _T("INICIAJOGO %d %d %d %d %d %d\n"), sourceTabuleiro->posX, sourceTabuleiro->posY, (*sourceTabuleiro->tabuleiro)[sourceTabuleiro->posX][sourceTabuleiro->posY], dados->posfX, dados->posfY, (*sourceTabuleiro->tabuleiro)[dados->posfX][dados->posfY]);
+				_stprintf_s(a, MAX, _T("INICIAJOGO %d %d %d %d %d %d %d %d\n"), dados->memPar->tamX, dados->memPar->tamY, sourceTabuleiro->posX, sourceTabuleiro->posY, (*sourceTabuleiro->tabuleiro)[sourceTabuleiro->posX][sourceTabuleiro->posY], dados->posfX, dados->posfY, (*sourceTabuleiro->tabuleiro)[dados->posfX][dados->posfY]);
 				ReleaseMutex(dados->hMutexTabuleiro);
 				escreveNamedPipe(dados, a, sourceTabuleiro);
 			}
@@ -286,18 +288,27 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		else if (_tcscmp(arrayComandos[0], PROXNIVEL) == 0) {
 			if (dados->iniciado == TRUE) {//if jogo se encontra em curso
 				if (!sourceTabuleiro->correrAgua) {
-					sourceTabuleiro->correrAgua = TRUE;
+					_tprintf(_T("PREPARAR INICIO JOGO \n\n"));
 					prepararInicioDeJogo(dados);
+					dados->velocidadeAgua -= AUMENTO_VELOCIDADE;
+					_tprintf(_T("ESPERAR PELA MORTE DA THREAD\n\n"));
 					if (WaitForSingleObject(sourceTabuleiro->hThreadAgua, 2000) == WAIT_TIMEOUT) {
 						TerminateThread(sourceTabuleiro->hThreadAgua, -1);
+						_tprintf(_T("TIVE DE MATAR A FORÇA\n\n"));
 					}
+					sourceTabuleiro->correrAgua = TRUE;
 					DadosThreadAgua dadosThreadAgua;
 					dadosThreadAgua.dados = dados;
 					dadosThreadAgua.dadosTabuleiro = sourceTabuleiro;
 					sourceTabuleiro->hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosThreadAgua, 0, NULL);
 					//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
+					if (sourceTabuleiro->hThreadAgua == NULL) {
+						_tprintf(_T("NAO CONSEGUI CRIAR NOVA THREAD\n\n"));
+
+					}
+					
 					WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
-					_stprintf_s(a, MAX, _T("INICIAJOGO %d %d %d %d %d %d\n"), sourceTabuleiro->posX, sourceTabuleiro->posY, (*sourceTabuleiro->tabuleiro)[sourceTabuleiro->posX][sourceTabuleiro->posY], dados->posfX, dados->posfY, (*sourceTabuleiro->tabuleiro)[dados->posfX][dados->posfY]);
+					_stprintf_s(a, MAX, _T("INICIAJOGO %d %d %d %d %d %d %d %d\n"), dados->memPar->tamX, dados->memPar->tamY, sourceTabuleiro->posX, sourceTabuleiro->posY, (*sourceTabuleiro->tabuleiro)[sourceTabuleiro->posX][sourceTabuleiro->posY], dados->posfX, dados->posfY, (*sourceTabuleiro->tabuleiro)[dados->posfX][dados->posfY]);
 					ReleaseMutex(dados->hMutexTabuleiro);
 					escreveNamedPipe(dados, a, sourceTabuleiro);
 				}
@@ -822,7 +833,7 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 					}
 					ReleaseMutex(dados->hMutexTabuleiro);
 					SetEvent(dados->hEventUpdateTabuleiro);
-					Sleep(TIMER_FLUIR * 1000);
+					Sleep(dados->velocidadeAgua * 1000);
 				}
 				else {
 					_tcscpy_s(dados->memPar->estado, MAX, _T("Perdeu!!!"));						//muda o estado do jogo 
@@ -840,7 +851,7 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 				dados->parafluxo = 0;
 			}
 		}
-	dados->iniciado = FALSE;
+	//dados->iniciado = FALSE;
 	_tprintf(_T("SAIR DA THREAD"));
 }
 
