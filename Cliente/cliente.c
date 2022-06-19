@@ -7,7 +7,7 @@
 LRESULT CALLBACK TrataEventos(HWND, UINT, WPARAM, LPARAM);
 BOOL CALLBACK DlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM LParam);
 BOOL CALLBACK DlgProc2(HWND dlg, UINT msg, WPARAM wParam, LPARAM LParam);
-TCHAR szProgName[] = TEXT("Base2022");
+TCHAR szProgName[] = TEXT("PipeDream2022");
 
 BOOL CALLBACK DlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
 	DATA* pData = (DATA*)GetWindowLongPtr(GetParent(hWnd), 0);
@@ -155,8 +155,6 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		arrayComandos = divideString(buf, delim, &nrArgs);			//divisão da string para um array com o comando e args
 
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 		if (_tcscmp(arrayComandos[0], INICIAJOGO) == 0) {	//msg: iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
 			if (nrArgs >= 6) {
 				unsigned int initx, inity, pecai, fimx, fimy, pecaf;
@@ -220,25 +218,37 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		}
 		else if (_tcscmp(arrayComandos[0], SUSPENDE) == 0) {
 			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG5), dados->hWnd, DlgProc2);
-
+			/*dados->hMessageBox = MessageBox(dados->hWnd, _T("Jogo Suspenso"), _T("INFORMAÇÂO"),
+				MB_ICONINFORMATION);*/
 		}
 		else if (_tcscmp(arrayComandos[0], RETOMA) == 0) {
+			/*PostMessage(dados->hMessageBox, WM_COMMAND, MAKEWPARAM(IDOK, BN_CLICKED), 0);*/
+			_tcscpy_s(dados->info, MAX, _T("JOGO RETOMADO"));
+			InvalidateRect(dados->hWnd, NULL, TRUE);
+			//EndDialog(GetParent(dados->hWnd), 0);
 			//desativa a textbox e continua o jogo
 
 		}
 		else if (_tcscmp(arrayComandos[0], SAIR) == 0) {
+			_stprintf_s(a, MAX, TEXT("[Cliente] sairrrrrrrrrrrrrrrrr\n"));
+			OutputDebugString(a);
 			dados->terminar = 1;
-			sair(dados);
+			PostQuitMessage(0);
+			OutputDebugString(a);
+
 			//fechar tudoooo
 		}
 
 	}
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	return 0;
 }
 
+
+/*****************************************/
+/************ThreadEscrever***************/
+/*****************************************/
 
 DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o servidor através do named pipe
 	DadosThreadPipe* dados = (DadosThreadPipe*)param;
@@ -372,7 +382,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	hWnd = CreateWindow(
 		szProgName,			// Nome da janela (programa) definido acima
-		TEXT("Exemplo de Janela Principal em C"),// Texto que figura na barra do t�tulo
+		TEXT("Jogo dos Tubos"),// Texto que figura na barra do t�tulo
 		WS_OVERLAPPEDWINDOW,	// Estilo da janela (WS_OVERLAPPED= normal)
 		CW_USEDEFAULT,		// Posi��o x pixels (default=� direita da �ltima)
 		CW_USEDEFAULT,		// Posi��o y pixels (default=abaixo da �ltima)
@@ -852,8 +862,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 				_tcscpy_s(dados.mensagem,MAX, _T("SAIRCLI"));
 			ReleaseMutex(dados.hMutex);
 			SetEvent(dados.hEventoNamedPipe);
-			CloseHandle(dados.hThreadEscrever);
-			CloseHandle(dados.hThreadLer);
+			/*CloseHandle(dados.hThreadEscrever);
+			CloseHandle(dados.hThreadLer);*/
 			DestroyWindow(hWnd);
 		}
 		break;
@@ -891,6 +901,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		break;
 
 	case WM_DESTROY:	//Destruir janela
+		sair(&dados);
 		PostQuitMessage(0);
 	case WM_ERASEBKGND: //Sent when the window background must be erased (for example, when a window is resized). 
 		return 1;
@@ -940,11 +951,11 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 
 int sair(DadosThreadPipe* dados) {
-	CloseHandle(dados->hEventoNamedPipe);
 	CloseHandle(dados->hMutex);
 	CloseHandle(dados->hMutexBitmap);
+	CloseHandle(dados->hEventoNamedPipe);
 	CloseHandle(dados->hThreadEscrever);
 	CloseHandle(dados->hThreadLer);
 	DisconnectNamedPipe(dados->hPipe.hPipe);
-	PostQuitMessage(0);
+	
 }

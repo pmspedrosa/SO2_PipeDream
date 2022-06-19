@@ -55,6 +55,8 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 	}
 
 	isPipe1Pending = GetLastError() == ERROR_IO_PENDING;																							//ERROR_IO_PENDING significa que o vai ativar o evento OVERLAP quando receber dados
+	dados->tabuleiro1.jogadorAtivo = isPipe1Pending;
+
 
 	if (ReadFile(dados->tabuleiro2.pipes.hPipeIn, buf, MAX * sizeof(TCHAR), n, &(dados->tabuleiro2.pipes.overlap)) != FALSE) {					//repete-se para o pipe do outro tabuleiro
 		_tprintf(TEXT("[SV] LI LOGO PIPE 2: %d %s\n"), *n, buf);
@@ -63,6 +65,8 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 	}
 
 	isPipe2Pending = GetLastError() == ERROR_IO_PENDING;
+	dados->tabuleiro2.jogadorAtivo = isPipe2Pending;
+
 
 	if (!isPipe1Pending && !isPipe2Pending)
 	{
@@ -233,6 +237,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		}else if (_tcscmp(arrayComandos[0], JOGOSINGLEP) == 0) {
 			if (dados->iniciado == FALSE) {//if jogo ainda não se encontra em curso
 				ResumeThread(sourceTabuleiro->hThreadAgua);
+				dados->iniciado = TRUE;
 				//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
 				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
 				_stprintf_s(a, MAX, _T("INICIAJOGO %d %d %d %d %d %d\n"), sourceTabuleiro->posX, sourceTabuleiro->posY,(*sourceTabuleiro->tabuleiro)[sourceTabuleiro->posX][sourceTabuleiro->posY], dados->posfX, dados->posfY, (*sourceTabuleiro->tabuleiro)[dados->posfX][dados->posfY]);
@@ -268,7 +273,8 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		}
 		else if (_tcscmp(arrayComandos[0], SAIRCLI) == 0) {
 			//disconectar do pipe do cliente
-			
+			//dados->iniciado = FALSE;
+
 			
 			//se for multiplayer -> informar ao outro cliente que ganhou
 			
@@ -1138,6 +1144,8 @@ int _tmain(int argc, LPTSTR argv[]) {
 
 	if (hThreadConsumidor != NULL && dados.tabuleiro1.hThreadAgua != NULL && dados.tabuleiro2.hThreadAgua != NULL) {
 		_tprintf(_T("Escreva 'SAIR' para sair.\n"));
+		TCHAR a[MAX];
+
 		do {
 			fflush(stdin);
 			_fgetts(comando, MAX-2, stdin);
@@ -1157,9 +1165,14 @@ int _tmain(int argc, LPTSTR argv[]) {
 						SuspendThread(dados.tabuleiro1.hThreadAgua);
 					if (dados.tabuleiro2.jogadorAtivo)
 						SuspendThread(dados.tabuleiro2.hThreadAgua);
-					
 					ReleaseMutex(dados.hMutexTabuleiro);
 					SetEvent(dados.hEventUpdateTabuleiro);
+
+					_stprintf_s(a, MAX, _T("SUSPENDE 1\n"));
+					if (dados.tabuleiro1.jogadorAtivo)
+						escreveNamedPipe(&dados, a, &dados.tabuleiro1);
+					if (dados.tabuleiro2.jogadorAtivo)
+						escreveNamedPipe(&dados, a, &dados.tabuleiro2);
 				}
 				else {
 					_tprintf(TEXT("Jogo não está em curso\n"));
@@ -1176,6 +1189,12 @@ int _tmain(int argc, LPTSTR argv[]) {
 					if (dados.tabuleiro2.jogadorAtivo)
 						ResumeThread(dados.tabuleiro2.hThreadAgua);
 					SetEvent(dados.hEventUpdateTabuleiro);
+
+					_stprintf_s(a, MAX, _T("RETOMA 1\n"));
+					if (dados.tabuleiro1.jogadorAtivo)
+						escreveNamedPipe(&dados, a, &dados.tabuleiro1);
+					if (dados.tabuleiro2.jogadorAtivo)
+						escreveNamedPipe(&dados, a, &dados.tabuleiro2);
 				}
 				else {
 					_tprintf(TEXT("Jogo não está em curso\n"));
@@ -1183,7 +1202,6 @@ int _tmain(int argc, LPTSTR argv[]) {
 			}
 		} while (_tcscmp(comando, SAIR) != 0);
 
-		TCHAR a[MAX];
 		_stprintf_s(a, MAX, _T("SAIR 1\n"));
 		if (dados.tabuleiro1.jogadorAtivo)
 			escreveNamedPipe(&dados, a, &dados.tabuleiro1);
