@@ -24,23 +24,25 @@ void prepararInicioDeJogo(DadosThread* dados) {
 
 void alteraSequencia(DadosThread* dados, DadosTabuleiro* tabuleiro) {
 	//TALVEZ MUTEX. DEPENDE SE ESTÁ DENTRO DE MUTEX QUANDO A FUNÇÂO É CHAMADA
-	
+	TCHAR a[MAX];
 	for (int i = 0; i < 5; i++) {									//passa os tubos uma posição para baixo //tecnicamente, apaga o tubo que se acabou de utilizar
 		tabuleiro->sequencia[i] = tabuleiro->sequencia[i + 1];
 	}
 
 	if (dados->modoRandom){
 		tabuleiro->sequencia[5] = (rand() % 6) + 1;				//numero aleatorio entre 1 e 6
-		return;
+	}else {
+		//Se não for modo random:
+		if (tabuleiro->sequencia[5 - 1] >= 6) {							//se for o tubo 6, adiciona o tubo 1
+			tabuleiro->sequencia[5] = 1;
+		}
+		else {
+			tabuleiro->sequencia[5] = tabuleiro->sequencia[5 - 1] + 1;		//se não, o tubo é o proximo da sequencia
+		}
 	}
-
-	//Se não for modo random:
-	if (tabuleiro->sequencia[5-1] >= 6) {							//se for o tubo 6, adiciona o tubo 1
-		tabuleiro->sequencia[5] = 1;
-		return;
-	}
-	tabuleiro->sequencia[5] = tabuleiro->sequencia[5-1] + 1;		//se não, o tubo é o proximo da sequencia
-
+	_stprintf_s(a, MAX, _T("SEQ %d %d %d %d %d %d\n"), tabuleiro->sequencia[0], tabuleiro->sequencia[1], tabuleiro->sequencia[2], tabuleiro->sequencia[3], tabuleiro->sequencia[4], tabuleiro->sequencia[5]);
+	escreveNamedPipe(dados, a, tabuleiro);
+	
 }
 
 DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) {
@@ -161,6 +163,8 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		#define SAIRCLI _T("SAIRCLI")
 		#define JOGOSINGLEP _T("JOGOSINGLEP")
 		#define JOGOMULTIP _T("JOGOMULTIP"
+		#define JOGOMULTIPCANCEL _T("JOGOMULTIPCANCEL")
+		#define INICIAJOGO _T("INICIAJOGO")
 		*/
 		if (_tcscmp(arrayComandos[0], LCLICK) == 0 || _tcscmp(arrayComandos[0], RCLICK) == 0) {
 			if (nrArgs >= 2) {	//x,y,tipopeça
@@ -198,6 +202,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				if (colocou == TRUE) {
 					_stprintf_s(a, MAX, _T("PECA %d %d %d\n"), x, y, t);
 					escreveNamedPipe(dados,a, sourceTabuleiro);
+					Sleep(200);
 					if (_tcscmp(arrayComandos[0], LCLICK) == 0){
 						alteraSequencia(dados, sourceTabuleiro);
 					}
@@ -226,17 +231,17 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			_stprintf_s(a, MAX, _T("INFO RetomaAgua\n"));
 			escreveNamedPipe(dados, a, sourceTabuleiro);
 		}else if (_tcscmp(arrayComandos[0], JOGOSINGLEP) == 0) {
-			//iniciar jogo
-			//if jogo ainda não se encontra em curso
-				//if cliente1
-					ResumeThread(dados->tabuleiro1.hThreadAgua);
-					_stprintf_s(a, MAX, _T("INICIAJOGO %d\n"),  dados->tempoInicioAgua);
-					escreveNamedPipe(dados, a, sourceTabuleiro);
-				//else
-					//ResumeThread(dados->tabuleiro1.hThreadAgua);
-			//else jogo já se encontra em curso
-				//_stprintf_s(a, MAX, _T("INFO JogoEmCurso\n"));
-				//escreveNamedPipe(dados, a);
+			if (dados->iniciado == FALSE) {//if jogo ainda não se encontra em curso
+				ResumeThread(sourceTabuleiro->hThreadAgua);
+				//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
+				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
+				_stprintf_s(a, MAX, _T("INICIAJOGO %d %d %d %d %d %d\n"), sourceTabuleiro->posX, sourceTabuleiro->posY,(*sourceTabuleiro->tabuleiro)[sourceTabuleiro->posX][sourceTabuleiro->posY], dados->posfX, dados->posfY, (*sourceTabuleiro->tabuleiro)[dados->posfX][dados->posfY]);
+				ReleaseMutex(dados->hMutexTabuleiro);
+				escreveNamedPipe(dados, a, sourceTabuleiro);
+			}
+			else {
+				escreveNamedPipe(dados, _T("INFO JogoEmCurso\n"), sourceTabuleiro);
+			}
 		}else if (_tcscmp(arrayComandos[0], JOGOMULTIP) == 0) {
 			// variavel com a quantidade de jogadores a querer jogar multiplayer
 			if (multi > 0) {	//existe um jogador em espera
@@ -262,32 +267,17 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			multi--;
 		}
 		else if (_tcscmp(arrayComandos[0], SAIRCLI) == 0) {
-			//verificar se jogo ainda se encontra a correr
+			//disconectar do pipe do cliente
+			
+			
 			//se for multiplayer -> informar ao outro cliente que ganhou
-			// 
-			//eliminar info cli
+			
 			//desconectar named pipes
-			DisconnectNamedPipe(dados->tabuleiro1.pipes.hPipeIn);
-			DisconnectNamedPipe(dados->tabuleiro2.pipes.hPipeIn);
-
+			//DisconnectNamedPipe(dados->tabuleiro1.pipes.hPipeIn);
+			//DisconnectNamedPipe(dados->tabuleiro2.pipes.hPipeIn);
+			
 
 		}
-
-
-		//sistema de mensagens
-
-		/*para->água parada
-		pi-> impossivel colocar peça no local indicado
-		pc-> peça colocada com sucesso
-		perdeu -> perdeu
-		ganhou -> ganhou
-		barr -> barreira adicionada
-		...
-		*/
-
-
-		//_tcscpy_s(mensagem, MAX, buf);
-
 	}
 	return 0;
 
@@ -314,11 +304,11 @@ BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t, DadosTabuleiro
 
 	WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
 	BOOL ret;
-	if (*(sourceTabuleiro->tabuleiro)[x][y] < 0 || (*(sourceTabuleiro->tabuleiro)[x][y] == 7)) {
+	if ((* sourceTabuleiro->tabuleiro)[x][y] < 0 || (*sourceTabuleiro->tabuleiro)[x][y] == 7) {
 		ret = FALSE;
 	}
 	else {
-		(*(sourceTabuleiro->tabuleiro))[x][y] = t;
+		(*sourceTabuleiro->tabuleiro)[x][y] = t;
 		ret = TRUE;
 	}
 	ReleaseMutex(dados->hMutexTabuleiro);
@@ -441,6 +431,7 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 			}
 			else if (_tcscmp(arrayComandos[0], BARR) == 0)		//comando adicionar barreira
 			{
+				TCHAR a[MAX];
 				int x = 0,y = 0;
 				_tprintf(_T("barrrrrr\n"));
 				if (nrArgs > 2) {
@@ -463,6 +454,9 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 							if ((*dados->tabuleiro1.tabuleiro)[x][y] == 0) {		//espaço livre
 								(*dados->tabuleiro1.tabuleiro)[x][y] = 7;
 								_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira adicionada"));
+								
+								_stprintf_s(a, MAX, _T("PECA %d %d 7\n"), x,y);
+								escreveNamedPipe(dados, a, &dados->tabuleiro1);
 							}
 							else {
 								_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira não pôde ser adicionada"));
@@ -473,6 +467,8 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 							if ((*dados->tabuleiro2.tabuleiro)[x][y] == 0) {		//espaço livre
 								(*dados->tabuleiro2.tabuleiro)[x][y] = 7;
 								_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira adicionada"));
+								_stprintf_s(a, MAX, _T("PECA %d %d 7\n"), x, y);
+								escreveNamedPipe(dados, a, &dados->tabuleiro2);
 							}
 							else {
 								_tcscpy_s(dados->memPar->estado, MAX, _T("Barreira não pôde ser adicionada"));
@@ -789,13 +785,22 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 					if (dadosTabuleiro->posX == dados->posfX && dadosTabuleiro->posY == dados->posfY){
 						_tcscpy_s(dados->memPar->estado, MAX, _T("Ganhou!!!"));					//muda o estado do jogo 
 						_tprintf(_T("(ThreadAgua) Ganhou!!!"));
+						escreveNamedPipe(dados, _T("INFO Ganhou\n"), dadosTabuleiro);
+						Sleep(200);
+						TCHAR a[MAX];
+						_stprintf_s(a, MAX, _T("PECA %d %d %d\n"), dadosTabuleiro->posX, dadosTabuleiro->posY, (*dadosTabuleiro->tabuleiro)[dadosTabuleiro->posX][dadosTabuleiro->posY]);
+						escreveNamedPipe(dados, a, dadosTabuleiro);
 						SetEvent(dados->hEventUpdateTabuleiro);
 						ReleaseMutex(dados->hMutexTabuleiro);
 						break;
 					}
 					else {
 						_tcscpy_s(dados->memPar->estado, MAX, _T("Água fluiu"));				//muda o estado do jogo 
-						_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
+						TCHAR a[MAX];
+						_stprintf_s(a, MAX, _T("PECA %d %d %d\n"), dadosTabuleiro->posX, dadosTabuleiro->posY, (* dadosTabuleiro->tabuleiro)[dadosTabuleiro->posX][dadosTabuleiro->posY]);
+						escreveNamedPipe(dados, a, dadosTabuleiro);
+						/*_tprintf(_T("(ThreadAgua) Fluir água! Sleep %d"), TIMER_FLUIR * 1000);
+						escreveNamedPipe(dados, _T("INFO FluiAgua\n"), dadosTabuleiro);*/
 					}
 					ReleaseMutex(dados->hMutexTabuleiro);
 					SetEvent(dados->hEventUpdateTabuleiro);
@@ -804,6 +809,7 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 				else {
 					_tcscpy_s(dados->memPar->estado, MAX, _T("Perdeu!!!"));						//muda o estado do jogo 
 					_tprintf(_T("(ThreadAgua) Perdeu!!!"));
+					escreveNamedPipe(dados, _T("INFO Perdeu\n"), dadosTabuleiro);
 					ReleaseMutex(dados->hMutexTabuleiro);
 					SetEvent(dados->hEventUpdateTabuleiro);
 					_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"));
@@ -871,12 +877,13 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 
 
 	//	MAPA PRÉ-DEFINIDO
-	carregaMapaPreDefinido(dados, dados->tabuleiro1.tabuleiro);
+	//carregaMapaPreDefinido(dados, dados->tabuleiro1.tabuleiro);
 	
 	*dados->tabuleiro1.jogadorAtivo = TRUE;
 
 	// Define início e fim
-	definirInicioFim(dados);
+	prepararInicioDeJogo(dados);
+	//definirInicioFim(dados);
 
 
 	dados->hMutexBufferCircular = CreateMutex(NULL, FALSE, MUTEX_BUFFER);

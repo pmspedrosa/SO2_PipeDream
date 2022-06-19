@@ -15,7 +15,7 @@
 #define MAX 256
 #define TAM_BUFFER 10								//tamanho buffer
 #define NPIPES 2									//Numero de pipes		
-#define ALTURA_INFO	20								//Altura da barra de informaÁ„o
+#define ALTURA_INFO	20								//Altura da barra de informa√ß√£o
 
 
 #define EVENT_TABULEIRO _T("EVENT_TABULEIRO")					//evento tabuleiro
@@ -48,19 +48,19 @@
 
 typedef struct {
 	TCHAR cmd[MAX];									//comando da mensagem enviada. Ex: paraAgua, info, cliquedir
-	TCHAR args[MAX][TAM_BUFFER];					//argumentos associados aos comandos, pode ter ou n„o
+	TCHAR args[MAX][TAM_BUFFER];					//argumentos associados aos comandos, pode ter ou n√£o
 	int numargs;
 }Msg;
 /*
 typedef struct {
 	HANDLE hPipe;									// handle do pipe
 	OVERLAPPED overlap;
-	BOOL activo;									//representa se a instancia do named pipe est· ou nao ativa, se ja tem um cliente ou nao
+	BOOL activo;									//representa se a instancia do named pipe est√° ou nao ativa, se ja tem um cliente ou nao
 }PipeDados;*/
 
 typedef struct {
 	HANDLE hPipe;									// handle do pipe
-	BOOL activo;									//representa se a instancia do named pipe est· ou nao ativa, se ja tem um cliente ou nao
+	BOOL activo;									//representa se a instancia do named pipe est√° ou nao ativa, se ja tem um cliente ou nao
 }PipeDados;
 typedef struct {
 	PipeDados hPipe;
@@ -78,8 +78,7 @@ typedef struct {
 	int seq[6];
 	BOOL jogoCorrer;
 	BOOL texturas;
-
-	HANDLE dialogEspera;
+	TCHAR info[MAX];
 }DadosThreadPipe;
 
 
