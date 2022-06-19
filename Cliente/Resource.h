@@ -20,6 +20,7 @@
 #define ID_MENU_SINGLEPLAYER            32772
 #define ID_MENU_MULTIPLAYER             32773
 #define ID_MENU_CANCELMULTIPLAYER       32774
+#define ID_MENU_ALTERATEXTURA           32775
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
@@ -28,7 +29,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        132
-#define _APS_NEXT_COMMAND_VALUE         32775
+#define _APS_NEXT_COMMAND_VALUE         32776
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           110
 #endif

@@ -136,7 +136,10 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				dados->tabuleiro[initx][inity] = pecai;
 				dados->tabuleiro[fimx][fimy] = pecaf;
 			}
-		}else if (_tcscmp(arrayComandos[0], INFO) == 0) {
+		}else if (_tcscmp(arrayComandos[0], JOGOMULTIPCANCEL) == 0) {
+			
+		}
+		else if (_tcscmp(arrayComandos[0], INFO) == 0) {
 			//to do
 		}
 		else if (_tcscmp(arrayComandos[0], PECA) == 0) {
@@ -780,13 +783,16 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 			ReleaseMutex(dados.hMutex);
 			SetEvent(dados.hEventoNamedPipe);
 			//ativar Dialog2
-			DialogBox(&dados.dialogEspera, MAKEINTRESOURCE(IDD_DIALOG2), dados.hWnd, DlgProc2);
+			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG2), dados.hWnd, DlgProc2);
+			//OutputDebugString(dados.dialogEspera);
 			break;
 		case ID_MENU_CANCELMULTIPLAYER:
 			WaitForSingleObject(dados.hMutex, INFINITE);
 			_tcscpy_s(dados.mensagem, MAX, JOGOMULTIPCANCEL);
 			ReleaseMutex(dados.hMutex);
 			SetEvent(dados.hEventoNamedPipe);
+		case ID_MENU_ALTERATEXTURA:
+			
 		default:
 			break;
 		}
