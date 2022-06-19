@@ -205,8 +205,12 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 BOOL initNamedPipes(DadosThreadPipe* dados) {
 	HANDLE hPipe, hThread;
 	dados->terminar = 0;
+	TCHAR nomeMutex[MAX];
 
-	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX_NPIPE_CLI); //Criação do mutex
+	_stprintf_s(nomeMutex, MAX, _T("MUTEX_NPIPE_CLI%d\0"), GetProcessId(GetCurrentProcess()));
+	OutputDebugString(nomeMutex);
+
+	dados->hMutex = CreateMutex(NULL, FALSE, nomeMutex); //Criação do mutex
 	if (dados->hMutex == NULL) {
 		OutputDebugString(TEXT("[Erro] ao criar mutex!\n"));
 		return FALSE;
