@@ -67,6 +67,8 @@
 #define JOGOMULTIPCANCEL _T("JOGOMULTIPCANCEL")
 
 
+#define EVENT_OVERLAP _T("EVENT_OVERLAP")
+
 
 ////////////////////////////////////////////////////////////////////////////////
 

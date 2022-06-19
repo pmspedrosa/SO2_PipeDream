@@ -24,10 +24,10 @@ void alteraSequencia(DadosThread* dados, DadosTabuleiro* tabuleiro) {
 
 }
 
-DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[]) {
+DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) {
 	BOOL isPipe1Pending, isPipe2Pending;
 
-	if (ReadFile(dados->tabuleiro1.pipes.hPipeIn, buf, sizeof(buf), n, &(dados->tabuleiro1.pipes.overlap)) != FALSE) {					//se TRUE, significa que conseguiu ler imediatamente, sem assinalar o evento de OVERLAP
+	if (ReadFile(dados->tabuleiro1.pipes.hPipeIn, buf, MAX * sizeof(TCHAR), n, &(dados->tabuleiro1.pipes.overlap)) != FALSE) {					//se TRUE, significa que conseguiu ler imediatamente, sem assinalar o evento de OVERLAP
 		_tprintf(TEXT("[SV] LI LOGO PIPE 1: %d %s\n"), *n, buf);
 		return &dados->tabuleiro1;																											//retorna-se logo, indicando qual o tabuleiro que enviou mensagem
 		
@@ -61,7 +61,7 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[]) {
 
 	if (!isPipe1Pending && !isPipe2Pending)
 	{
-		//_tprintf(TEXT("NONE OF THE FUCKERS ARE PENDING!!!\n"));
+		//_tprintf(TEXT("NONE ARE PENDING!!!\n"));
 		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent);
 		return NULL;
 	}
@@ -132,7 +132,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	dados->tabuleiro1.pipes.overlap = o1;
 	dados->tabuleiro2.pipes.overlap = o2;
 
-	dados->tabuleiro1.pipes.overlap.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	dados->tabuleiro1.pipes.overlap.hEvent = CreateEvent(NULL, TRUE, FALSE, EVENT_OVERLAP);
 	if (dados->tabuleiro1.pipes.overlap.hEvent == NULL) {
 		_tprintf(TEXT("[ERRO] Criar Event! (CreateEvent)"));
 		exit(-1);
@@ -145,9 +145,10 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	while (dados->terminar == 0) {
 		TCHAR a[MAX];
 		//le as mensagens enviadas pelo cliente
-	
+		dados->tabuleiro1.pipes.overlap.Internal = 0;
+		dados->tabuleiro2.pipes.overlap.Internal = 0;
 		
-		sourceTabuleiro = leDePipesOverlapped(dados, &n, buf);
+		sourceTabuleiro = leDePipesOverlapped(dados, &n, &buf);
 		
 		if (!n){
 			_tprintf(TEXT("[SV] n == 0... (ReadFile)\n"));
@@ -160,7 +161,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			continue;
 		}
 
-		buf[n / sizeof(TCHAR)] = '\0';
+		buf[n / sizeof(TCHAR) - 1] = '\0';
 
 		_tprintf(TEXT("[SV] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
 
@@ -197,6 +198,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 				if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
 					//t = dados.sequencia[0];
+					t = 2;
 				}
 				else {
 					t = 0;

@@ -72,14 +72,15 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	while (dados->terminar == 0) {
 		//le as mensagens enviadas pelo cliente
 		BOOL ret = ReadFile(hPipe, buf, sizeof(buf), &n, NULL);
-		buf[n / sizeof(TCHAR)] = '\0';
+		buf[n / sizeof(TCHAR) - 1] = '\0';
 
 		if (!ret || !n) {
 			OutputDebugString(TEXT("[Cliente] %d %d... (ReadFile)\n"), ret, n);
 			break;
 		}
-
-		OutputDebugString(TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
+		TCHAR a[MAX];
+		_stprintf_s(a, MAX, TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
+		OutputDebugString(a);
 		
 		// comando arg0 arg1 ....
 		//msg= info_0_barreira colocada local tal e tal
@@ -180,8 +181,12 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 		if (dados->hPipe.activo) {
 			if (!WriteFile(dados->hPipe.hPipe, dados->mensagem, sizeof(dados->mensagem), &n, NULL))
 				OutputDebugString(TEXT("[ERRO] Escrever no pipe! (WriteFile)\n"));
-			else
-				OutputDebugString(TEXT("[ESCRITOR] Enviei %d bytes ao cliente ... (WriteFile)\n"), n);
+			else {
+				TCHAR a[MAX];
+				_stprintf_s(a, MAX, _T("Enviei %d bytes ao cliente\n %s"), n, dados->mensagem);
+				OutputDebugString(a);
+
+			}
 		}
 		ReleaseMutex(dados->hMutex);
 		ResetEvent(dados->hEventoNamedPipe);
@@ -203,13 +208,14 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 
 	//hPipe = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 3, MAX * sizeof(TCHAR),MAX * sizeof(TCHAR), 1000, NULL);
 	
+	
 	hPipe = CreateFile(NOME_PIPE_CLIENTE, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hPipe == INVALID_HANDLE_VALUE) {
 		OutputDebugString(TEXT("[ERRO] Ligar ao Pipe! (CreateFile)"));
 		CloseHandle(dados->hMutex);
 		return FALSE;
 	}
-
+	
 	WaitForSingleObject(dados->hMutex, INFINITE);
 	dados->hPipe.hPipe = hPipe;
 	dados->hPipe.activo = FALSE;
@@ -231,7 +237,7 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 	dados->hPipe.activo = TRUE;
 	ReleaseMutex(dados->hMutex);
 
-	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, EVENT_NAMEDPIPE_SV);
+	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, EVENT_NAMEDPIPE_CLI);
 	if (dados->hEventoNamedPipe == NULL) {
 		OutputDebugString(_T("Erro: CreateEvent NamedPipe(%d)\n"), GetLastError());
 		CloseHandle(dados->hMutex);
