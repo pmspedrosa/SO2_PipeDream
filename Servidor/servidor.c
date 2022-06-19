@@ -1,7 +1,26 @@
 ﻿#include "servidor.h"
 #include "utils.h"
 
+void prepararInicioDeJogo(DadosThread* dados) {
+	WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
+	for (int i = 0; i < dados->memPar->tamX; i++) {
+		for (int j = 0; j < dados->memPar->tamY; j++) {
+			(*dados->tabuleiro1.tabuleiro)[i][j] = 0;
 
+			(*dados->tabuleiro2.tabuleiro)[i][j] = 0;		//apenas meta 1. Depois será feito -> tabuleiro2 = tabuleiro1 (cópia de valores)
+		}
+	}
+	definirInicioFim(dados);
+	ReleaseMutex(dados->hMutexTabuleiro);
+	dados->tabuleiro1.sequencia[5] = 1;
+	dados->tabuleiro2.sequencia[5] = 1;
+	for (int i = 0; i < 5; i++){
+		alteraSequencia(dados, &(dados->tabuleiro1));
+		alteraSequencia(dados, &(dados->tabuleiro2));
+	}
+	dados->tabuleiro1.numParagensDisponiveis = NUM_PARAGENS;
+	dados->tabuleiro2.numParagensDisponiveis = NUM_PARAGENS;
+}
 
 void alteraSequencia(DadosThread* dados, DadosTabuleiro* tabuleiro) {
 	//TALVEZ MUTEX. DEPENDE SE ESTÁ DENTRO DE MUTEX QUANDO A FUNÇÂO É CHAMADA
@@ -16,11 +35,11 @@ void alteraSequencia(DadosThread* dados, DadosTabuleiro* tabuleiro) {
 	}
 
 	//Se não for modo random:
-	if (tabuleiro->sequencia[5] >= 6) {							//se for o tubo 6, adiciona o tubo 1
+	if (tabuleiro->sequencia[5-1] >= 6) {							//se for o tubo 6, adiciona o tubo 1
 		tabuleiro->sequencia[5] = 1;
 		return;
 	}
-	tabuleiro->sequencia[5] = tabuleiro->sequencia[5] + 1;		//se não, o tubo é o proximo da sequencia
+	tabuleiro->sequencia[5] = tabuleiro->sequencia[5-1] + 1;		//se não, o tubo é o proximo da sequencia
 
 }
 
@@ -34,15 +53,6 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 	}
 
 	isPipe1Pending = GetLastError() == ERROR_IO_PENDING;																							//ERROR_IO_PENDING significa que o vai ativar o evento OVERLAP quando receber dados
-																																		//Se o erro for diferente, significa que houve outro erro, como por exemplo o pipe não ter ligação do outro lado.
-
-	if (isPipe1Pending)
-	{
-		_tprintf(TEXT("pipe 1 IO PENFDING\n"));
-	}
-	else {
-		_tprintf(TEXT("NOT IO PENFDING 1 !!!\n"));
-	}
 
 	if (ReadFile(dados->tabuleiro2.pipes.hPipeIn, buf, MAX * sizeof(TCHAR), n, &(dados->tabuleiro2.pipes.overlap)) != FALSE) {					//repete-se para o pipe do outro tabuleiro
 		_tprintf(TEXT("[SV] LI LOGO PIPE 2: %d %s\n"), *n, buf);
@@ -51,13 +61,6 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 	}
 
 	isPipe2Pending = GetLastError() == ERROR_IO_PENDING;
-	if (isPipe2Pending)
-	{
-		_tprintf(TEXT("pipe 2 IO PENFDING\n"));
-	}
-	else {
-		_tprintf(TEXT("NOT IO PENFDING 2 !!!\n"));
-	}
 
 	if (!isPipe1Pending && !isPipe2Pending)
 	{
@@ -65,10 +68,9 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent);
 		return NULL;
 	}
-	_tprintf(_T("\n\n%p\n\n"), dados->tabuleiro1.pipes.hPipeIn);
 
 	_tprintf(TEXT("[SV] VOU ESPERAR AGORA\n"));
-	WaitForSingleObject(dados->tabuleiro1.pipes.overlap.hEvent, INFINITE);																//espera pelo evento de overlap. Não faz utilizar o OVERLAPPED da tabuleiro1 ou tabuleiro2, uma vez que utilizam o mesmo evento
+	WaitForSingleObject(dados->tabuleiro1.pipes.overlap.hEvent, 2000);																//espera pelo evento de overlap. Não faz utilizar o OVERLAPPED da tabuleiro1 ou tabuleiro2, uma vez que utilizam o mesmo evento
 
 	if (GetOverlappedResult(dados->tabuleiro1.pipes.hPipeIn, &(dados->tabuleiro1.pipes.overlap), n, FALSE)) {							//se GetOverlappedResult retornar TRUE para o pipe indicado, significa que este pipe recebeu mensagem
 		_tprintf(TEXT("[SV] Recebi de pipe1 overlapped: %d %s\n"), *n, buf);																	//reset ao evento para a proxima iteração
@@ -82,8 +84,6 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 		return &dados->tabuleiro2;
 	}
 	else {
-		_tprintf(TEXT("[SV] \n\nerror: %d\n\n"), GetLastError());																	//reset ao evento para a proxima iteração
-
 		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent);																	//tecnicamente nunca deve chegar aqui. se chegar é porque houve algum erro
 		_tprintf(TEXT("[SV] GetOverlappedResult nao devolveu nenhum resultado esperado\n"));
 		return NULL;
@@ -183,11 +183,10 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 					y = 0;
 				}
 
-				if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
-					//t = dados.sequencia[0];
-					t = 2;
+				if (_tcscmp(arrayComandos[0], LCLICK) == 0) {		//se LCLICK, adiciona proxima peça da sequencia
+					t = sourceTabuleiro->sequencia[0];
 				}
-				else {
+				else {												//se RCLICK, remove a peça selecionada
 					t = 0;
 				}
 
@@ -199,7 +198,10 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				if (colocou == TRUE) {
 					_stprintf_s(a, MAX, _T("PECA %d %d %d\n"), x, y, t);
 					escreveNamedPipe(dados,a, sourceTabuleiro);
-					//sequencia atualiza
+					if (_tcscmp(arrayComandos[0], LCLICK) == 0){
+						alteraSequencia(dados, sourceTabuleiro);
+					}
+					//deve assinalar o evento para o monitor mostrar o tabuleiro
 				}
 				else {
 					if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
@@ -213,18 +215,14 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				}
 			}
 		}else if (_tcscmp(arrayComandos[0], HOVER) == 0) {
-			//if cliente1
-				//if numero de paragens cliente1 <=3
-					SuspendThread(dados->tabuleiro1.hThreadAgua);
-					_stprintf_s(a, MAX, _T("INFO AguaParada\n"));
-					escreveNamedPipe(dados, a, sourceTabuleiro);
-				//else 
-					//_stprintf_s(a, MAX, _T("INFO JáUtilizouTodasAsSuasPausas\n"));
-					//escreveNamedPipe(dados, a);
-			//if cliente2
-				//SuspendThread(dados.tabuleiro2.hThreadAgua);
+			if (sourceTabuleiro->numParagensDisponiveis > 0){
+				sourceTabuleiro->numParagensDisponiveis--;
+				SuspendThread(sourceTabuleiro->hThreadAgua);
+				_stprintf_s(a, MAX, _T("INFO AguaParada\n"));
+				escreveNamedPipe(dados, a, sourceTabuleiro);
+			}
 		}else if (_tcscmp(arrayComandos[0], RETOMAHOVER) == 0) {
-			ResumeThread(dados->tabuleiro1.hThreadAgua);
+			ResumeThread(sourceTabuleiro->hThreadAgua);
 			_stprintf_s(a, MAX, _T("INFO RetomaAgua\n"));
 			escreveNamedPipe(dados, a, sourceTabuleiro);
 		}else if (_tcscmp(arrayComandos[0], JOGOSINGLEP) == 0) {
@@ -304,36 +302,28 @@ BOOL escreveNamedPipe(DadosThread* dados, TCHAR* a, DadosTabuleiro* dadosTabulei
 	SetEvent(dados->hEventoNamedPipe);
 }
 
-BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t, DadosTabuleiro* dadosTabuleiro) {		//adicionar depois qual o tabuleiro a verificar (int tab)
+BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t, DadosTabuleiro* sourceTabuleiro) {		//adicionar depois qual o tabuleiro a verificar (int tab)
 	//verificar se celula é água ou verificar se célula é o fim jogo ou barr
 	if (x >= dados->memPar->tamX || y >= dados->memPar->tamY)
 	{
 		return FALSE;
 	}
 	
-	int tab = 1;
-	if (tab == 1) {	//tabuleiro 1
-		if (dados->posfX == x && dados->posfY == y)
-			return FALSE;
-		if ((*dados->tabuleiro1.tabuleiro)[x][y] < 0 || (*dados->tabuleiro1.tabuleiro)[x][y] == 7) {
-			return FALSE;
-		}
-		else {
-			(*dados->tabuleiro1.tabuleiro)[x][y] = t;
-			return TRUE;
-		}
-	}
-	else { //tabuleiro 2
-		if ((*dados->tabuleiro2.tabuleiro)[x][y] < 0 || (dados->posfX == x && dados->posfY == y) || (*dados->tabuleiro2.tabuleiro)[x][y] == 7) {
-			return FALSE;
-		}
-		else {
-			(*dados->tabuleiro2.tabuleiro)[x][y] = t;
-			return TRUE;
-		}
-	}
+	if (x == dados->posfX && y == dados->posfY )
+		return FALSE;
 
-	return FALSE;
+	WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
+	BOOL ret;
+	if (*(sourceTabuleiro->tabuleiro)[x][y] < 0 || (*(sourceTabuleiro->tabuleiro)[x][y] == 7)) {
+		ret = FALSE;
+	}
+	else {
+		(*(sourceTabuleiro->tabuleiro))[x][y] = t;
+		ret = TRUE;
+	}
+	ReleaseMutex(dados->hMutexTabuleiro);
+
+	return ret;
 }
 
 DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o cliente através do named pipe
@@ -371,39 +361,6 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 
 	return 0;
 }
-
-
-DWORD WINAPI ThreadAceitaClientes(LPVOID param) {
-	DadosThread* dados = (DadosThread*)param; 
-	
-	do {
-		if(dados->numClientes<2){
-			_tprintf(TEXT("[SV] Esperar ligação de um cliente... (ConnectNamedPipe)\n"));
-			//o servidor espera até ter um cliente conectado a esta instância
-			//bloqueia aqui
-			if (!ConnectNamedPipe(dados->hPipe[dados->numClientes].hPipe, NULL)) {
-				_tprintf(TEXT("[ERRO] Ligação ao cliente! (ConnectNamedPipe\n"));
-				exit(-1);
-			}
-			//bloqueamos no mutex
-			WaitForSingleObject(dados->hMutexNamedPipe, INFINITE);
-			dados->hPipe[dados->numClientes].activo = TRUE;
-			dados->numClientes++;
-			//ResumeThread(dados->hThreadLer);
-			ReleaseMutex(dados->hMutexNamedPipe);
-		}
-		//se já tiver 2 clientes ligados 
-		Sleep(2000);
-	} while (dados->terminar == 0);
-	
-	return 0;
-}
-
-
-
-
-
-
 
 DWORD WINAPI ThreadConsumidor(LPVOID param) {
 	DadosThread* dados = (DadosThread*)param;
@@ -622,81 +579,81 @@ BOOL definirInicioFim(DadosThread* dados) {
 
 	switch (parede) {							
 	case 0:																				//Parede de cima
-		//dados->tabuleiro1.tabuleiro[posInicio][0] = tipoTubo * -1;						//mete tubo correto na posição de inicio
+		(*dados->tabuleiro1.tabuleiro)[posInicio][0] = tipoTubo * -1;						//mete tubo correto na posição de inicio
 		(*dados->tabuleiro2.tabuleiro)[posInicio][0] = tipoTubo * -1;						//mete tubo com água correto na posição de inicio
 
-		//dados->tabuleiro1.posX = posInicio;												//posição de agua ativa = posição de inicio
-		//dados->tabuleiro1.posY = 0;
+		dados->tabuleiro1.posX = posInicio;													//posição de agua ativa = posição de inicio
+		dados->tabuleiro1.posY = 0;
 		dados->tabuleiro2.posX = posInicio;													//posição de agua ativa = posição de inicio
 		dados->tabuleiro2.posY = 0;
 		
-		//dados->tabuleiro1.tabuleiro[posFim][dados->memPar->tamY - 1] = tipoTubo;			//posFim -> Parede contrária ao inicio			//devemos querer guardar esta posição também nos dados do servidor
+		(*dados->tabuleiro1.tabuleiro)[posFim][dados->memPar->tamY - 1] = tipoTubo;			//posFim -> Parede contrária ao inicio			//devemos querer guardar esta posição também nos dados do servidor
 		(*dados->tabuleiro2.tabuleiro)[posFim][dados->memPar->tamY - 1] = tipoTubo;			//posFim -> Parede contrária ao inicio			//devemos querer guardar esta posição também nos dados do servidor
 		
-		//dados->tabuleiro1.dirAgua = BAIXO;
+		dados->tabuleiro1.dirAgua = BAIXO;
 		dados->tabuleiro2.dirAgua = BAIXO;
 
-		//dados->posfX = posFim;
-		//dados->posfY = dados->memPar->tamY - 1;
+		dados->posfX = posFim;
+		dados->posfY = dados->memPar->tamY - 1;
 
 		break;
 	case 1:
 		ultimaPos = dados->memPar->tamX - 1;											//pareda lado direito
-		//dados->tabuleiro1.tabuleiro[ultimaPos][posInicio] = tipoTubo * -1;
+		(*dados->tabuleiro1.tabuleiro)[ultimaPos][posInicio] = tipoTubo * -1;
 		(*dados->tabuleiro2.tabuleiro)[ultimaPos][posInicio] = tipoTubo * -1;
 
-		//dados->tabuleiro1.posX = ultimaPos;
-		//dados->tabuleiro1.posY = posInicio;
+		dados->tabuleiro1.posX = ultimaPos;
+		dados->tabuleiro1.posY = posInicio;
 		dados->tabuleiro2.posX = ultimaPos;
 		dados->tabuleiro2.posY = posInicio;
 		
-		//dados->tabuleiro1.tabuleiro[0][posFim] = tipoTubo;
+		(*dados->tabuleiro1.tabuleiro)[0][posFim] = tipoTubo;
 		(*dados->tabuleiro2.tabuleiro)[0][posFim] = tipoTubo;
 
-		//dados->tabuleiro1.dirAgua = ESQUERDA;
+		dados->tabuleiro1.dirAgua = ESQUERDA;
 		dados->tabuleiro2.dirAgua = ESQUERDA;
 
-		//dados->posfX = 0;
-		//dados->posfY = posFim;
+		dados->posfX = 0;
+		dados->posfY = posFim;
 
 		break;
 	case 2:
 		ultimaPos = dados->memPar->tamY - 1;											//parede baixo
-		//dados->tabuleiro1.tabuleiro[posInicio][ultimaPos] = tipoTubo * -1;
+		(*dados->tabuleiro1.tabuleiro)[posInicio][ultimaPos] = tipoTubo * -1;
 		(*dados->tabuleiro2.tabuleiro)[posInicio][ultimaPos] = tipoTubo * -1;
 
-		//dados->tabuleiro1.posX = posInicio;
-		//dados->tabuleiro1.posY = ultimaPos;
+		dados->tabuleiro1.posX = posInicio;
+		dados->tabuleiro1.posY = ultimaPos;
 		dados->tabuleiro2.posX = posInicio;
 		dados->tabuleiro2.posY = ultimaPos;
 
-		//dados->tabuleiro1.tabuleiro[posFim][0] = tipoTubo;
+		(*dados->tabuleiro1.tabuleiro)[posFim][0] = tipoTubo;
 		(*dados->tabuleiro2.tabuleiro)[posFim][0] = tipoTubo;
 
-		//dados->tabuleiro1.dirAgua = CIMA;
+		dados->tabuleiro1.dirAgua = CIMA;
 		dados->tabuleiro2.dirAgua = CIMA;
 
-		//dados->posfX = posFim;
-		//dados->posfY = 0;
+		dados->posfX = posFim;
+		dados->posfY = 0;
 		
 		break;
 	case 3:
-		//dados->tabuleiro1.tabuleiro[0][posInicio] = tipoTubo * -1;					//parede lado esquerdo
+		(*dados->tabuleiro1.tabuleiro)[0][posInicio] = tipoTubo * -1;					//parede lado esquerdo
 		(*dados->tabuleiro2.tabuleiro)[0][posInicio] = tipoTubo * -1;
 
-		//dados->tabuleiro1.posX = 0;
-		//dados->tabuleiro1.posY = posInicio;
+		dados->tabuleiro1.posX = 0;
+		dados->tabuleiro1.posY = posInicio;
 		dados->tabuleiro2.posX = 0;
 		dados->tabuleiro2.posY = posInicio;
 
-		//dados->tabuleiro1.tabuleiro[dados->memPar->tamX - 1][posFim] = tipoTubo;
+		(*dados->tabuleiro1.tabuleiro)[dados->memPar->tamX - 1][posFim] = tipoTubo;
 		(*dados->tabuleiro2.tabuleiro)[dados->memPar->tamX - 1][posFim] = tipoTubo;
 
-		//dados->tabuleiro1.dirAgua = DIREITA;
+		dados->tabuleiro1.dirAgua = DIREITA;
 		dados->tabuleiro2.dirAgua = DIREITA;
 
-		//dados->posfX = dados->memPar->tamX - 1;
-		//dados->posfY = posFim;
+		dados->posfX = dados->memPar->tamX - 1;
+		dados->posfY = posFim;
 		
 		break;
 	default:
@@ -892,14 +849,15 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 	//dados->memPar->tamX = tamH;
 	//dados->memPar->tamY = tamV;
 		
-	dados->memPar->tamX = 10;
-	dados->memPar->tamY = 7;
+	//dados->memPar->tamX = 10;
+	//dados->memPar->tamY = 7;
 
 	dados->tabuleiro1.tabuleiro = &(dados->memPar->dadosTabuleiro1.tabuleiro);
 	dados->tabuleiro1.jogadorAtivo = &(dados->memPar->dadosTabuleiro1.jogadorAtivo);
 	dados->tabuleiro2.tabuleiro = &(dados->memPar->dadosTabuleiro2.tabuleiro);
 	dados->tabuleiro2.jogadorAtivo = &(dados->memPar->dadosTabuleiro2.jogadorAtivo);
 	
+	/*
 	for (int i = 0; i < tamH; i++) {
 		for (int j = 0; j < tamV; j++) {
 			(*dados->tabuleiro1.tabuleiro)[i][j] = 0;
@@ -907,7 +865,7 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 			(*dados->tabuleiro2.tabuleiro)[i][j] = 0;		//apenas meta 1. Depois será feito -> tabuleiro2 = tabuleiro1 (cópia de valores)
 		}
 	}
-
+	*/
 	*dados->tabuleiro1.jogadorAtivo = FALSE;
 	*dados->tabuleiro2.jogadorAtivo = FALSE;
 
@@ -1044,7 +1002,6 @@ BOOL initNamedPipes(DadosThread* dados) {
 		_tprintf(TEXT("[ERRO] Criar instacia do pipe '%s'! (CreateNamedPipe)\n"), NOME_PIPE_CLIENTE);
 		exit(-1);
 	}
-	_tprintf(_T("\n\n%p\n\n"), dados->tabuleiro1.pipes.hPipeIn);
 
 	dados->tabuleiro2.pipes.hPipeIn = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 3, MAX * sizeof(TCHAR), MAX * sizeof(TCHAR), 1000, NULL);
 	if (dados->tabuleiro2.pipes.hPipeIn == NULL) {
@@ -1246,14 +1203,12 @@ int terminar(DadosThread* dados) {
 	CloseHandle(dados->hEventUpdateTabuleiro);
 	CloseHandle(dados->hMutexTabuleiro);
 	CloseHandle(dados->hEventTerminar);
-
-	for (int i = 0; i < NPIPES; i++)
-	{
-		if (dados->hPipe[i].activo == TRUE) {
-			if (!DisconnectNamedPipe(dados->hPipe[i].hPipe)) {
-				_tprintf(TEXT("[ERRO] Desligar o pipe! (DisconnectNamedPipe)"));
-				exit(-1);
-			}
-		}
+	if (!DisconnectNamedPipe(dados->tabuleiro1.pipes.hPipeOut)) {
+		_tprintf(TEXT("[ERRO] Desligar o pipe! (DisconnectNamedPipe)"));
+		exit(-1);
+	}
+	if (!DisconnectNamedPipe(dados->tabuleiro2.pipes.hPipeOut)) {
+		_tprintf(TEXT("[ERRO] Desligar o pipe! (DisconnectNamedPipe)"));
+		exit(-1);
 	}
 }
