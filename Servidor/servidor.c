@@ -318,22 +318,29 @@ BOOL escreveNamedPipe(DadosThread* dados, TCHAR* a) {
 
 BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t) {		//adicionar depois qual o tabuleiro a verificar (int tab)
 	//verificar se celula é água ou verificar se célula é o fim jogo ou barr
+	if (x >= dados->memPar->tamX || y >= dados->memPar->tamY)
+	{
+		return FALSE;
+	}
+	
 	int tab = 1;
 	if (tab == 1) {	//tabuleiro 1
-		if (*dados->tabuleiro1.tabuleiro[x][y] < 0 || (dados->posfX == x && dados->posfY == y) || *dados->tabuleiro1.tabuleiro[x][y] == 7) {
+		if (dados->posfX == x && dados->posfY == y)
+			return FALSE;
+		if ((*dados->tabuleiro1.tabuleiro)[x][y] < 0 || (*dados->tabuleiro1.tabuleiro)[x][y] == 7) {
 			return FALSE;
 		}
 		else {
-			*dados->tabuleiro1.tabuleiro[x][y] = t;
+			(*dados->tabuleiro1.tabuleiro)[x][y] = t;
 			return TRUE;
 		}
 	}
 	else { //tabuleiro 2
-		if (*dados->tabuleiro2.tabuleiro[x][y] < 0 || (dados->posfX == x && dados->posfY == y) || *dados->tabuleiro2.tabuleiro[x][y] == 7) {
+		if ((*dados->tabuleiro2.tabuleiro)[x][y] < 0 || (dados->posfX == x && dados->posfY == y) || (*dados->tabuleiro2.tabuleiro)[x][y] == 7) {
 			return FALSE;
 		}
 		else {
-			*dados->tabuleiro2.tabuleiro[x][y] = t;
+			(*dados->tabuleiro2.tabuleiro)[x][y] = t;
 			return TRUE;
 		}
 	}

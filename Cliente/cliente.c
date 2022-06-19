@@ -69,16 +69,22 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 	OutputDebugString(TEXT("[Cliente] Liguei-me...\n"));
 
+	TCHAR a[MAX];
+
 	while (dados->terminar == 0) {
 		//le as mensagens enviadas pelo cliente
 		BOOL ret = ReadFile(hPipe, buf, sizeof(buf), &n, NULL);
+		if (n == 0) {
+			continue;
+		}
+
 		buf[n / sizeof(TCHAR) - 1] = '\0';
 
 		if (!ret || !n) {
 			OutputDebugString(TEXT("[Cliente] %d %d... (ReadFile)\n"), ret, n);
 			break;
 		}
-		TCHAR a[MAX];
+
 		_stprintf_s(a, MAX, TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
 		OutputDebugString(a);
 		
