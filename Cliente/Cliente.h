@@ -16,6 +16,8 @@
 #define TAM_BUFFER 10								//tamanho buffer
 #define NPIPES 2									//Numero de pipes		
 #define ALTURA_INFO	20								//Altura da barra de informação
+#define TAM_BITMAP 150
+#define NUM_BITMAPS 14
 
 
 #define EVENT_TABULEIRO _T("EVENT_TABULEIRO")					//evento tabuleiro
@@ -35,14 +37,12 @@
 #define JOGOMULTIP _T("JOGOMULTIP")
 #define JOGOMULTIPCANCEL _T("JOGOMULTIPCANCEL")
 #define INICIAJOGO _T("INICIAJOGO")
+#define GANHOU _T("GANHOU")
+#define PERDEU _T("PERDEU")
 
-#define MUTEX_BITMAP _T("MUTEX_BITMAP")						//nome mutex named Pipe servidor
+#define MUTEX_BITMAP _T("MUTEX_BITMAP")								//nome mutex named Pipe servidor
 
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-#define NOME_PIPE_CLIENTE _T("\\\\.\\pipe\\cliente")					//nome named pipe Cliente-Servidor
+#define NOME_PIPE_CLIENTE _T("\\\\.\\pipe\\cliente")				//nome named pipe Cliente-Servidor
 #define NOME_PIPE_SERVIDOR _T("\\\\.\\pipe\\servidor")				//nome named pipe Servidor-Cliente
 
 
@@ -51,17 +51,16 @@ typedef struct {
 	TCHAR args[MAX][TAM_BUFFER];					//argumentos associados aos comandos, pode ter ou não
 	int numargs;
 }Msg;
-/*
+
 typedef struct {
-	HANDLE hPipe;									// handle do pipe
-	OVERLAPPED overlap;
-	BOOL activo;									//representa se a instancia do named pipe está ou nao ativa, se ja tem um cliente ou nao
-}PipeDados;*/
+	TCHAR nome[256];
+}DATA;
 
 typedef struct {
 	HANDLE hPipe;									// handle do pipe
 	BOOL activo;									//representa se a instancia do named pipe está ou nao ativa, se ja tem um cliente ou nao
 }PipeDados;
+
 typedef struct {
 	PipeDados hPipe;
 	HANDLE hEventoNamedPipe;
@@ -80,7 +79,6 @@ typedef struct {
 	BOOL texturas;
 	TCHAR info[MAX];
 }DadosThreadPipe;
-
 
 
 #endif
