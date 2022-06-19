@@ -37,6 +37,7 @@
 #define TAM_V_OMISSAO 7											//tamanho vertical default
 #define TEMPO_AGUA_OMISSAO 10L									//tempo inicio jogo default - 10 segundos
 #define TIMER_FLUIR 2											//tempo fluir água
+#define NUM_PARAGENS 3											//numero de pausas que um jogador pode fazer (hover)
 #define MAX 256									
 #define TAM_BUFFER 10											//tamanho buffer
 #define NUM_SV 1												//numero de servidor ativos possiveis
@@ -132,6 +133,7 @@ typedef struct {
 	unsigned int dirAgua;							//direção da água	// 0 > cima , 1 > direita, 2 > baixo, 3 > esquerda
 	int sequencia[6];								//sequencia de tubos
 	InfoPipesTabuleiro pipes;						//pipes utilizados por este tabueleiro
+	int numParagensDisponiveis;
 }DadosTabuleiro;
 
 

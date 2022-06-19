@@ -747,7 +747,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		break;
 	case WM_RBUTTONDOWN:
 		if (dados.jogoCorrer) {
-			processaEventoRato(hWnd, &dadosDentroJogo, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 2);
+			processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 2);
 		}
 		break;
 	case WM_MOUSEHOVER:
