@@ -15,6 +15,9 @@
 #define IDD_DIALOG1                     129
 #define IDR_MENU1                       130
 #define IDD_DIALOG2                     131
+#define IDD_DIALOG3                     132
+#define IDD_DIALOG4                     133
+#define IDD_DIALOG5                     134
 #define IDC_EDIT1                       1000
 #define ID_MENU_NOME                    32771
 #define ID_MENU_SINGLEPLAYER            32772
@@ -28,7 +31,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
-#define _APS_NEXT_RESOURCE_VALUE        132
+#define _APS_NEXT_RESOURCE_VALUE        135
 #define _APS_NEXT_COMMAND_VALUE         32776
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           110
