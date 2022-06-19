@@ -230,7 +230,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			//if jogo ainda não se encontra em curso
 				//if cliente1
 					ResumeThread(dados->tabuleiro1.hThreadAgua);
-					_stprintf_s(a, MAX, _T("INICIA %d\n"),  dados->tempoInicioAgua);
+					_stprintf_s(a, MAX, _T("INICIAJOGO %d\n"),  dados->tempoInicioAgua);
 					escreveNamedPipe(dados, a, sourceTabuleiro);
 				//else
 					//ResumeThread(dados->tabuleiro1.hThreadAgua);
@@ -340,7 +340,7 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 		//ficar bloqueado à espera de um evento 
 		WaitForSingleObject(dados->hEventoNamedPipe, INFINITE);
 
-		_tcscpy_s(dados->mensagem, MAX, buf);
+		//_tcscpy_s(dados->mensagem, MAX, buf);
 
 
 		//escreve no named pipe

@@ -74,6 +74,7 @@ typedef struct {
 	int seq[6];
 	BOOL jogoCorrer;
 
+	HANDLE dialogEspera;
 }DadosThreadPipe;
 
 
