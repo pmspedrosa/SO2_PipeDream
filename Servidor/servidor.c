@@ -239,7 +239,9 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOSINGLEP) == 0) {
 			if (dados->iniciado == FALSE) {//if jogo ainda não se encontra em curso
+				_stprintf_s(sourceTabuleiro->pontuacao.nome, MAX, arrayComandos[1]);
 				dados->velocidadeAgua = TIMER_FLUIR;
+				sourceTabuleiro->pontuacao.vitorias = 0;
 				sourceTabuleiro->correrAgua = TRUE;
 				ResumeThread(sourceTabuleiro->hThreadAgua);
 				dados->iniciado = TRUE;
@@ -254,6 +256,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOMULTIP) == 0) {
+			_stprintf_s(sourceTabuleiro->pontuacao.nome, MAX, arrayComandos[1]);
 			// variavel com a quantidade de jogadores a querer jogar multiplayer
 			if (multi > 0) {	//existe um jogador em espera
 				//iniciar jogo multiplayer...
@@ -830,8 +833,8 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 					if (dadosTabuleiro->posX == dados->posfX && dadosTabuleiro->posY == dados->posfY){
 						_tcscpy_s(dados->memPar->estado, MAX, _T("Ganhou!!!"));					//muda o estado do jogo 
 						_tprintf(_T("(ThreadAgua) Ganhou!!!"));
+						dadosTabuleiro->pontuacao.vitorias++;
 						dados->velocidadeAgua *= AUMENTO_VELOCIDADE;
-
 						escreveNamedPipe(dados, _T("GANHOU 10\n"), dadosTabuleiro);
 						Sleep(200);
 						TCHAR a[MAX];
@@ -914,7 +917,6 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 	dados->tabuleiro1.jogadorAtivo = &(dados->memPar->dadosTabuleiro1.jogadorAtivo);
 	dados->tabuleiro2.tabuleiro = &(dados->memPar->dadosTabuleiro2.tabuleiro);
 	dados->tabuleiro2.jogadorAtivo = &(dados->memPar->dadosTabuleiro2.jogadorAtivo);
-	
 	/*
 	for (int i = 0; i < tamH; i++) {
 		for (int j = 0; j < tamV; j++) {
@@ -1225,7 +1227,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 					_tprintf(TEXT("Jogo não está em curso\n"));
 				}
 			}
-			if (_tcscmp(comando, RETOMAR) == 0) {
+			else if (_tcscmp(comando, RETOMAR) == 0) {
 				if (dados.iniciado == TRUE) {
 					WaitForSingleObject(dados.hMutexTabuleiro, INFINITE);
 					_tcscpy_s(dados.memPar->estado, MAX, _T("Jogo retomado"));
@@ -1245,6 +1247,19 @@ int _tmain(int argc, LPTSTR argv[]) {
 				}
 				else {
 					_tprintf(TEXT("Jogo não está em curso\n"));
+				}
+			}
+			else if (_tcscmp(comando, PONTUACAO) == 0) {
+				if (!*(dados.tabuleiro1.jogadorAtivo) && !*(dados.tabuleiro1.jogadorAtivo)) {
+					_tprintf(TEXT("Nenhum jogador ativo\n"), dados.tabuleiro1.pontuacao.nome, dados.tabuleiro1.pontuacao.vitorias);
+				}
+
+
+				if (*(dados.tabuleiro1.jogadorAtivo)){
+					_tprintf(TEXT("Jogador 1: %s\nVitórias: %d\n"), dados.tabuleiro1.pontuacao.nome, dados.tabuleiro1.pontuacao.vitorias);
+				}
+				if (*dados.tabuleiro2.jogadorAtivo) {
+					_tprintf(TEXT("Jogador 2: %s\nVitórias: %d\n"), dados.tabuleiro2.pontuacao.nome, dados.tabuleiro2.pontuacao.vitorias);
 				}
 			}
 		} while (_tcscmp(comando, SAIR) != 0);
