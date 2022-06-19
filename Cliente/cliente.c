@@ -243,7 +243,7 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 	dados->hPipe.activo = TRUE;
 	ReleaseMutex(dados->hMutex);
 
-	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, EVENT_NAMEDPIPE_CLI);
+	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (dados->hEventoNamedPipe == NULL) {
 		OutputDebugString(_T("Erro: CreateEvent NamedPipe(%d)\n"), GetLastError());
 		CloseHandle(dados->hMutex);

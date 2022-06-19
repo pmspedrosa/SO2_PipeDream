@@ -160,6 +160,7 @@ typedef struct {									//estrutura para passar as threads
 	HANDLE hThreadEscrever;
 	int numClientes;
 	TCHAR mensagem[MAX];
+	HANDLE hPipeOut;
 }DadosThread;
 
 typedef struct {
