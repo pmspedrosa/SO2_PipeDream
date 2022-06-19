@@ -92,17 +92,24 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 	OutputDebugString(TEXT("[Cliente] Liguei-me...\n"));
 
+	TCHAR a[MAX];
+
 	while (dados->terminar == 0) {
 		//le as mensagens enviadas pelo cliente
 		BOOL ret = ReadFile(hPipe, buf, sizeof(buf), &n, NULL);
-		buf[n / sizeof(TCHAR)] = '\0';
+		if (n == 0) {
+			continue;
+		}
+
+		buf[n / sizeof(TCHAR) - 1] = '\0';
 
 		if (!ret || !n) {
 			OutputDebugString(TEXT("[Cliente] %d %d... (ReadFile)\n"), ret, n);
 			break;
 		}
 
-		OutputDebugString(TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
+		_stprintf_s(a, MAX, TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
+		OutputDebugString(a);
 		
 		// comando arg0 arg1 ....
 		//msg= info_0_barreira colocada local tal e tal
@@ -169,7 +176,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			if (nrArgs >= 6) {
 				for (int i = 1; i < 7; i++)
 				{
-					int t;
+					int t = 0;
 					if (_tcscmp(arrayComandos[3], _T("0")) != 0) {
 						t = _tstoi(arrayComandos[3]);
 						if (t == 0) {
@@ -177,7 +184,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 						}
 					}
 					WaitForSingleObject(dados->hMutex, INFINITE);
-					dados->seq[i] = t;
+					dados->seq[i-1] = t;
 					ReleaseMutex(dados->hMutex);
 					InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
 				}	
@@ -214,10 +221,14 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 
 		WaitForSingleObject(dados->hMutex, INFINITE);
 		if (dados->hPipe.activo) {
-			if (!WriteFile(dados->hPipe.hPipe, dados->mensagem, _tcslen(dados->mensagem) * sizeof(TCHAR), &n, NULL))
+			if (!WriteFile(dados->hPipe.hPipe, dados->mensagem, sizeof(dados->mensagem), &n, NULL))
 				OutputDebugString(TEXT("[ERRO] Escrever no pipe! (WriteFile)\n"));
-			else
-				OutputDebugString(TEXT("[ESCRITOR] Enviei %d bytes ao cliente ... (WriteFile)\n"), n);
+			else {
+				TCHAR a[MAX];
+				_stprintf_s(a, MAX, _T("Enviei %d bytes ao cliente\n %s"), n, dados->mensagem);
+				OutputDebugString(a);
+
+			}
 		}
 		ReleaseMutex(dados->hMutex);
 		ResetEvent(dados->hEventoNamedPipe);
@@ -230,20 +241,27 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 BOOL initNamedPipes(DadosThreadPipe* dados) {
 	HANDLE hPipe, hThread;
 	dados->terminar = 0;
+	TCHAR nomeMutex[MAX];
 
-	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX_NPIPE_CLI); //Criação do mutex
+	_stprintf_s(nomeMutex, MAX, _T("MUTEX_NPIPE_CLI%d\0"), GetProcessId(GetCurrentProcess()));
+	OutputDebugString(nomeMutex);
+
+	dados->hMutex = CreateMutex(NULL, FALSE, nomeMutex); //Criação do mutex
 	if (dados->hMutex == NULL) {
 		OutputDebugString(TEXT("[Erro] ao criar mutex!\n"));
 		return FALSE;
 	}
 
-	hPipe = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 1, MAX * sizeof(TCHAR),MAX * sizeof(TCHAR), 1000, NULL);
+	//hPipe = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 3, MAX * sizeof(TCHAR),MAX * sizeof(TCHAR), 1000, NULL);
+	
+	
+	hPipe = CreateFile(NOME_PIPE_CLIENTE, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hPipe == INVALID_HANDLE_VALUE) {
-		OutputDebugString(TEXT("[ERRO] Criar Named Pipe! (CreateNamedPipe)"));
+		OutputDebugString(TEXT("[ERRO] Ligar ao Pipe! (CreateFile)"));
 		CloseHandle(dados->hMutex);
 		return FALSE;
 	}
-
+	
 	WaitForSingleObject(dados->hMutex, INFINITE);
 	dados->hPipe.hPipe = hPipe;
 	dados->hPipe.activo = FALSE;
@@ -251,19 +269,21 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 
 	_tprintf(TEXT("[CLIENTE] Esperar ligação de um servidor... (ConnectNamedPipe)\n"));
 	//o cliente espera até ter um servidor conectado a esta instância
+	/*
 	if (!ConnectNamedPipe(dados->hPipe.hPipe, NULL)) {
 		OutputDebugString(TEXT("[ERRO] Ligação ao servidor! (ConnectNamedPipe\n"));
 		CloseHandle(dados->hMutex);
 		DisconnectNamedPipe(dados->hPipe.hPipe);
 		return FALSE;
 	}
+	*/
 	//_tprintf(TEXT(" Ligação ao servidor com sucesso! (ConnectNamedPipe\n"));
 	OutputDebugString(TEXT(" Ligação ao servidor com sucesso! (ConnectNamedPipe\n"));
 	WaitForSingleObject(dados->hMutex, INFINITE);
 	dados->hPipe.activo = TRUE;
 	ReleaseMutex(dados->hMutex);
 
-	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, EVENT_NAMEDPIPE_SV);
+	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (dados->hEventoNamedPipe == NULL) {
 		OutputDebugString(_T("Erro: CreateEvent NamedPipe(%d)\n"), GetLastError());
 		CloseHandle(dados->hMutex);
@@ -535,19 +555,19 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 	HDC hdc = GetDC(hWnd);
 	GetClientRect(hWnd, &rect);
 	int paddingX, paddingY, larguraSeq;
-	WaitForSingleObject(dados->hMutex, INFINITE);
+	//WaitForSingleObject(dados->hMutex, INFINITE);
 	int tamCelula = getPaddings(dados->tamX, dados->tamY, &rect, &paddingX, &paddingY, &larguraSeq, NULL);
 
-	if (posX < paddingX + larguraSeq || posY < paddingY)
+	if (posX < paddingX + larguraSeq || posY < paddingY + ALTURA_INFO)
 		return;
-	if (posX > (dados->tamX * tamCelula) + paddingX + larguraSeq || posY > (dados->tamY * tamCelula) + paddingY) {
+	if (posX > (dados->tamX * tamCelula) + paddingX + larguraSeq || posY > (dados->tamY * tamCelula) + paddingY + ALTURA_INFO) {
 		return;
 	}
-	ReleaseMutex(dados->hMutex);
+	//ReleaseMutex(dados->hMutex);
 
 	int coordX, coordY;
 	coordX = (posX - paddingX - larguraSeq) / tamCelula;
-	coordY = (posY - paddingY) / tamCelula;
+	coordY = (posY - paddingY - ALTURA_INFO) / tamCelula;
 
 	//DEBUG START
 	TCHAR a[512];
@@ -589,8 +609,11 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 			else {
 				OutputDebugString(_T("NÃO CONSEGUIU INICIAR DETEÇÂO HOVER\n"));
 			}
+			ReleaseMutex(dados->hMutex);
 		}
 		break;
+	default:
+		ReleaseMutex(dados->hMutex);
 	}
 }
 
