@@ -34,15 +34,6 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 	}
 
 	isPipe1Pending = GetLastError() == ERROR_IO_PENDING;																							//ERROR_IO_PENDING significa que o vai ativar o evento OVERLAP quando receber dados
-																																		//Se o erro for diferente, significa que houve outro erro, como por exemplo o pipe não ter ligação do outro lado.
-
-	if (isPipe1Pending)
-	{
-		_tprintf(TEXT("pipe 1 IO PENFDING\n"));
-	}
-	else {
-		_tprintf(TEXT("NOT IO PENFDING 1 !!!\n"));
-	}
 
 	if (ReadFile(dados->tabuleiro2.pipes.hPipeIn, buf, MAX * sizeof(TCHAR), n, &(dados->tabuleiro2.pipes.overlap)) != FALSE) {					//repete-se para o pipe do outro tabuleiro
 		_tprintf(TEXT("[SV] LI LOGO PIPE 2: %d %s\n"), *n, buf);
@@ -51,13 +42,6 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 	}
 
 	isPipe2Pending = GetLastError() == ERROR_IO_PENDING;
-	if (isPipe2Pending)
-	{
-		_tprintf(TEXT("pipe 2 IO PENFDING\n"));
-	}
-	else {
-		_tprintf(TEXT("NOT IO PENFDING 2 !!!\n"));
-	}
 
 	if (!isPipe1Pending && !isPipe2Pending)
 	{
@@ -65,7 +49,6 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent);
 		return NULL;
 	}
-	_tprintf(_T("\n\n%p\n\n"), dados->tabuleiro1.pipes.hPipeIn);
 
 	_tprintf(TEXT("[SV] VOU ESPERAR AGORA\n"));
 	WaitForSingleObject(dados->tabuleiro1.pipes.overlap.hEvent, 2000);																//espera pelo evento de overlap. Não faz utilizar o OVERLAPPED da tabuleiro1 ou tabuleiro2, uma vez que utilizam o mesmo evento
@@ -82,8 +65,6 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 		return &dados->tabuleiro2;
 	}
 	else {
-		_tprintf(TEXT("[SV] \n\nerror: %d\n\n"), GetLastError());																	//reset ao evento para a proxima iteração
-
 		ResetEvent(dados->tabuleiro1.pipes.overlap.hEvent);																	//tecnicamente nunca deve chegar aqui. se chegar é porque houve algum erro
 		_tprintf(TEXT("[SV] GetOverlappedResult nao devolveu nenhum resultado esperado\n"));
 		return NULL;

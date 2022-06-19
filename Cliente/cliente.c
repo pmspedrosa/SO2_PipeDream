@@ -570,6 +570,10 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 	coordX = (posX - paddingX - larguraSeq) / tamCelula;
 	coordY = (posY - paddingY - ALTURA_INFO) / tamCelula;
 
+	if (coordX >= dados->tamX || coordY>=dados->tamY){
+		return;
+	}
+
 	//DEBUG START
 	TCHAR a[512];
 	_stprintf_s(a, 512, _T("Evento na célula %d, %d\n"), coordX, coordY);
