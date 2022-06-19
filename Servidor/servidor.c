@@ -785,7 +785,7 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 					if (dadosTabuleiro->posX == dados->posfX && dadosTabuleiro->posY == dados->posfY){
 						_tcscpy_s(dados->memPar->estado, MAX, _T("Ganhou!!!"));					//muda o estado do jogo 
 						_tprintf(_T("(ThreadAgua) Ganhou!!!"));
-						escreveNamedPipe(dados, _T("INFO Ganhou\n"), dadosTabuleiro);
+						escreveNamedPipe(dados, _T("GANHOU 10\n"), dadosTabuleiro);
 						Sleep(200);
 						TCHAR a[MAX];
 						_stprintf_s(a, MAX, _T("PECA %d %d %d\n"), dadosTabuleiro->posX, dadosTabuleiro->posY, (*dadosTabuleiro->tabuleiro)[dadosTabuleiro->posX][dadosTabuleiro->posY]);
@@ -809,7 +809,7 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 				else {
 					_tcscpy_s(dados->memPar->estado, MAX, _T("Perdeu!!!"));						//muda o estado do jogo 
 					_tprintf(_T("(ThreadAgua) Perdeu!!!"));
-					escreveNamedPipe(dados, _T("INFO Perdeu\n"), dadosTabuleiro);
+					escreveNamedPipe(dados, _T("PERDEU 10\n"), dadosTabuleiro);
 					ReleaseMutex(dados->hMutexTabuleiro);
 					SetEvent(dados->hEventUpdateTabuleiro);
 					_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"));

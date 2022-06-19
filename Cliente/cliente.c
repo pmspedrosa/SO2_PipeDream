@@ -178,11 +178,6 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				pecai = atoicmd(&arrayComandos[3],3);
 				pecaf = atoicmd(&arrayComandos[6],6);*/
 
-				/*OutputDebugString(arrayComandos[1]);
-				OutputDebugString(arrayComandos[2]);
-				OutputDebugString(arrayComandos[3]);
-				OutputDebugString(arrayComandos[4]);*/
-				//OutputDebugString(a);
 
 				dados->tabuleiro[initx][inity] = pecai;
 				dados->tabuleiro[fimx][fimy] = pecaf;
@@ -252,8 +247,16 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				}	
 			}
 		}
+		else if (_tcscmp(arrayComandos[0], GANHOU) == 0) {
+			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG3), dados->hWnd, DlgProc2);
+			//talvez limpar mapa
+		}
+		else if (_tcscmp(arrayComandos[0], PERDEU) == 0) {
+			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG4), dados->hWnd, DlgProc2);
+			//talvez limpar mapa
+		}
 		else if (_tcscmp(arrayComandos[0], SUSPENDE) == 0) {
-			//cria uma textbox com a informação de que o jogo está parado
+			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG5), dados->hWnd, DlgProc2);
 
 		}
 		else if (_tcscmp(arrayComandos[0], RETOMA) == 0) {
@@ -261,6 +264,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 		}
 		else if (_tcscmp(arrayComandos[0], SAIR) == 0) {
+			dados->terminar = 1;
 			//fechar tudoooo
 		}
 
@@ -956,10 +960,12 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 			_tcscpy_s(dados.mensagem, MAX, JOGOMULTIPCANCEL);
 			ReleaseMutex(dados.hMutex);
 			SetEvent(dados.hEventoNamedPipe);
+			break;
 		case ID_MENU_ALTERATEXTURA:
 			dados.texturas = (!dados.texturas);
 			loadImages(dados.hMutexBitmap, dados.texturas, bitmap, hWnd);
 			InvalidateRect(hWnd, NULL, TRUE);
+			break;
 		default:
 			break;
 		}
@@ -1007,6 +1013,9 @@ BOOL CALLBACK DlgProc2(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
 		return TRUE;
 	case WM_COMMAND:
 		switch (wParam) {
+		case IDOK:
+			EndDialog(hWnd, IDOK);
+			return TRUE;
 		case IDCANCEL:
 			EndDialog(hWnd, IDCANCEL);
 			return TRUE;
