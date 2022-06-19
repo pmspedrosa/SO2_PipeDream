@@ -6,8 +6,7 @@
 #define TAM_BITMAP 150
 #define NUM_BITMAPS 14
 
-typedef struct
-{
+typedef struct{
 	TCHAR nome[256];
 }DATA;
 
@@ -758,7 +757,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 			ReleaseMutex(dados.hMutex);
 			SetEvent(dados.hEventoNamedPipe);
 			//ativar Dialog2
-			//DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG2), dados.hWnd, DlgProc2);
+			DialogBox(&dados.dialogEspera, MAKEINTRESOURCE(IDD_DIALOG2), dados.hWnd, DlgProc2);
 			break;
 		case ID_MENU_CANCELMULTIPLAYER:
 			WaitForSingleObject(dados.hMutex, INFINITE);
@@ -792,6 +791,26 @@ BOOL CALLBACK DlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
 			//OutputDebugString(TEXT("nome mudado!\n"));
 			EndDialog(hWnd, IDOK);
 			return TRUE;
+		case IDCANCEL:
+			EndDialog(hWnd, IDCANCEL);
+			return TRUE;
+		default:
+			return TRUE;
+		}
+	case WM_CLOSE:
+		EndDialog(hWnd, (INT_PTR)0);
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+BOOL CALLBACK DlgProc2(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
+	switch (msg) {
+	case WM_INITDIALOG:
+		return TRUE;
+	case WM_COMMAND:
+		switch (wParam) {
 		case IDCANCEL:
 			EndDialog(hWnd, IDCANCEL);
 			return TRUE;

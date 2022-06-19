@@ -73,7 +73,7 @@ typedef struct {
 	int celulaAtivaX, celulaAtivaY;
 	HWND hWnd;
 	int seq[6];
-
+	HANDLE dialogEspera;
 }DadosThreadPipe;
 
 
