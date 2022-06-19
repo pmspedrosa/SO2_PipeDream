@@ -462,7 +462,7 @@ void loadImages(HANDLE mutexBitmap ,BOOL texturas, BitmapInfo bitmap[], HWND hWn
 		bitmap[12].bmpDC = CreateCompatibleDC(hdc);
 		SelectObject(bitmap[12].bmpDC, hBmp);
 
-		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe7.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 		GetObject(hBmp, sizeof(BITMAP), &bitmap[13].bmp);
 		bitmap[13].bmpDC = CreateCompatibleDC(hdc);
 		SelectObject(bitmap[13].bmpDC, hBmp);
@@ -536,7 +536,7 @@ void loadImages(HANDLE mutexBitmap ,BOOL texturas, BitmapInfo bitmap[], HWND hWn
 	bitmap[12].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[12].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe7.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[13].bmp);
 	bitmap[13].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[13].bmpDC, hBmp);
@@ -797,7 +797,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		dados.tamY = 7;
 
 		for (int i = 0; i < 6; i++)
-			dados.seq[i] = i;
+			dados.seq[i] = i+2;
 
 		dados.celulaAtivaX = 0;
 		dados.celulaAtivaY = 0;
