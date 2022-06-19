@@ -2,11 +2,20 @@
 #include <windowsx.h>
 #include <tchar.h>
 #include "cliente.h"
+#include "resource.h"
 #define TAM_BITMAP 150
 #define NUM_BITMAPS 14
 
+typedef struct
+{
+	TCHAR nome[256];
+}DATA;
+
 
 LRESULT CALLBACK TrataEventos(HWND, UINT, WPARAM, LPARAM);
+BOOL CALLBACK DlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM LParam);
+BOOL CALLBACK DlgProc2(HWND dlg, UINT msg, WPARAM wParam, LPARAM LParam);
+
 
 TCHAR szProgName[] = TEXT("Base2022");
 
@@ -38,6 +47,21 @@ TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam) {
 	return arrayCmd;
 }
 
+
+int atoicmd(TCHAR* cmd, int i) {
+	int atoi;
+	if (_tcscmp(cmd[i], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+		atoi = _tstoi(cmd[i]);
+		if (atoi == 0) {
+			_tprintf(_T("Valor passado como argumento não é aceite\n"));
+			return -1000;		
+		}
+		return atoi;
+	}
+	else
+		return 0;
+
+}
 
 
 DWORD WINAPI ThreadLer(LPVOID param) {						
@@ -93,7 +117,20 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		#define RETOMA _T("RETOMA")
 		#define SAIR _T("SAIR")
 		*/
-		if (_tcscmp(arrayComandos[0], INFO) == 0) {
+		if (_tcscmp(arrayComandos[0], INICIAJOGO) == 0) {	//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
+			if (nrArgs >= 6) {
+				unsigned int initx, inity, pecai, fimx, fimy, pecaf;
+				initx = atoicmd(arrayComandos[1], 1);
+				inity = atoicmd(arrayComandos[2], 2);
+				fimx = atoicmd(arrayComandos[4], 4);
+				fimy = atoicmd(arrayComandos[5], 5);
+				pecai = _tstoi(arrayComandos[3]);
+				pecaf = _tstoi(arrayComandos[6]);
+
+				dados->tabuleiro[initx][inity] = pecai;
+				dados->tabuleiro[fimx][fimy] = pecaf;
+			}
+		}else if (_tcscmp(arrayComandos[0], INFO) == 0) {
 			//to do
 		}
 		else if (_tcscmp(arrayComandos[0], PECA) == 0) {
@@ -244,7 +281,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	MSG lpMsg;		// MSG � uma estrutura definida no Windows para as mensagens
 	WNDCLASSEX wcApp;	// WNDCLASSEX � uma estrutura cujos membros servem para 
 			  // definir as caracter�sticas da classe da janela
-	
+	DATA dados = { _T("Jogador1") };
+
 	//verificar se existe sv ativo
 	HANDLE hEventUpdateTabuleiro = OpenEvent(EVENT_MODIFY_STATE | SYNCHRONIZE, FALSE, EVENT_TABULEIRO);
 
@@ -274,10 +312,10 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	wcApp.hCursor = LoadCursor(NULL, IDC_ARROW);	// "hCursor" = handler do cursor (rato) 
 							  // "NULL" = Forma definida no Windows
 							  // "IDC_ARROW" Aspecto "seta" 
-	wcApp.lpszMenuName = NULL;			// Classe do menu que a janela pode ter
+	wcApp.lpszMenuName = MAKEINTRESOURCE(IDR_MENU1);;			// Classe do menu que a janela pode ter
 							  // (NULL = n�o tem menu)
 	wcApp.cbClsExtra = 0;				// Livre, para uso particular
-	wcApp.cbWndExtra = 0;				// Livre, para uso particular
+	wcApp.cbWndExtra = sizeof(DATA*);				// Livre, para uso particular
 	wcApp.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
 
 	if (!RegisterClassEx(&wcApp))
@@ -301,6 +339,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	  // ============================================================================
 	  // 4. Mostrar a janela
 	  // ============================================================================
+
+	SetWindowLongPtr(hWnd, 0, (LONG_PTR)&dados);
+	
 	ShowWindow(hWnd, nCmdShow);	// "hWnd"= handler da janela, devolvido por 
 					  // "CreateWindow"; "nCmdShow"= modo de exibi��o (p.e. 
 					  // normal/modal); � passado como par�metro de WinMain()
@@ -573,6 +614,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	static HDC memDC = NULL;
 	static DadosThreadPipe dados;
 	HANDLE hThreadLer, hThreadEscrever;
+	DATA* dadosDentroJogo = (LONG_PTR)GetWindowLongPtr(hWnd, 0);
+	TCHAR a[MAX];
 
 
 	switch (messg) {
@@ -606,14 +649,14 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 		loadImages(TRUE, bitmap, hWnd);
 
-		//CARREGAR MAPA PRE-DEFINIDO PARA TESTE
+		////CARREGAR MAPA PRE-DEFINIDO PARA TESTE
 		for (int x = 0; x < 20; x++){
 			for (int y = 0; y < 20; y++)
 			{
 				dados.tabuleiro[x][y] = 0;
 			}
 		}
-		dados.tabuleiro[0][2] = -1;
+		/*dados.tabuleiro[0][2] = -1;
 		dados.tabuleiro[1][2] = 1;
 		dados.tabuleiro[2][2] = 1;
 		dados.tabuleiro[3][2] = 1;
@@ -632,7 +675,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		dados.tabuleiro[9][5] = 1;
 		
 		dados.tabuleiro[9][6] = 3;
-		dados.tabuleiro[0][0] = 5;
+		dados.tabuleiro[0][0] = 5;*/
 
 		dados.tamX = 10;
 		dados.tamY = 7;
@@ -654,7 +697,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		break;
 	case WM_CLOSE:		// Close da janela	
 		if (MessageBox(hWnd, _T("Queres mesmo sair?"), _T("SAIR"),
-			MB_ICONQUESTION | MB_YESNO | MB_HELP) == IDYES)
+			MB_ICONQUESTION | MB_YESNO) == IDYES)
 		{
 			//mandar mensagem ao sv a dizer que cliente saiu
 			//escrever a msg
@@ -666,9 +709,6 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 			CloseHandle(dados.hThreadLer);
 			DestroyWindow(hWnd);
 		}
-		break;
-	case WM_HELP:		//Janela de Ajuda
-		MessageBox(hWnd, _T("Janela de Ajuda"), _T("SAIR"), MB_OK);
 		break;
 
 	case WM_LBUTTONDOWN:	//apanhar evento que escuta tecla rato	
@@ -684,7 +724,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		EndPaint(hWnd, &ps);
 		break;
 	case WM_RBUTTONDOWN:
-		processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam),2);
+		processaEventoRato(hWnd, &dadosDentroJogo, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam),2);
 		break;
 	case WM_CHAR:	//apanhar  teclado
 		//PARA TESTE
@@ -698,11 +738,69 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		PostQuitMessage(0);
 	case WM_ERASEBKGND: //Sent when the window background must be erased (for example, when a window is resized). 
 		return 1;
+	case WM_COMMAND: //menu
+		switch (wParam)
+		{
+		case ID_MENU_NOME:
+			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG1), hWnd, DlgProc);
+			break;
+		case ID_MENU_SINGLEPLAYER:
+			WaitForSingleObject(dados.hMutex, INFINITE);
+			_stprintf_s(a, MAX, _T("JOGOSINGLEP %s"), dadosDentroJogo->nome);
+			_tcscpy_s(dados.mensagem, MAX, a);
+			ReleaseMutex(dados.hMutex);
+			SetEvent(dados.hEventoNamedPipe);
+			break;
+		case ID_MENU_MULTIPLAYER:
+			WaitForSingleObject(dados.hMutex, INFINITE);
+			_stprintf_s(a, MAX, _T("JOGOMULTIP %s"), dadosDentroJogo->nome);
+			_tcscpy_s(dados.mensagem, MAX, a);
+			ReleaseMutex(dados.hMutex);
+			SetEvent(dados.hEventoNamedPipe);
+			//ativar Dialog2
+			//DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG2), dados.hWnd, DlgProc2);
+			break;
+		case ID_MENU_CANCELMULTIPLAYER:
+			WaitForSingleObject(dados.hMutex, INFINITE);
+			_tcscpy_s(dados.mensagem, MAX, JOGOMULTIPCANCEL);
+			ReleaseMutex(dados.hMutex);
+			SetEvent(dados.hEventoNamedPipe);
+		default:
+			break;
+		}
 	default:
-		// Neste exemplo, para qualquer outra mensagem (p.e. "minimizar","maximizar","restaurar")
-		// n�o � efectuado nenhum processamento, apenas se segue o "default" do Windows
 		return(DefWindowProc(hWnd, messg, wParam, lParam));
 		break;  // break tecnicamente desnecess�rio por causa do return
 	}
 	return(0);
+}
+
+
+
+
+
+BOOL CALLBACK DlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
+	DATA* pData = (DATA*)GetWindowLongPtr(GetParent(hWnd), 0);
+	switch (msg) {
+	case WM_INITDIALOG:
+		SetDlgItemText(hWnd, IDC_EDIT1, pData->nome);
+		return TRUE;
+	case WM_COMMAND:
+		switch (wParam) {
+		case IDOK:
+			GetDlgItemText(hWnd, IDC_EDIT1, pData->nome, 80);
+			//OutputDebugString(TEXT("nome mudado!\n"));
+			EndDialog(hWnd, IDOK);
+			return TRUE;
+		case IDCANCEL:
+			EndDialog(hWnd, IDCANCEL);
+			return TRUE;
+		default:
+			return TRUE;
+		}
+	case WM_CLOSE:
+		EndDialog(hWnd, (INT_PTR)0);
+		return TRUE;
+	}
+	return FALSE;
 }

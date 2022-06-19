@@ -31,6 +31,10 @@
 #define SUSPENDE _T("SUSPENDE")
 #define RETOMA _T("RETOMA")
 #define SAIR _T("SAIR")
+#define JOGOSINGLEP _T("JOGOSINGLEP")
+#define JOGOMULTIP _T("JOGOMULTIP")
+#define JOGOMULTIPCANCEL _T("JOGOMULTIPCANCEL")
+#define INICIAJOGO _T("INICIAJOGO")
 
 
 ////////////////////////////////////////////////////////////////////////////////
