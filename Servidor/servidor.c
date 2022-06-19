@@ -846,8 +846,8 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 	dados->parafluxo = 0;
 
 	//Comentado por causa do mapa pré-definido da meta 1
-	//dados->memPar->tamX = tamH;
-	//dados->memPar->tamY = tamV;
+	dados->memPar->tamX = tamH;
+	dados->memPar->tamY = tamV;
 		
 	//dados->memPar->tamX = 10;
 	//dados->memPar->tamY = 7;
