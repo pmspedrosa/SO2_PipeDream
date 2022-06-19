@@ -36,12 +36,13 @@
 #define TAM_H_OMISSAO 10										//tamanho horizontal default
 #define TAM_V_OMISSAO 7											//tamanho vertical default
 #define TEMPO_AGUA_OMISSAO 10L									//tempo inicio jogo default - 10 segundos
-#define TIMER_FLUIR 2											//tempo fluir água
+#define TIMER_FLUIR 3											//tempo fluir água
+#define AUMENTO_VELOCIDADE 0.5f
 #define NUM_PARAGENS 3											//numero de pausas que um jogador pode fazer (hover)
 #define MAX 256									
 #define TAM_BUFFER 10											//tamanho buffer
 #define NUM_SV 1												//numero de servidor ativos possiveis
-#define NPIPES 2												//Numero de pipes		
+#define NPIPES 2												//Numero de pipes
 
 /*direções*/
 #define CIMA 0
@@ -67,6 +68,7 @@
 #define JOGOMULTIP _T("JOGOMULTIP")
 #define JOGOMULTIPCANCEL _T("JOGOMULTIPCANCEL")
 #define INICIAJOGO _T("INICIAJOGO")									//Inicia Jogo
+#define PROXNIVEL _T("PROXNIVEL")
 
 
 
@@ -128,6 +130,7 @@ typedef struct {
 	int sequencia[6];								//sequencia de tubos
 	InfoPipesTabuleiro pipes;						//pipes utilizados por este tabueleiro
 	int numParagensDisponiveis;
+	BOOL correrAgua;
 }DadosTabuleiro;
 
 
@@ -147,6 +150,7 @@ typedef struct {									//estrutura para passar as threads
 	int id;											//id do produtor
 	int parafluxo;									//para thread fluxo agua por determinado tempo
 	DWORD tempoInicioAgua;							//tempo até água começar a fluir
+	float velocidadeAgua;
 	BOOL iniciado;									//True -  jogo foi iniciado, False - não
 	BOOL modoRandom;								//TRUE -> modo de sequencia random //FALSE -> modo de sequencia definida
 
@@ -164,7 +168,7 @@ typedef struct {									//estrutura para passar as threads
 
 typedef struct {
 	DadosThread* dados;
-	int numTabuleiro;
+	DadosTabuleiro* dadosTabuleiro;
 }DadosThreadAgua;
 
 TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam);

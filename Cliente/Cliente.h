@@ -39,6 +39,7 @@
 #define INICIAJOGO _T("INICIAJOGO")
 #define GANHOU _T("GANHOU")
 #define PERDEU _T("PERDEU")
+#define PROXNIVEL _T("PROXNIVEL")
 
 #define MUTEX_BITMAP _T("MUTEX_BITMAP")								//nome mutex named Pipe servidor
 
