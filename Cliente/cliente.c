@@ -19,7 +19,6 @@ BOOL CALLBACK DlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
 		switch (wParam) {
 		case IDOK:
 			GetDlgItemText(hWnd, IDC_EDIT1, pData->nome, 80);
-			//OutputDebugString(TEXT("nome mudado!\n"));
 			EndDialog(hWnd, IDOK);
 			return TRUE;
 		case IDCANCEL:
@@ -867,7 +866,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 			//mandar mensagem ao sv a dizer que cliente saiu
 			//escrever a msg
 			WaitForSingleObject(dados.hMutex, INFINITE);
-				_tcscpy_s(dados.mensagem,MAX, _T("SAIRCLI"));
+				_stprintf_s(a, MAX, _T("SAIRCLI 1"));
+				_tcscpy_s(dados.mensagem, MAX, a);
 			ReleaseMutex(dados.hMutex);
 			SetEvent(dados.hEventoNamedPipe);
 			/*CloseHandle(dados.hThreadEscrever);
