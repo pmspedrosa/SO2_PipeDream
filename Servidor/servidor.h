@@ -37,7 +37,7 @@
 #define TAM_V_OMISSAO 7											//tamanho vertical default
 #define TEMPO_AGUA_OMISSAO 10L									//tempo inicio jogo default - 10 segundos
 #define TIMER_FLUIR 3											//tempo fluir água
-#define AUMENTO_VELOCIDADE 0.5f
+#define AUMENTO_VELOCIDADE 0.8f
 #define NUM_PARAGENS 3											//numero de pausas que um jogador pode fazer (hover)
 #define MAX 256									
 #define TAM_BUFFER 10											//tamanho buffer

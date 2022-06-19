@@ -79,6 +79,7 @@ typedef struct {
 	BOOL jogoCorrer;
 	BOOL texturas;
 	TCHAR info[MAX];
+	HANDLE hMessageBox;
 }DadosThreadPipe;
 
 
