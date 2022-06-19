@@ -1,7 +1,7 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <tchar.h>
-#include "cliente.h"
+#include "Cliente.h"
 #include "resource.h"
 #define TAM_BITMAP 150
 #define NUM_BITMAPS 14
@@ -49,8 +49,8 @@ TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam) {
 
 int atoicmd(TCHAR* cmd, int i) {
 	int atoi;
-	if (_tcscmp(cmd[i], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
-		atoi = _tstoi(cmd[i]);
+	if (_tcscmp(cmd, _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+		atoi = _tstoi(cmd);
 		if (atoi == 0) {
 			_tprintf(_T("Valor passado como argumento não é aceite\n"));
 			return -1000;		
@@ -59,7 +59,6 @@ int atoicmd(TCHAR* cmd, int i) {
 	}
 	else
 		return 0;
-
 }
 
 
@@ -115,32 +114,92 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		//msg= info_0_barreira colocada local tal e tal
 		
 		arrayComandos = divideString(buf, delim, &nrArgs);			//divisão da string para um array com o comando e args
-		/*
-		#define INFO _T("INFO")
-		#define PEÇA _T("PEÇA")
-		#define SEQ _T("SEQ")
-		#define SUSPENDE _T("SUSPENDE")
-		#define RETOMA _T("RETOMA")
-		#define SAIR _T("SAIR")
-		*/
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 		if (_tcscmp(arrayComandos[0], INICIAJOGO) == 0) {	//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
+			_stprintf_s(a, 512, TEXT("[Cliente] iniciiiiiiiiiiiiiiiiiia %d\n"), nrArgs);
+			OutputDebugString(a);
 			if (nrArgs >= 6) {
 				unsigned int initx, inity, pecai, fimx, fimy, pecaf;
-				initx = atoicmd(arrayComandos[1], 1);
-				inity = atoicmd(arrayComandos[2], 2);
-				fimx = atoicmd(arrayComandos[4], 4);
-				fimy = atoicmd(arrayComandos[5], 5);
-				pecai = _tstoi(arrayComandos[3]);
-				pecaf = _tstoi(arrayComandos[6]);
+				if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+					initx = _tstoi(arrayComandos[1]);
+					if (initx == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					initx = 0;
+				if (_tcscmp(arrayComandos[2], _T("0")) != 0) {
+					inity = _tstoi(arrayComandos[2]);
+					if (inity == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					inity = 0;
+				if (_tcscmp(arrayComandos[3], _T("0")) != 0) {
+					pecai = _tstoi(arrayComandos[3]);
+					if (pecai == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					pecai = 0;
+				if (_tcscmp(arrayComandos[4], _T("0")) != 0) {
+					fimx = _tstoi(arrayComandos[4]);
+					if (fimx == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					fimx = 0;
+				if (_tcscmp(arrayComandos[5], _T("0")) != 0) {
+					fimy = _tstoi(arrayComandos[5]);
+					if (fimy == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					fimy = 0;
+				if (_tcscmp(arrayComandos[6], _T("0")) != 0) {
+					pecaf = _tstoi(arrayComandos[6]);
+					if (pecaf == 0) {
+						_tprintf(_T("Valor passado como argumento não é aceite\n"));
+					}
+				}
+				else
+					pecaf = 0;
+				/*initx = atoicmd(&arrayComandos[1], 1);
+				inity = atoicmd(&arrayComandos[2], 2);
+				fimx = atoicmd(&arrayComandos[4], 4);
+				fimy = atoicmd(&arrayComandos[5], 5);
+				pecai = atoicmd(&arrayComandos[3],3);
+				pecaf = atoicmd(&arrayComandos[6],6);*/
+
+				/*OutputDebugString(arrayComandos[1]);
+				OutputDebugString(arrayComandos[2]);
+				OutputDebugString(arrayComandos[3]);
+				OutputDebugString(arrayComandos[4]);*/
+				//OutputDebugString(a);
 
 				dados->tabuleiro[initx][inity] = pecai;
 				dados->tabuleiro[fimx][fimy] = pecaf;
+
+				dados->jogoCorrer = TRUE;
+
+				InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
+				_stprintf_s(a, 512, TEXT("[Cliente] iniciiiiiiiiiiiiiiiiiia\n"));
+				OutputDebugString(a);
 			}
 		}else if (_tcscmp(arrayComandos[0], JOGOMULTIPCANCEL) == 0) {
 			
 		}
 		else if (_tcscmp(arrayComandos[0], INFO) == 0) {
-			//to do
+			_tcscpy_s(dados->info, MAX, arrayComandos[1]);
+			InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
+
 		}
 		else if (_tcscmp(arrayComandos[0], PECA) == 0) {
 			if (nrArgs >= 3) {	//x,y,tipopeça
@@ -180,8 +239,8 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				for (int i = 1; i < 7; i++)
 				{
 					int t = 0;
-					if (_tcscmp(arrayComandos[3], _T("0")) != 0) {
-						t = _tstoi(arrayComandos[3]);
+					if (_tcscmp(arrayComandos[i], _T("0")) != 0) {
+						t = _tstoi(arrayComandos[i]);
 						if (t == 0) {
 							_tprintf(_T("Valor passado como argumento não é aceite\n"));
 						}
@@ -206,6 +265,8 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		}
 
 	}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	CloseHandle(hPipe);
 
@@ -459,10 +520,11 @@ void loadImages(BOOL set, BitmapInfo bitmap[], HWND hWnd) {
 	bitmap[12].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[12].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe7.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[13].bmp);
 	bitmap[13].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[13].bmpDC, hBmp);
+
 }
 
 int getPaddings(int tamX, int tamY, RECT* rect, int* paddingX, int* paddingY, int* larguraSeq, int* paddingSeq) {			
@@ -535,7 +597,7 @@ void atualizarDisplay(HWND hWnd, DadosThreadPipe* dados, BitmapInfo bitmap[]) {
 	SetBkMode(hdc, TRANSPARENT);
 	rect.left = 0;
 	rect.top = 0;
-	DrawText(hdc, &dados->mensagem, -1, &rect, DT_SINGLELINE, DT_NOCLIP);
+	DrawText(hdc, &dados->info, -1, &rect, DT_SINGLELINE, DT_NOCLIP);
 }
 
 
@@ -585,14 +647,14 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 	{
 	case 1:
 		WaitForSingleObject(dados->hMutex, INFINITE);
-		_stprintf_s(a, MAX, _T("LCLICK %d %d\n"), coordX, coordY);
+		_stprintf_s(a, MAX, _T("LCLICK %d %d \n"), coordX, coordY);
 		_tcscpy_s(dados->mensagem, MAX, a);
 		ReleaseMutex(dados->hMutex);
 		SetEvent(dados->hEventoNamedPipe);
 		break;
 	case 2:
 		WaitForSingleObject(dados->hMutex, INFINITE);
-		_stprintf_s(a, MAX, _T("RCLICK %d %d\n"), coordX, coordY);
+		_stprintf_s(a, MAX, _T("RCLICK %d %d \n"), coordX, coordY);
 		_tcscpy_s(dados->mensagem, MAX, a);
 		ReleaseMutex(dados->hMutex);
 		SetEvent(dados->hEventoNamedPipe);
@@ -685,6 +747,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 				dados.tabuleiro[x][y] = 0;
 			}
 		}
+		//dados.tabuleiro[3][2] = 7;
 		/*dados.tabuleiro[0][2] = -1;
 		dados.tabuleiro[1][2] = 1;
 		dados.tabuleiro[2][2] = 1;
@@ -710,7 +773,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		dados.tamY = 7;
 
 		for (int i = 0; i < 6; i++)
-			dados.seq[i] = i;
+			dados.seq[i] = i+2;
 
 		dados.celulaAtivaX = 0;
 		dados.celulaAtivaY = 0;

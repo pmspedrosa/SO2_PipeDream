@@ -73,8 +73,8 @@ typedef struct {
 	HWND hWnd;
 	int seq[6];
 	BOOL jogoCorrer;
+	TCHAR info[MAX];
 
-	HANDLE dialogEspera;
 }DadosThreadPipe;
 
 
