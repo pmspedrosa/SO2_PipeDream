@@ -125,7 +125,6 @@ typedef struct {
 typedef struct {
 	TCHAR nome[MAX];
 	int vitorias;
-	int derrotas;
 }DadosPontuacao;
 
 typedef struct {

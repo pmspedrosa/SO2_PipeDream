@@ -239,9 +239,9 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOSINGLEP) == 0) {
 			if (dados->iniciado == FALSE) {//if jogo ainda não se encontra em curso
+				_stprintf_s(sourceTabuleiro->pontuacao.nome, MAX, arrayComandos[1]);
 				dados->velocidadeAgua = TIMER_FLUIR;
 				sourceTabuleiro->pontuacao.vitorias = 0;
-				sourceTabuleiro->pontuacao.derrotas = 0;
 				sourceTabuleiro->correrAgua = TRUE;
 				ResumeThread(sourceTabuleiro->hThreadAgua);
 				dados->iniciado = TRUE;
@@ -256,6 +256,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOMULTIP) == 0) {
+			_stprintf_s(sourceTabuleiro->pontuacao.nome, MAX, arrayComandos[1]);
 			// variavel com a quantidade de jogadores a querer jogar multiplayer
 			if (multi > 0) {	//existe um jogador em espera
 				//iniciar jogo multiplayer...
@@ -1252,17 +1253,16 @@ int _tmain(int argc, LPTSTR argv[]) {
 				}
 			}
 			else if (_tcscmp(comando, PONTUACAO) == 0) {
+				if (!*(dados.tabuleiro1.jogadorAtivo) && !*(dados.tabuleiro1.jogadorAtivo)) {
+					_tprintf(TEXT("Nenhum jogador ativo\n"), dados.tabuleiro1.pontuacao.nome, dados.tabuleiro1.pontuacao.vitorias);
+				}
+
+
 				if (*(dados.tabuleiro1.jogadorAtivo)){
 					_tprintf(TEXT("Jogador 1: %s\nVitórias: %d\n"), dados.tabuleiro1.pontuacao.nome, dados.tabuleiro1.pontuacao.vitorias);
 				}
-				else {
-					_tprintf(TEXT("Jogador 1 não está ativo\n"));
-				}
 				if (*dados.tabuleiro2.jogadorAtivo) {
 					_tprintf(TEXT("Jogador 2: %s\nVitórias: %d\n"), dados.tabuleiro2.pontuacao.nome, dados.tabuleiro2.pontuacao.vitorias);
-				}
-				else {
-					_tprintf(TEXT("Jogador 2 não está ativo\n"));
 				}
 			}
 		} while (_tcscmp(comando, SAIR) != 0);
