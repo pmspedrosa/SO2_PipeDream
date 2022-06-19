@@ -189,4 +189,8 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV);
 
 DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeValorRegistry[], unsigned int valorOmissao, unsigned int* varGuardar, unsigned int min, unsigned int max);
 
+void prepararInicioDeJogo(DadosThread* dados);
+
+void alteraSequencia(DadosThread* dados, DadosTabuleiro* tabuleiro);
+
 #endif
