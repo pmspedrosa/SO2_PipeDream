@@ -390,79 +390,158 @@ typedef struct BitmapInfo {
 	HDC bmpDC;
 }BitmapInfo;
 
-void loadImages(BOOL set, BitmapInfo bitmap[], HWND hWnd) {
+void loadImages(HANDLE mutexBitmap ,BOOL texturas, BitmapInfo bitmap[], HWND hWnd) {
 	HBITMAP hBmp;
 	HDC hdc = GetDC(hWnd);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe6_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	WaitForSingleObject(mutexBitmap, INFINITE);
+
+	if (texturas){
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe6_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[0].bmp);
+		bitmap[0].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[0].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe5_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[1].bmp);
+		bitmap[1].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[1].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe4_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[2].bmp);
+		bitmap[2].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[2].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe3_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[3].bmp);
+		bitmap[3].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[3].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe2_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[4].bmp);
+		bitmap[4].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[4].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe1_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[5].bmp);
+		bitmap[5].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[5].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[6].bmp);
+		bitmap[6].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[6].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe1.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[7].bmp);
+		bitmap[7].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[7].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe2.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[8].bmp);
+		bitmap[8].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[8].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe3.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[9].bmp);
+		bitmap[9].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[9].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe4.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[10].bmp);
+		bitmap[10].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[10].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe5.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[11].bmp);
+		bitmap[11].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[11].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe6.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[12].bmp);
+		bitmap[12].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[12].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[13].bmp);
+		bitmap[13].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[13].bmpDC, hBmp);
+
+		ReleaseMutex(mutexBitmap);
+		return;
+	}
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe6_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[0].bmp);
 	bitmap[0].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[0].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe5_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe5_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[1].bmp);
 	bitmap[1].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[1].bmpDC, hBmp);
-	
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe4_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe4_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[2].bmp);
 	bitmap[2].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[2].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe3_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe3_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[3].bmp);
 	bitmap[3].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[3].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe2_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe2_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[4].bmp);
 	bitmap[4].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[4].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe1_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe1_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[5].bmp);
 	bitmap[5].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[5].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[6].bmp);
 	bitmap[6].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[6].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe1.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe1.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[7].bmp);
 	bitmap[7].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[7].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe2.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe2.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[8].bmp);
 	bitmap[8].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[8].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe3.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe3.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[9].bmp);
 	bitmap[9].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[9].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe4.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe4.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[10].bmp);
 	bitmap[10].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[10].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe5.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe5.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[11].bmp);
 	bitmap[11].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[11].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe6.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe6.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[12].bmp);
 	bitmap[12].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[12].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[13].bmp);
 	bitmap[13].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[13].bmpDC, hBmp);
+
+	ReleaseMutex(mutexBitmap);
 }
 
 int getPaddings(int tamX, int tamY, RECT* rect, int* paddingX, int* paddingY, int* larguraSeq, int* paddingSeq) {			
@@ -516,6 +595,7 @@ void atualizarDisplay(HWND hWnd, DadosThreadPipe* dados, BitmapInfo bitmap[]) {
 
 	FillRect(hdc, &rect, CreateSolidBrush(RGB(100, 100, 100)));
 	
+	WaitForSingleObject(dados->hMutexBitmap, INFINITE);
 	//BARRA DE SEQUENCIA
 	for (int i = 0; i < 6; i++) {
 		currBitmap = bitmap[dados->seq[i] + 6].bmp;
@@ -529,6 +609,7 @@ void atualizarDisplay(HWND hWnd, DadosThreadPipe* dados, BitmapInfo bitmap[]) {
 			StretchBlt(hdc, (tamCelula * x) + paddingX + larguraSeq, (tamCelula * y) + paddingY + ALTURA_INFO, tamCelula, tamCelula, bitmap[dados->tabuleiro[x][y] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
 		}
 	}
+	ReleaseMutex(dados->hMutexBitmap);
 
 	//PRINT INFO
 	SetTextColor(hdc, RGB(0, 0, 0));
@@ -675,8 +756,14 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		}
 		dados.hThreadEscrever = hThreadEscrever;
 
+		TCHAR nomeMutexBitmap[MAX];
 
-		loadImages(TRUE, bitmap, hWnd);
+		_stprintf_s(nomeMutexBitmap, MAX, _T("MUTEX_BITMAP%d\0"), GetProcessId(GetCurrentProcess()));
+		MUTEX_BITMAP;
+		dados.hMutexBitmap = CreateMutex(NULL, FALSE, nomeMutexBitmap);
+
+
+		loadImages(dados.hMutexBitmap, dados.texturas, bitmap, hWnd);
 
 		////CARREGAR MAPA PRE-DEFINIDO PARA TESTE
 		for (int x = 0; x < 20; x++){
@@ -807,7 +894,9 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 			ReleaseMutex(dados.hMutex);
 			SetEvent(dados.hEventoNamedPipe);
 		case ID_MENU_ALTERATEXTURA:
-			
+			dados.texturas = (!dados.texturas);
+			loadImages(dados.hMutexBitmap, dados.texturas, bitmap, hWnd);
+			InvalidateRect(hWnd, NULL, TRUE);
 		default:
 			break;
 		}

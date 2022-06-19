@@ -36,6 +36,9 @@
 #define JOGOMULTIPCANCEL _T("JOGOMULTIPCANCEL")
 #define INICIAJOGO _T("INICIAJOGO")
 
+#define MUTEX_BITMAP _T("MUTEX_BITMAP")						//nome mutex named Pipe servidor
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -63,6 +66,7 @@ typedef struct {
 	PipeDados hPipe;
 	HANDLE hEventoNamedPipe;
 	HANDLE hMutex;
+	HANDLE hMutexBitmap;
 	HANDLE hThreadLer;
 	HANDLE hThreadEscrever;
 	int terminar;
@@ -73,6 +77,7 @@ typedef struct {
 	HWND hWnd;
 	int seq[6];
 	BOOL jogoCorrer;
+	BOOL texturas;
 
 	HANDLE dialogEspera;
 }DadosThreadPipe;
