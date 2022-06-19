@@ -879,7 +879,7 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 	//	MAPA PRÉ-DEFINIDO
 	//carregaMapaPreDefinido(dados, dados->tabuleiro1.tabuleiro);
 	
-	*dados->tabuleiro1.jogadorAtivo = TRUE;
+	//*dados->tabuleiro1.jogadorAtivo = TRUE;
 
 	// Define início e fim
 	prepararInicioDeJogo(dados);
@@ -1182,6 +1182,14 @@ int _tmain(int argc, LPTSTR argv[]) {
 				}
 			}
 		} while (_tcscmp(comando, SAIR) != 0);
+
+		TCHAR a[MAX];
+		_stprintf_s(a, MAX, _T("SAIR 1\n"));
+		if (dados.tabuleiro1.jogadorAtivo)
+			escreveNamedPipe(&dados, a, &dados.tabuleiro1);
+		if (dados.tabuleiro2.jogadorAtivo)
+			escreveNamedPipe(&dados, a, &dados.tabuleiro2);
+
 		dados.terminar = 1;
 		SetEvent(dados.hEventTerminar);
 		

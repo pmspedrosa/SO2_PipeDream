@@ -87,12 +87,6 @@ typedef struct {
 	//handle maybe do cliente
 }Msg;
 
-/*
-typedef struct {
-	HANDLE hPipe;									// handle do pipe
-	BOOL activo;									//representa se a instancia do named pipe está ou nao ativa, se ja tem um cliente ou nao
-}PipeDados;
-*/
 ////////////////////////////////////////////////////////////////////////////////
 
 

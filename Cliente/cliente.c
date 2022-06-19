@@ -3,20 +3,61 @@
 #include <tchar.h>
 #include "Cliente.h"
 #include "resource.h"
-#define TAM_BITMAP 150
-#define NUM_BITMAPS 14
-
-typedef struct{
-	TCHAR nome[256];
-}DATA;
-
 
 LRESULT CALLBACK TrataEventos(HWND, UINT, WPARAM, LPARAM);
 BOOL CALLBACK DlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM LParam);
 BOOL CALLBACK DlgProc2(HWND dlg, UINT msg, WPARAM wParam, LPARAM LParam);
-
-
 TCHAR szProgName[] = TEXT("Base2022");
+
+BOOL CALLBACK DlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
+	DATA* pData = (DATA*)GetWindowLongPtr(GetParent(hWnd), 0);
+	switch (msg) {
+	case WM_INITDIALOG:
+		SetDlgItemText(hWnd, IDC_EDIT1, pData->nome);
+		return TRUE;
+	case WM_COMMAND:
+		switch (wParam) {
+		case IDOK:
+			GetDlgItemText(hWnd, IDC_EDIT1, pData->nome, 80);
+			//OutputDebugString(TEXT("nome mudado!\n"));
+			EndDialog(hWnd, IDOK);
+			return TRUE;
+		case IDCANCEL:
+			EndDialog(hWnd, IDCANCEL);
+			return TRUE;
+		default:
+			return TRUE;
+		}
+	case WM_CLOSE:
+		EndDialog(hWnd, (INT_PTR)0);
+		return TRUE;
+	}
+	return FALSE;
+}
+
+BOOL CALLBACK DlgProc2(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
+	switch (msg) {
+	case WM_INITDIALOG:
+		return TRUE;
+	case WM_COMMAND:
+		switch (wParam) {
+		case IDOK:
+			EndDialog(hWnd, IDOK);
+			return TRUE;
+		case IDCANCEL:
+			EndDialog(hWnd, IDCANCEL);
+			return TRUE;
+		default:
+			return TRUE;
+		}
+	case WM_CLOSE:
+		EndDialog(hWnd, (INT_PTR)0);
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
 
 TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam) {
 	TCHAR* proxToken = NULL, ** temp, ** arrayCmd = NULL;
@@ -47,10 +88,10 @@ TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam) {
 }
 
 
-int atoicmd(TCHAR* cmd, int i) {
+int atoicmd(TCHAR** cmd, int i) {
 	int atoi;
-	if (_tcscmp(cmd, _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
-		atoi = _tstoi(cmd);
+	if (_tcscmp(cmd[i], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+		atoi = _tstoi(cmd[i]);
 		if (atoi == 0) {
 			_tprintf(_T("Valor passado como argumento não é aceite\n"));
 			return -1000;		
@@ -62,19 +103,21 @@ int atoicmd(TCHAR* cmd, int i) {
 }
 
 
+/*****************************************/
+/***************ThreadLer*****************/
+/*****************************************/
 DWORD WINAPI ThreadLer(LPVOID param) {						
-	//fica sempre á escuta de ler coisas vindas do named pipe
-	//escreve diretamente no ecrã
 	DadosThreadPipe* dados = (DadosThreadPipe*)param;
 	TCHAR buf[MAX], ** arrayComandos = NULL;
 	DWORD n;
 	unsigned int nrArgs = 0;
 	const TCHAR delim[2] = _T(" ");
+	TCHAR a[MAX];
+	HANDLE hPipe;
 
 	OutputDebugString(TEXT("[Cliente] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), NOME_PIPE_SERVIDOR);
 
-	//espera que exista um named pipe para ler do mesmo
-	//bloqueia aqui
+	//bloqueia à espera que exista um named pipe para ler do mesmo
 	if (!WaitNamedPipe(NOME_PIPE_SERVIDOR, NMPWAIT_WAIT_FOREVER)) {
 		OutputDebugString(TEXT("[ERRO] Ligar ao pipe '%s'! (WaitNamedPipe)\n"), NOME_PIPE_SERVIDOR);
 		exit(-1);
@@ -82,7 +125,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 	OutputDebugString(TEXT("[Cliente] Ligação ao pipe do servidor... (CreateFile)\n"));
 
-	HANDLE hPipe = CreateFile(NOME_PIPE_SERVIDOR, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	hPipe = CreateFile(NOME_PIPE_SERVIDOR, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if (hPipe == NULL) {
 		OutputDebugString(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), NOME_PIPE_SERVIDOR);
@@ -91,7 +134,6 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 	OutputDebugString(TEXT("[Cliente] Liguei-me...\n"));
 
-	TCHAR a[MAX];
 
 	while (dados->terminar == 0) {
 		//le as mensagens enviadas pelo cliente
@@ -110,74 +152,20 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		_stprintf_s(a, MAX, TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
 		OutputDebugString(a);
 		
-		// comando arg0 arg1 ....
-		//msg= info_0_barreira colocada local tal e tal
-		
 		arrayComandos = divideString(buf, delim, &nrArgs);			//divisão da string para um array com o comando e args
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		if (_tcscmp(arrayComandos[0], INICIAJOGO) == 0) {	//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
-			_stprintf_s(a, 512, TEXT("[Cliente] iniciiiiiiiiiiiiiiiiiia %d\n"), nrArgs);
-			OutputDebugString(a);
+		if (_tcscmp(arrayComandos[0], INICIAJOGO) == 0) {	//msg: iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
 			if (nrArgs >= 6) {
 				unsigned int initx, inity, pecai, fimx, fimy, pecaf;
-				if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
-					initx = _tstoi(arrayComandos[1]);
-					if (initx == 0) {
-						_tprintf(_T("Valor passado como argumento não é aceite\n"));
-					}
-				}
-				else
-					initx = 0;
-				if (_tcscmp(arrayComandos[2], _T("0")) != 0) {
-					inity = _tstoi(arrayComandos[2]);
-					if (inity == 0) {
-						_tprintf(_T("Valor passado como argumento não é aceite\n"));
-					}
-				}
-				else
-					inity = 0;
-				if (_tcscmp(arrayComandos[3], _T("0")) != 0) {
-					pecai = _tstoi(arrayComandos[3]);
-					if (pecai == 0) {
-						_tprintf(_T("Valor passado como argumento não é aceite\n"));
-					}
-				}
-				else
-					pecai = 0;
-				if (_tcscmp(arrayComandos[4], _T("0")) != 0) {
-					fimx = _tstoi(arrayComandos[4]);
-					if (fimx == 0) {
-						_tprintf(_T("Valor passado como argumento não é aceite\n"));
-					}
-				}
-				else
-					fimx = 0;
-				if (_tcscmp(arrayComandos[5], _T("0")) != 0) {
-					fimy = _tstoi(arrayComandos[5]);
-					if (fimy == 0) {
-						_tprintf(_T("Valor passado como argumento não é aceite\n"));
-					}
-				}
-				else
-					fimy = 0;
-				if (_tcscmp(arrayComandos[6], _T("0")) != 0) {
-					pecaf = _tstoi(arrayComandos[6]);
-					if (pecaf == 0) {
-						_tprintf(_T("Valor passado como argumento não é aceite\n"));
-					}
-				}
-				else
-					pecaf = 0;
-				/*initx = atoicmd(&arrayComandos[1], 1);
-				inity = atoicmd(&arrayComandos[2], 2);
-				fimx = atoicmd(&arrayComandos[4], 4);
-				fimy = atoicmd(&arrayComandos[5], 5);
-				pecai = atoicmd(&arrayComandos[3],3);
-				pecaf = atoicmd(&arrayComandos[6],6);*/
-
+				initx = atoicmd(arrayComandos, 1);
+				inity = atoicmd(arrayComandos, 2);
+				fimx = atoicmd(arrayComandos, 4);
+				fimy = atoicmd(arrayComandos, 5);
+				pecai = atoicmd(arrayComandos,3);
+				pecaf = atoicmd(arrayComandos,6);
 
 				dados->tabuleiro[initx][inity] = pecai;
 				dados->tabuleiro[fimx][fimy] = pecaf;
@@ -185,48 +173,26 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				dados->jogoCorrer = TRUE;
 
 				InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
-				_stprintf_s(a, 512, TEXT("[Cliente] iniciiiiiiiiiiiiiiiiiia\n"));
-				OutputDebugString(a);
 			}
 		}else if (_tcscmp(arrayComandos[0], JOGOMULTIPCANCEL) == 0) {
-			
+			//TODO
 		}
-		else if (_tcscmp(arrayComandos[0], INFO) == 0) {
+		else if (_tcscmp(arrayComandos[0], INFO) == 0) {		//msg: info msgcominformação
 			_tcscpy_s(dados->info, MAX, arrayComandos[1]);
-			InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
+			InvalidateRect(dados->hWnd, NULL, TRUE);       
 
 		}
-		else if (_tcscmp(arrayComandos[0], PECA) == 0) {
+		else if (_tcscmp(arrayComandos[0], PECA) == 0) {		//msg: peca x y tipo_de_peca
 			if (nrArgs >= 3) {	//x,y,tipopeça
 				unsigned int x, y, t;
-				if (_tcscmp(arrayComandos[1], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
-					x = _tstoi(arrayComandos[1]);
-					if (x == 0) {
-						_tprintf(_T("Valor passado como argumento não é aceite\n"));
-					}
-				}
-				else
-					x = 0;
-				if (_tcscmp(arrayComandos[2], _T("0")) != 0) {	
-					y = _tstoi(arrayComandos[2]);
-					if (y == 0) {
-						_tprintf(_T("Valor passado como argumento não é aceite\n"));
-					}
-				}
-				else
-					y = 0;
-				if (_tcscmp(arrayComandos[3], _T("0")) != 0) {	
-					t = _tstoi(arrayComandos[3]);
-					if (t == 0) {
-						_tprintf(_T("Valor passado como argumento não é aceite\n"));
-					}
-				}
-				else
-					t = 0;
+				x = atoicmd(arrayComandos, 1);
+				y = atoicmd(arrayComandos, 2);
+				t = atoicmd(arrayComandos, 3);
+
 				WaitForSingleObject(dados->hMutex, INFINITE);
 				dados->tabuleiro[x][y] = t;
 				ReleaseMutex(dados->hMutex);
-				InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
+				InvalidateRect(dados->hWnd, NULL, TRUE);       
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], SEQ) == 0) {			//msg: seq tipopeça1 tipopeça2 ...
@@ -234,21 +200,18 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				for (int i = 1; i < 7; i++)
 				{
 					int t = 0;
-					if (_tcscmp(arrayComandos[i], _T("0")) != 0) {
-						t = _tstoi(arrayComandos[i]);
-						if (t == 0) {
-							_tprintf(_T("Valor passado como argumento não é aceite\n"));
-						}
-					}
+					t = atoicmd(arrayComandos, i);
+
 					WaitForSingleObject(dados->hMutex, INFINITE);
 					dados->seq[i-1] = t;
 					ReleaseMutex(dados->hMutex);
-					InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
+					InvalidateRect(dados->hWnd, NULL, TRUE);      
 				}	
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], GANHOU) == 0) {
 			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG3), dados->hWnd, DlgProc2);
+
 			//talvez limpar mapa
 		}
 		else if (_tcscmp(arrayComandos[0], PERDEU) == 0) {
@@ -265,14 +228,13 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		}
 		else if (_tcscmp(arrayComandos[0], SAIR) == 0) {
 			dados->terminar = 1;
+			sair(dados);
 			//fechar tudoooo
 		}
 
 	}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	CloseHandle(hPipe);
 
 	return 0;
 }
@@ -977,54 +939,12 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 }
 
 
-
-
-
-BOOL CALLBACK DlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
-	DATA* pData = (DATA*)GetWindowLongPtr(GetParent(hWnd), 0);
-	switch (msg) {
-	case WM_INITDIALOG:
-		SetDlgItemText(hWnd, IDC_EDIT1, pData->nome);
-		return TRUE;
-	case WM_COMMAND:
-		switch (wParam) {
-		case IDOK:
-			GetDlgItemText(hWnd, IDC_EDIT1, pData->nome, 80);
-			//OutputDebugString(TEXT("nome mudado!\n"));
-			EndDialog(hWnd, IDOK);
-			return TRUE;
-		case IDCANCEL:
-			EndDialog(hWnd, IDCANCEL);
-			return TRUE;
-		default:
-			return TRUE;
-		}
-	case WM_CLOSE:
-		EndDialog(hWnd, (INT_PTR)0);
-		return TRUE;
-	}
-	return FALSE;
-}
-
-
-BOOL CALLBACK DlgProc2(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
-	switch (msg) {
-	case WM_INITDIALOG:
-		return TRUE;
-	case WM_COMMAND:
-		switch (wParam) {
-		case IDOK:
-			EndDialog(hWnd, IDOK);
-			return TRUE;
-		case IDCANCEL:
-			EndDialog(hWnd, IDCANCEL);
-			return TRUE;
-		default:
-			return TRUE;
-		}
-	case WM_CLOSE:
-		EndDialog(hWnd, (INT_PTR)0);
-		return TRUE;
-	}
-	return FALSE;
+int sair(DadosThreadPipe* dados) {
+	CloseHandle(dados->hEventoNamedPipe);
+	CloseHandle(dados->hMutex);
+	CloseHandle(dados->hMutexBitmap);
+	CloseHandle(dados->hThreadEscrever);
+	CloseHandle(dados->hThreadLer);
+	DisconnectNamedPipe(dados->hPipe.hPipe);
+	PostQuitMessage(0);
 }
