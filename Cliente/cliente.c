@@ -498,16 +498,16 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 	WaitForSingleObject(dados->hMutex, INFINITE);
 	int tamCelula = getPaddings(dados->tamX, dados->tamY, &rect, &paddingX, &paddingY, &larguraSeq, NULL);
 
-	if (posX < paddingX + larguraSeq || posY < paddingY)
+	if (posX < paddingX + larguraSeq || posY < paddingY + ALTURA_INFO)
 		return;
-	if (posX > (dados->tamX * tamCelula) + paddingX + larguraSeq || posY > (dados->tamY * tamCelula) + paddingY) {
+	if (posX > (dados->tamX * tamCelula) + paddingX + larguraSeq || posY > (dados->tamY * tamCelula) + paddingY + ALTURA_INFO) {
 		return;
 	}
 	ReleaseMutex(dados->hMutex);
 
 	int coordX, coordY;
 	coordX = (posX - paddingX - larguraSeq) / tamCelula;
-	coordY = (posY - paddingY) / tamCelula;
+	coordY = (posY - paddingY - ALTURA_INFO) / tamCelula;
 
 	//DEBUG START
 	TCHAR a[512];
