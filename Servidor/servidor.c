@@ -290,6 +290,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 					sourceTabuleiro->correrAgua = TRUE;
 					DadosThreadAgua dadosThreadAgua;
 					dadosThreadAgua.dados = dados;
+					dados->iniciado = TRUE;
 					dadosThreadAgua.dadosTabuleiro = sourceTabuleiro;
 					sourceTabuleiro->hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosThreadAgua, 0, NULL);
 					//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
@@ -330,17 +331,11 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				//exit(-1);
 			}
 
-		//disconectar do pipe do cliente
-		//dados->iniciado = FALSE;
+		
+			dados->iniciado = FALSE;
 
 
-		//se for multiplayer -> informar ao outro cliente que ganhou
-
-		//desconectar named pipes
-		//DisconnectNamedPipe(dados->tabuleiro1.pipes.hPipeIn);
-		//DisconnectNamedPipe(dados->tabuleiro2.pipes.hPipeIn);
-
-
+			//se for multiplayer -> informar ao outro cliente que ganhou
 		}
 	}
 	return 0;
@@ -845,6 +840,7 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 						SetEvent(dados->hEventUpdateTabuleiro);
 						ReleaseMutex(dados->hMutexTabuleiro);
 						dadosTabuleiro->correrAgua = FALSE;
+						//dados->iniciado = FALSE;
 						break;
 					}
 					else {
@@ -868,6 +864,7 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 					SetEvent(dados->hEventUpdateTabuleiro);
 					_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"));
 					dadosTabuleiro->correrAgua = FALSE;
+					dados->iniciado = FALSE;
 					break;
 				}
 			}
