@@ -39,7 +39,6 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
 #define NOME_PIPE_CLIENTE _T("\\\\.\\pipe\\cliente")					//nome named pipe Cliente-Servidor
 #define NOME_PIPE_SERVIDOR _T("\\\\.\\pipe\\servidor")				//nome named pipe Servidor-Cliente
 
