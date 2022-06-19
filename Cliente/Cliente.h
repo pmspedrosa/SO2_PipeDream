@@ -72,6 +72,7 @@ typedef struct {
 	int celulaAtivaX, celulaAtivaY;
 	HWND hWnd;
 	int seq[6];
+	BOOL jogoCorrer;
 
 }DadosThreadPipe;
 

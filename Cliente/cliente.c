@@ -709,6 +709,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		dados.celulaAtivaX = 0;
 		dados.celulaAtivaY = 0;
 
+		dados.jogoCorrer = FALSE;
+
 		_stprintf_s(&dados.mensagem, MAX, _T("Isto é uma mensagem pré-definida, apenas para teste\0"));
 
 
@@ -735,10 +737,19 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		break;
 
 	case WM_LBUTTONDOWN:	//apanhar evento que escuta tecla rato	
-		processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam),1);
+		if (dados.jogoCorrer){
+			processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 1);
+		}
+		break;
+	case WM_RBUTTONDOWN:
+		if (dados.jogoCorrer) {
+			processaEventoRato(hWnd, &dadosDentroJogo, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 2);
+		}
 		break;
 	case WM_MOUSEHOVER:
-		processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam),3);
+		if (dados.jogoCorrer) {
+			processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 3);
+		}
 		break;
 	case WM_PAINT:
 		//Mostra no ecrã as informações do jogo
@@ -746,13 +757,13 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		atualizarDisplay(hWnd, &dados, bitmap);
 		EndPaint(hWnd, &ps);
 		break;
-	case WM_RBUTTONDOWN:
-		processaEventoRato(hWnd, &dadosDentroJogo, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam),2);
-		break;
 	case WM_CHAR:	//apanhar  teclado
 		//PARA TESTE
 		if (wParam == _T('d')){
 			iniciaDetecaoHover(hWnd);
+		}
+		if (wParam == _T('s')){
+			dados.jogoCorrer = TRUE;
 		}
 
 		break;

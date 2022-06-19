@@ -68,7 +68,7 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 	_tprintf(_T("\n\n%p\n\n"), dados->tabuleiro1.pipes.hPipeIn);
 
 	_tprintf(TEXT("[SV] VOU ESPERAR AGORA\n"));
-	WaitForSingleObject(dados->tabuleiro1.pipes.overlap.hEvent, INFINITE);																//espera pelo evento de overlap. Não faz utilizar o OVERLAPPED da tabuleiro1 ou tabuleiro2, uma vez que utilizam o mesmo evento
+	WaitForSingleObject(dados->tabuleiro1.pipes.overlap.hEvent, 2000);																//espera pelo evento de overlap. Não faz utilizar o OVERLAPPED da tabuleiro1 ou tabuleiro2, uma vez que utilizam o mesmo evento
 
 	if (GetOverlappedResult(dados->tabuleiro1.pipes.hPipeIn, &(dados->tabuleiro1.pipes.overlap), n, FALSE)) {							//se GetOverlappedResult retornar TRUE para o pipe indicado, significa que este pipe recebeu mensagem
 		_tprintf(TEXT("[SV] Recebi de pipe1 overlapped: %d %s\n"), *n, buf);																	//reset ao evento para a proxima iteração
@@ -371,39 +371,6 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 
 	return 0;
 }
-
-
-DWORD WINAPI ThreadAceitaClientes(LPVOID param) {
-	DadosThread* dados = (DadosThread*)param; 
-	
-	do {
-		if(dados->numClientes<2){
-			_tprintf(TEXT("[SV] Esperar ligação de um cliente... (ConnectNamedPipe)\n"));
-			//o servidor espera até ter um cliente conectado a esta instância
-			//bloqueia aqui
-			if (!ConnectNamedPipe(dados->hPipe[dados->numClientes].hPipe, NULL)) {
-				_tprintf(TEXT("[ERRO] Ligação ao cliente! (ConnectNamedPipe\n"));
-				exit(-1);
-			}
-			//bloqueamos no mutex
-			WaitForSingleObject(dados->hMutexNamedPipe, INFINITE);
-			dados->hPipe[dados->numClientes].activo = TRUE;
-			dados->numClientes++;
-			//ResumeThread(dados->hThreadLer);
-			ReleaseMutex(dados->hMutexNamedPipe);
-		}
-		//se já tiver 2 clientes ligados 
-		Sleep(2000);
-	} while (dados->terminar == 0);
-	
-	return 0;
-}
-
-
-
-
-
-
 
 DWORD WINAPI ThreadConsumidor(LPVOID param) {
 	DadosThread* dados = (DadosThread*)param;
@@ -1246,14 +1213,12 @@ int terminar(DadosThread* dados) {
 	CloseHandle(dados->hEventUpdateTabuleiro);
 	CloseHandle(dados->hMutexTabuleiro);
 	CloseHandle(dados->hEventTerminar);
-
-	for (int i = 0; i < NPIPES; i++)
-	{
-		if (dados->hPipe[i].activo == TRUE) {
-			if (!DisconnectNamedPipe(dados->hPipe[i].hPipe)) {
-				_tprintf(TEXT("[ERRO] Desligar o pipe! (DisconnectNamedPipe)"));
-				exit(-1);
-			}
-		}
+	if (!DisconnectNamedPipe(dados->tabuleiro1.pipes.hPipeOut)) {
+		_tprintf(TEXT("[ERRO] Desligar o pipe! (DisconnectNamedPipe)"));
+		exit(-1);
+	}
+	if (!DisconnectNamedPipe(dados->tabuleiro2.pipes.hPipeOut)) {
+		_tprintf(TEXT("[ERRO] Desligar o pipe! (DisconnectNamedPipe)"));
+		exit(-1);
 	}
 }
