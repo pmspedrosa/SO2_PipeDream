@@ -563,6 +563,7 @@ DWORD WINAPI ThreadConsumidor(LPVOID param) {
 			{
 				_tprintf(_T("modooooooo\n"));
 				//if(dados->modo == 1)dados->modo = 0; else dados->modo = 1;		//modo = 1 -> aleatorio, modo = 0 -> sequecia predefinida
+				dados->modoRandom = !dados->modoRandom;
 			}
 			else //comando nao encontrado
 			{
