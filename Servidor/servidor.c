@@ -96,9 +96,11 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 	}
 }
 
+
+/*****************************************/
+/***************ThreadLer*****************/
+/*****************************************/
 DWORD WINAPI ThreadLer(LPVOID param) {
-	//fica sempre á escuta de ler coisas vindas do named pipe
-	//escreve diretamente no ecrã
 	DadosThread* dados = (DadosThread*)param;
 	TCHAR buf[MAX], ** arrayComandos = NULL;
 	DWORD n;
@@ -108,24 +110,10 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	OVERLAPPED o1 = { 0 };
 	OVERLAPPED o2 = { 0 };
 
-
-	//_tprintf(TEXT("[SV] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), NOME_PIPE_CLIENTE);
-
-	//espera que exista um named pipe para ler do mesmo
-	//bloqueia aqui
-	/*
-	if (!WaitNamedPipe(NOME_PIPE_CLIENTE, NMPWAIT_WAIT_FOREVER)) {
-		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (WaitNamedPipe)\n"), NOME_PIPE_CLIENTE);
-		exit(-1);
-	}
-	*/
-
-	//_tprintf(TEXT("[SV] Ligação ao pipe do cliente... (CreateFile)\n"));
-
 	dados->tabuleiro1.pipes.overlap = o1;
 	dados->tabuleiro2.pipes.overlap = o2;
 
-	dados->tabuleiro1.pipes.overlap.hEvent = CreateEvent(NULL, TRUE, FALSE, EVENT_OVERLAP);
+	dados->tabuleiro1.pipes.overlap.hEvent = CreateEvent(NULL, TRUE, FALSE, EVENT_OVERLAP);		//criar evento overlapped
 	if (dados->tabuleiro1.pipes.overlap.hEvent == NULL) {
 		_tprintf(TEXT("[ERRO] Criar Event! (CreateEvent)"));
 		exit(-1);
@@ -152,9 +140,9 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		_tprintf(TEXT("[SV] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
 
 		arrayComandos = divideString(buf, delim, &nrArgs);			//divisão da string para um array com o comando e args
-		/*
-		#define LCLICK _T("LCLICK")-
-		#define RCLICK _T("RCLICK")-
+		/* 
+		#define LCLICK _T("LCLICK")
+		#define RCLICK _T("RCLICK")
 		#define HOVER _T("HOVER")
 		#define RETOMAHOVER _T("RETOMAHOVER")
 		#define SAIRCLI _T("SAIRCLI")
@@ -192,7 +180,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				}
 
 				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
-				BOOL colocou = verificaColocarPeca(dados, x, y, t, sourceTabuleiro);
+				BOOL colocou = verificaColocarPeca(dados, x, y, t, sourceTabuleiro);	//verifica se é possivelcolocar peca
 				ReleaseMutex(dados->hMutexTabuleiro);
 				SetEvent(dados->hEventUpdateTabuleiro);
 
@@ -203,7 +191,6 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 					if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
 						alteraSequencia(dados, sourceTabuleiro);
 					}
-					//deve assinalar o evento para o monitor mostrar o tabuleiro
 				}
 				else {
 					if (_tcscmp(arrayComandos[0], LCLICK) == 0) {
@@ -245,21 +232,14 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	
 				_tprintf(_T("PREPARAR INICIO JOGO \n\n"));
 				prepararInicioDeJogo(dados);
-				_tprintf(_T("ESPERAR PELA MORTE DA THREAD\n\n"));
-				/*if (WaitForSingleObject(sourceTabuleiro->hThreadAgua, 2000) == WAIT_TIMEOUT) {
-					TerminateThread(sourceTabuleiro->hThreadAgua, -1);
-					_tprintf(_T("TIVE DE MATAR A FORÇA\n\n"));
-				}*/
 				sourceTabuleiro->correrAgua = TRUE;
 				DadosThreadAgua dadosThreadAgua;
 				dadosThreadAgua.dados = dados;
 				dados->iniciado = TRUE;
 				dadosThreadAgua.dadosTabuleiro = sourceTabuleiro;
 				sourceTabuleiro->hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosThreadAgua, 0, NULL);
-				//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
 				if (sourceTabuleiro->hThreadAgua == NULL) {
 					_tprintf(_T("NAO CONSEGUI CRIAR NOVA THREAD\n\n"));
-
 				}
 
 				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
@@ -338,7 +318,6 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 					//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
 					if (sourceTabuleiro->hThreadAgua == NULL) {
 						_tprintf(_T("NAO CONSEGUI CRIAR NOVA THREAD\n\n"));
-
 					}
 					
 					WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
@@ -358,24 +337,17 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			DisconnectNamedPipe(sourceTabuleiro->pipes.hPipeIn);
 			DisconnectNamedPipe(sourceTabuleiro->pipes.hPipeOut);
 
-
 			sourceTabuleiro->pipes.hPipeOut = CreateNamedPipe(NOME_PIPE_SERVIDOR, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 20, 256 * sizeof(TCHAR), 256 * sizeof(TCHAR), 1000, NULL);
 			if (sourceTabuleiro->pipes.hPipeOut == INVALID_HANDLE_VALUE) {
 				_tprintf(TEXT("[ERRO] Criar Named Pipe S->C! (CreateNamedPipe)"));
-				/*ReleaseMutex(dados->hMutexNamedPipe);
-				CloseHandle(dados->hMutexNamedPipe);*/
-				//return FALSE;
 			}
 
 			sourceTabuleiro->pipes.hPipeIn = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 20, MAX * sizeof(TCHAR), MAX * sizeof(TCHAR), 1000, NULL);
 			if (sourceTabuleiro->pipes.hPipeIn == NULL) {
 				_tprintf(TEXT("[ERRO] Criar instacia do pipe '%s'! (CreateNamedPipe)\n"), NOME_PIPE_CLIENTE);
-				//exit(-1);
 			}
 
-		
 			dados->iniciado = FALSE;
-
 
 			//se for multiplayer -> informar ao outro cliente que ganhou
 		}
@@ -417,22 +389,19 @@ BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t, DadosTabuleiro
 	return ret;
 }
 
+
+/*****************************************/
+/*************ThreadEscrever**************/
+/*****************************************/
 DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o cliente através do named pipe
-	//funcionamento -> evento ativa quando texto variável de "escrita" é alterada
 	DadosThread* dados = (DadosThread*)param;
 	DWORD n;
 	TCHAR buf[MAX]=_T("yodvbasucansdo");
 	int i;
-	//_tcscpy_s(buf, MAX, _T("aygfhilvanvoadf\n"));
-	
-	//alteras str -> acionas evento -> envia info (str) pela thread
 
 	do {
-		//ficar bloqueado à espera de um evento 
+		//fica bloqueado à espera de um evento 
 		WaitForSingleObject(dados->hEventoNamedPipe, INFINITE);
-
-		//_tcscpy_s(dados->mensagem, MAX, buf);
-
 
 		//escreve no named pipe
 		WaitForSingleObject(dados->hMutexNamedPipe, INFINITE);
@@ -448,11 +417,13 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 
 	} while (dados->terminar==0);
 	dados->terminar = 1;
-
-
 	return 0;
 }
 
+
+//+++++++++++++++++++++++++++++++++++++++
+//++++++++++ThreadConsumidor+++++++++++++
+//+++++++++++++++++++++++++++++++++++++++
 DWORD WINAPI ThreadConsumidor(LPVOID param) {
 	DadosThread* dados = (DadosThread*)param;
 	CelulaBuffer celula;
@@ -759,7 +730,6 @@ BOOL definirInicioFim(DadosThread* dados) {
 	return TRUE;
 }
 
-
 BOOL fluirAgua(DadosThread* dados, DadosTabuleiro* dadosTabuleiro) {
 	switch(dadosTabuleiro->dirAgua){
 	case CIMA:
@@ -945,7 +915,6 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 	dados->memPar->posL = 0;
 	dados->parafluxo = 0;
 
-	//Comentado por causa do mapa pré-definido da meta 1
 	dados->memPar->tamX = tamH;
 	dados->memPar->tamY = tamV;
 		
@@ -1040,7 +1009,6 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 	return TRUE;
 }
 
-
 DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeValorRegistry[], unsigned int valorOmissao, unsigned int* varGuardar, unsigned int min, unsigned int max) {
 	unsigned int valorNum = 0;
 	unsigned int sizeValor;
@@ -1065,8 +1033,6 @@ DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeVal
 		return 3;
 	}
 }
-
-
 
 BOOL initNamedPipes(DadosThread* dados) {
 	dados->terminar = 0;
@@ -1116,9 +1082,6 @@ BOOL initNamedPipes(DadosThread* dados) {
 		return FALSE;
 	}
 }
-
-
-
 
 int _tmain(int argc, LPTSTR argv[]) {
 	HKEY hChaveRegistry;

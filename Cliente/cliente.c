@@ -188,11 +188,43 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				dados->tabuleiro[fimx][fimy] = pecaf;
 
 				dados->jogoCorrer = TRUE;
+				dados->multi = FALSE;
 				iniciaDetecaoHover(dados->hWnd);
 
 				InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
 			}
-		}else if (_tcscmp(arrayComandos[0], JOGOMULTIPCANCEL) == 0) {
+		}else if (_tcscmp(arrayComandos[0], INICIAJOGOMP) == 0) {	//msg: iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
+			if (nrArgs >= 8) {
+				unsigned int initx, inity, pecai, fimx, fimy, pecaf, tamX, tamY;
+
+				dados->tamX = atoicmd(arrayComandos, 1);
+				dados->tamY = atoicmd(arrayComandos, 2);
+
+				clearTabuleiro(dados);
+
+				initx = atoicmd(arrayComandos, 3);
+				inity = atoicmd(arrayComandos, 4);
+				pecai = atoicmd(arrayComandos, 5);
+				fimx = atoicmd(arrayComandos, 6);
+				fimy = atoicmd(arrayComandos, 7);
+				pecaf = atoicmd(arrayComandos, 8);
+
+
+				dados->celulaAtivaX = initx;
+				dados->celulaAtivaY = inity;
+
+
+				dados->tabuleiro[initx][inity] = pecai;
+				dados->tabuleiro[fimx][fimy] = pecaf;
+
+				dados->jogoCorrer = TRUE;
+				dados->multi = TRUE;
+				iniciaDetecaoHover(dados->hWnd);
+
+				InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
+			}
+		}
+		else if (_tcscmp(arrayComandos[0], JOGOMULTIPCANCEL) == 0) {
 			//TODO
 		}
 		else if (_tcscmp(arrayComandos[0], INFO) == 0) {		//msg: info msgcominformação
@@ -232,14 +264,17 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], GANHOU) == 0) {
+			dados->vitorias++;
 			if (MessageBox(dados->hWnd, _T("Ganhou!!! Clique OK para avancar para o proximo Nivel."), _T("Ganhou"),
 				MB_ICONQUESTION | MB_OK) == IDOK)
 			{
-				WaitForSingleObject(dados->hMutex, INFINITE);
-				_stprintf_s(a, MAX, _T("PROXNIVEL"));
-				_tcscpy_s(dados->mensagem, MAX, a);
-				ReleaseMutex(dados->hMutex);
-				SetEvent(dados->hEventoNamedPipe);
+				if (dados->multi == FALSE) {
+					WaitForSingleObject(dados->hMutex, INFINITE);
+					_stprintf_s(a, MAX, _T("PROXNIVEL"));
+					_tcscpy_s(dados->mensagem, MAX, a);
+					ReleaseMutex(dados->hMutex);
+					SetEvent(dados->hEventoNamedPipe);
+				}	
 			}
 
 			//talvez limpar mapa
@@ -247,8 +282,6 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		else if (_tcscmp(arrayComandos[0], PERDEU) == 0) {
 			MessageBox(dados->hWnd, _T("Perdeu!!!"), _T("Perdeu"),
 				MB_ICONQUESTION | MB_OK);
-			
-			//talvez limpar mapa
 		}
 		else if (_tcscmp(arrayComandos[0], SUSPENDE) == 0) {
 			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG5), dados->hWnd, DlgProc2);
@@ -751,28 +784,19 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 	switch (tipo)
 	{
 	case 1:
-		WaitForSingleObject(dados->hMutex, INFINITE);
 		_stprintf_s(a, MAX, _T("LCLICK %d %d \n"), coordX, coordY);
-		_tcscpy_s(dados->mensagem, MAX, a);
-		ReleaseMutex(dados->hMutex);
-		SetEvent(dados->hEventoNamedPipe);
+		escreveNamedPipe(dados, a);
 		break;
 	case 2:
-		WaitForSingleObject(dados->hMutex, INFINITE);
 		_stprintf_s(a, MAX, _T("RCLICK %d %d \n"), coordX, coordY);
-		_tcscpy_s(dados->mensagem, MAX, a);
-		ReleaseMutex(dados->hMutex);
-		SetEvent(dados->hEventoNamedPipe);
+		escreveNamedPipe(dados, a);
 		break;
 	case 3:
 		OutputDebugString(_T("Hover\n"));
 		if (coordX == dados->celulaAtivaX && coordY == dados->celulaAtivaY) {
 			OutputDebugString(_T("Hover na Célula Ativa\n"));
 			//chama função para enviar mensagem ao servidor a avisar do evento hover
-			WaitForSingleObject(dados->hMutex, INFINITE);
-			_tcscpy_s(dados->mensagem, MAX, _T("HOVER"));
-			ReleaseMutex(dados->hMutex);
-			SetEvent(dados->hEventoNamedPipe);
+			escreveNamedPipe(dados, _T("HOVER"));
 			// a receção de uma resposta por parte do servidor deve iniciar um evento de deteção de que mexeu o rato, para parar o hover
 			// não deve ser feito aqui, mas sim na thread de leitura de pipes
 		}
@@ -798,7 +822,12 @@ void screamPosition(int x, int y) {
 	//DEBUG END
 }
 
-
+BOOL escreveNamedPipe(DadosThreadPipe* dados, TCHAR* a) {
+	WaitForSingleObject(dados->hMutex, INFINITE);
+	_tcscpy_s(dados->mensagem, MAX, a);
+	ReleaseMutex(dados->hMutex);
+	SetEvent(dados->hEventoNamedPipe);
+}
 
 LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam) {
 	RECT rect;
@@ -827,6 +856,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	case WM_CREATE:
 		dados.terminar = 0;
 		dados.hWnd = hWnd;
+		dados.multi = TRUE;
 
 		hThreadLer = CreateThread(NULL, 0, ThreadLer, &dados, 0, NULL);
 		if (hThreadLer == NULL) {
@@ -908,13 +938,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		if (MessageBox(hWnd, _T("Queres mesmo sair?"), _T("SAIR"),
 			MB_ICONQUESTION | MB_YESNO) == IDYES)
 		{
-			//mandar mensagem ao sv a dizer que cliente saiu
-			//escrever a msg
-			WaitForSingleObject(dados.hMutex, INFINITE);
-				_stprintf_s(a, MAX, _T("SAIRCLI 1"));
-				_tcscpy_s(dados.mensagem, MAX, a);
-			ReleaseMutex(dados.hMutex);
-			SetEvent(dados.hEventoNamedPipe);
+			_stprintf_s(a, MAX, _T("SAIRCLI 1"));
+			escreveNamedPipe(&dados, a);
 			/*CloseHandle(dados.hThreadEscrever);
 			CloseHandle(dados.hThreadLer);*/
 			DestroyWindow(hWnd);
@@ -963,11 +988,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 			iniciaDetecaoHover(hWnd);
 		}
 		if (wParam == _T('p')){
-			WaitForSingleObject(dados.hMutex, INFINITE);
 			_stprintf_s(a, MAX, _T("PROXNIVEL"));
-			_tcscpy_s(dados.mensagem, MAX, a);
-			ReleaseMutex(dados.hMutex);
-			SetEvent(dados.hEventoNamedPipe);
+			escreveNamedPipe(&dados, a);
 		}
 		if (wParam == _T('m')) {
 			WaitForSingleObject(dados.hMutex, INFINITE);
@@ -986,31 +1008,26 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	case WM_COMMAND: //menu
 		switch (wParam)
 		{
+		case ID_JOGADOR_PONTUACAO:
+			_stprintf_s(a, MAX, _T("Nome: %s\nVitorias: %d"), dadosDentroJogo->nome, dados.vitorias);
+			MessageBox(dados.hWnd,a, _T("Pontuacao"),MB_ICONQUESTION);
+				break;
 		case ID_MENU_NOME:
 			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG1), hWnd, DlgProc);
 			break;
 		case ID_MENU_SINGLEPLAYER:
-			WaitForSingleObject(dados.hMutex, INFINITE);
 			_stprintf_s(a, MAX, _T("JOGOSINGLEP %s"), dadosDentroJogo->nome);
-			_tcscpy_s(dados.mensagem, MAX, a);
-			ReleaseMutex(dados.hMutex);
-			SetEvent(dados.hEventoNamedPipe);
+			escreveNamedPipe(&dados, a);
+			dados.vitorias = 0;
 			break;
 		case ID_MENU_MULTIPLAYER:
-			WaitForSingleObject(dados.hMutex, INFINITE);
 			_stprintf_s(a, MAX, _T("JOGOMULTIP %s"), dadosDentroJogo->nome);
-			_tcscpy_s(dados.mensagem, MAX, a);
-			ReleaseMutex(dados.hMutex);
-			SetEvent(dados.hEventoNamedPipe);
-			//ativar Dialog2
+			escreveNamedPipe(&dados, a);
 			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG2), dados.hWnd, DlgProc2);
 			//OutputDebugString(dados.dialogEspera);
 			break;
 		case ID_MENU_CANCELMULTIPLAYER:
-			WaitForSingleObject(dados.hMutex, INFINITE);
-			_tcscpy_s(dados.mensagem, MAX, JOGOMULTIPCANCEL);
-			ReleaseMutex(dados.hMutex);
-			SetEvent(dados.hEventoNamedPipe);
+			escreveNamedPipe(&dados, JOGOMULTIPCANCEL);
 			break;
 		case ID_MENU_ALTERATEXTURA:
 			dados.texturas = (!dados.texturas);
@@ -1035,5 +1052,4 @@ int sair(DadosThreadPipe* dados) {
 	CloseHandle(dados->hThreadEscrever);
 	CloseHandle(dados->hThreadLer);
 	DisconnectNamedPipe(dados->hPipe.hPipe);
-	
 }

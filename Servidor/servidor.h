@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include "utils.h"
 
 /*registry*/
 #define CHAVE_REGISTRY_NOME TEXT("SOFTWARE\\SO2_PIPE_DREAM")	//nome chave registry
@@ -31,6 +32,7 @@
 #define EVENT_TABULEIRO _T("EVENT_TABULEIRO")					//nome evento tabuleiro
 #define EVENT_NAMEDPIPE_SV _T("EVENT_NAMEDPIPE_SV")				//nome evento named pipe servidor
 #define EVENT_NAMEDPIPE_CLI _T("EVENT_NAMEDPIPE_CLI")			//nome evento named pipe cliente
+#define EVENT_OVERLAP _T("EVENT_OVERLAP")						//nome evento overlapped
 
 
 #define TAM_H_OMISSAO 10										//tamanho horizontal default
@@ -50,7 +52,7 @@
 #define BAIXO 2
 #define ESQUERDA 3
 
-/*comandos*/
+/*comandos_msgs*/
 #define PFAGUA _T("PFAGUA")										//nome comando para fluxo agua durante um periodo de tempo
 #define BARR _T("BARR")											//nome comando adiciona barreira á grelha de jogo		
 #define MODO _T("MODO")											//nome comando modo sequencia de peças/tubos
@@ -69,28 +71,12 @@
 #define JOGOMULTIP _T("JOGOMULTIP")
 #define JOGOMULTIPCANCEL _T("JOGOMULTIPCANCEL")
 #define INICIAJOGO _T("INICIAJOGO")									//Inicia Jogo
+#define INICIAJOGOMP _T("INICIAJOGOMP")								//Inicia Jogo Multiplayer
 #define PROXNIVEL _T("PROXNIVEL")
-
-
-
-#define EVENT_OVERLAP _T("EVENT_OVERLAP")
-
-
-////////////////////////////////////////////////////////////////////////////////
 
 
 #define NOME_PIPE_CLIENTE _T("\\\\.\\pipe\\cliente")					//nome named pipe Cliente-Servidor
 #define NOME_PIPE_SERVIDOR _T("\\\\.\\pipe\\servidor")				//nome named pipe Servidor-Cliente
-
-
-typedef struct {
-	TCHAR cmd[MAX];									//comando da mensagem enviada. Ex: paraAgua, info, cliquedir
-	TCHAR args[MAX][TAM_BUFFER];					//argumentos associados aos comandos, pode ter ou não
-	int numargs;
-	//handle maybe do cliente
-}Msg;
-
-////////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -160,9 +146,6 @@ typedef struct {									//estrutura para passar as threads
 	BOOL iniciado;									//True -  jogo foi iniciado, False - não
 	BOOL modoRandom;								//TRUE -> modo de sequencia random //FALSE -> modo de sequencia definida
 
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	//PipeDados hPipe[NPIPES];
 	HANDLE hMutexNamedPipe;
 	HANDLE hEventoNamedPipe;
 	HANDLE hThreadLer;
@@ -178,23 +161,21 @@ typedef struct {
 }DadosThreadAgua;
 
 TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam);
-
-DWORD WINAPI ThreadConsumidor(LPVOID param);
-
-void carregaMapaPreDefinido(DadosThread* dados, int tabuleiro[20][20]);
-
-BOOL definirInicioFim(DadosThread* dados);
-
-BOOL fluirAgua(DadosThread* dados);
-
-DWORD WINAPI ThreadAgua(LPVOID param);
-
-BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV);
-
-DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeValorRegistry[], unsigned int valorOmissao, unsigned int* varGuardar, unsigned int min, unsigned int max);
-
 void prepararInicioDeJogo(DadosThread* dados);
-
 void alteraSequencia(DadosThread* dados, DadosTabuleiro* tabuleiro);
+DadosTabuleiro* leDePipesOverlapped(DadosThread* dados, int* n, TCHAR buf[MAX]);
+DWORD WINAPI ThreadLer(LPVOID param);
+BOOL escreveNamedPipe(DadosThread* dados, TCHAR* a, DadosTabuleiro* dadosTabuleiro);
+BOOL verificaColocarPeca(DadosThread* dados, int x, int y, int t, DadosTabuleiro* sourceTabuleiro);
+DWORD WINAPI ThreadEscrever(LPVOID param);
+DWORD WINAPI ThreadConsumidor(LPVOID param);
+void carregaMapaPreDefinido(DadosThread* dados, int tabuleiro[20][20]);
+BOOL definirInicioFim(DadosThread* dados);
+BOOL fluirAgua(DadosThread* dados, DadosTabuleiro* dadosTabuleiro);
+DWORD WINAPI ThreadAgua(LPVOID param);
+BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV);
+DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeValorRegistry[], unsigned int valorOmissao, unsigned int* varGuardar, unsigned int min, unsigned int max);
+BOOL initNamedPipes(DadosThread* dados);
+int terminar(DadosThread* dados);
 
 #endif
