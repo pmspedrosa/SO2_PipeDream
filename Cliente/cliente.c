@@ -56,6 +56,8 @@ BOOL CALLBACK DlgProc2(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
 	return FALSE;
 }
 
+
+
 void clearTabuleiro(DadosThreadPipe* dados) {
 	for (int x = 0; x < 20; x++) {
 		for (int y = 0; y < 20; y++)
@@ -177,6 +179,11 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				fimy = atoicmd(arrayComandos, 7);
 				pecaf = atoicmd(arrayComandos,8);
 
+				
+				dados->celulaAtivaX = initx;
+				dados->celulaAtivaY = inity;
+				
+
 				dados->tabuleiro[initx][inity] = pecai;
 				dados->tabuleiro[fimx][fimy] = pecaf;
 
@@ -198,7 +205,10 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				x = atoicmd(arrayComandos, 1);
 				y = atoicmd(arrayComandos, 2);
 				t = atoicmd(arrayComandos, 3);
-
+				if (t < 0) {
+					dados->celulaAtivaX = x;
+					dados->celulaAtivaY = y;
+				}
 				WaitForSingleObject(dados->hMutex, INFINITE);
 				dados->tabuleiro[x][y] = t;
 				ReleaseMutex(dados->hMutex);
@@ -220,12 +230,22 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], GANHOU) == 0) {
-			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG3), dados->hWnd, DlgProc2);
+			if (MessageBox(dados->hWnd, _T("Ganhou!!! Clique OK para avancar para o proximo Nivel."), _T("Ganhou"),
+				MB_ICONQUESTION | MB_OK) == IDOK)
+			{
+				WaitForSingleObject(dados->hMutex, INFINITE);
+				_stprintf_s(a, MAX, _T("PROXNIVEL"));
+				_tcscpy_s(dados->mensagem, MAX, a);
+				ReleaseMutex(dados->hMutex);
+				SetEvent(dados->hEventoNamedPipe);
+			}
 
 			//talvez limpar mapa
 		}
 		else if (_tcscmp(arrayComandos[0], PERDEU) == 0) {
-			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG4), dados->hWnd, DlgProc2);
+			MessageBox(dados->hWnd, _T("Perdeu!!!"), _T("Perdeu"),
+				MB_ICONQUESTION | MB_OK);
+			
 			//talvez limpar mapa
 		}
 		else if (_tcscmp(arrayComandos[0], SUSPENDE) == 0) {
@@ -353,6 +373,12 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	WNDCLASSEX wcApp;	// WNDCLASSEX � uma estrutura cujos membros servem para 
 			  // definir as caracter�sticas da classe da janela
 	DATA dados = { _T("Jogador1") };
+
+#ifdef UNICODE
+	_setmode(_fileno(stdin), _O_WTEXT);
+	_setmode(_fileno(stdout), _O_WTEXT);
+	_setmode(_fileno(stderr), _O_WTEXT);
+#endif
 
 	//verificar se existe sv ativo
 	HANDLE hEventUpdateTabuleiro = OpenEvent(EVENT_MODIFY_STATE | SYNCHRONIZE, FALSE, EVENT_TABULEIRO);

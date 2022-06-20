@@ -242,10 +242,26 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				_stprintf_s(sourceTabuleiro->pontuacao.nome, MAX, arrayComandos[1]);
 				dados->velocidadeAgua = TIMER_FLUIR;
 				sourceTabuleiro->pontuacao.vitorias = 0;
+	
+				_tprintf(_T("PREPARAR INICIO JOGO \n\n"));
+				prepararInicioDeJogo(dados);
+				_tprintf(_T("ESPERAR PELA MORTE DA THREAD\n\n"));
+				/*if (WaitForSingleObject(sourceTabuleiro->hThreadAgua, 2000) == WAIT_TIMEOUT) {
+					TerminateThread(sourceTabuleiro->hThreadAgua, -1);
+					_tprintf(_T("TIVE DE MATAR A FORÇA\n\n"));
+				}*/
 				sourceTabuleiro->correrAgua = TRUE;
-				ResumeThread(sourceTabuleiro->hThreadAgua);
+				DadosThreadAgua dadosThreadAgua;
+				dadosThreadAgua.dados = dados;
 				dados->iniciado = TRUE;
+				dadosThreadAgua.dadosTabuleiro = sourceTabuleiro;
+				sourceTabuleiro->hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosThreadAgua, 0, NULL);
 				//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
+				if (sourceTabuleiro->hThreadAgua == NULL) {
+					_tprintf(_T("NAO CONSEGUI CRIAR NOVA THREAD\n\n"));
+
+				}
+
 				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
 				_stprintf_s(a, MAX, _T("INICIAJOGO %d %d %d %d %d %d %d %d\n"), dados->memPar->tamX, dados->memPar->tamY, sourceTabuleiro->posX, sourceTabuleiro->posY, (*sourceTabuleiro->tabuleiro)[sourceTabuleiro->posX][sourceTabuleiro->posY], dados->posfX, dados->posfY, (*sourceTabuleiro->tabuleiro)[dados->posfX][dados->posfY]);
 				ReleaseMutex(dados->hMutexTabuleiro);
@@ -1140,16 +1156,17 @@ int _tmain(int argc, LPTSTR argv[]) {
 	}
 	
 	hThreadConsumidor = CreateThread(NULL, 0, ThreadConsumidor, &dados, 0, NULL);
-	DadosThreadAgua dadosAguaTabuleiro1;
-	dadosAguaTabuleiro1.dados = &dados;
-	dadosAguaTabuleiro1.dadosTabuleiro = &dados.tabuleiro1;
-	dados.tabuleiro1.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosAguaTabuleiro1, CREATE_SUSPENDED, NULL);					//thread criada suspensa até que monitor inicie o jogo
+	
+	//DadosThreadAgua dadosAguaTabuleiro1;
+	//dadosAguaTabuleiro1.dados = &dados;
+	//dadosAguaTabuleiro1.dadosTabuleiro = &dados.tabuleiro1;
+	//dados.tabuleiro1.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosAguaTabuleiro1, CREATE_SUSPENDED, NULL);					//thread criada suspensa até que monitor inicie o jogo
 
 
-	DadosThreadAgua dadosAguaTabuleiro2;
-	dadosAguaTabuleiro2.dados = &dados;
-	dadosAguaTabuleiro2.dadosTabuleiro = &dados.tabuleiro2;
-	dados.tabuleiro2.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosAguaTabuleiro2, CREATE_SUSPENDED, NULL);					//thread criada suspensa até que monitor inicie o jogo
+	//DadosThreadAgua dadosAguaTabuleiro2;
+	//dadosAguaTabuleiro2.dados = &dados;
+	//dadosAguaTabuleiro2.dadosTabuleiro = &dados.tabuleiro2;
+	//dados.tabuleiro2.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosAguaTabuleiro2, CREATE_SUSPENDED, NULL);					//thread criada suspensa até que monitor inicie o jogo
 
 
 	if (!initNamedPipes(&dados)) {
