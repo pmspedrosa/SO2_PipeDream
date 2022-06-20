@@ -71,6 +71,7 @@
 #define JOGOMULTIP _T("JOGOMULTIP")
 #define JOGOMULTIPCANCEL _T("JOGOMULTIPCANCEL")
 #define INICIAJOGO _T("INICIAJOGO")									//Inicia Jogo
+#define INICIAJOGOMP _T("INICIAJOGOMP")								//Inicia Jogo Multiplayer
 #define PROXNIVEL _T("PROXNIVEL")
 
 

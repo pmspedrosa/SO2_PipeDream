@@ -37,6 +37,7 @@
 #define JOGOMULTIP _T("JOGOMULTIP")
 #define JOGOMULTIPCANCEL _T("JOGOMULTIPCANCEL")
 #define INICIAJOGO _T("INICIAJOGO")
+#define INICIAJOGOMP _T("INICIAJOGOMP")
 #define GANHOU _T("GANHOU")
 #define PERDEU _T("PERDEU")
 #define PROXNIVEL _T("PROXNIVEL")
@@ -84,6 +85,7 @@ typedef struct {
 	HANDLE hMessageBox;
 	int vitorias;
 	BOOL pause;
+	BOOL multi;
 }DadosThreadPipe;
 
 
