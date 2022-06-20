@@ -40,6 +40,8 @@
 #define GANHOU _T("GANHOU")
 #define PERDEU _T("PERDEU")
 #define PROXNIVEL _T("PROXNIVEL")
+#define HOVER _T("HOVER")
+#define FIM_HOVER _T("FIM_HOVER")
 
 #define MUTEX_BITMAP _T("MUTEX_BITMAP")								//nome mutex named Pipe servidor
 
@@ -80,6 +82,7 @@ typedef struct {
 	BOOL texturas;
 	TCHAR info[MAX];
 	HANDLE hMessageBox;
+	BOOL pause;
 }DadosThreadPipe;
 
 
