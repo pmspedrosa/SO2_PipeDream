@@ -86,7 +86,7 @@ typedef struct {									//estrutura que vai criar cada celula do buffer circula
 }CelulaBuffer;
 
 typedef struct {
-	BOOL jogadorAtivo;								//indica se esta estrutura é de um jogador que existe.
+	BOOL jogadorAtivo;								//indica se esta estrutura está a ser utilizada
 	int tabuleiro[20][20];							//tabuleiro
 }MemPartilhadaTabuleiro;
 
@@ -104,29 +104,29 @@ typedef struct {
 
 typedef struct {
 	OVERLAPPED overlap;								//OVERLAPPED para leitura por parte do servidor
-	HANDLE hPipeOut;								//pipe para comunição // servidor -> cliente
-	HANDLE hPipeIn;									//pipe para comunição // cliente -> servidor
+	HANDLE hPipeOut;								//pipe para comunicação // servidor -> cliente
+	HANDLE hPipeIn;									//pipe para comunicação // cliente -> servidor
 }InfoPipesTabuleiro;
 
 typedef struct {
-	TCHAR nome[MAX];
-	int vitorias;
+	TCHAR nome[MAX];								//nome do jogador
+	int vitorias;									//número de vitórias (indica o número de níveis passados)
 }DadosPontuacao;
 
 typedef struct {
-	BOOL* jogadorAtivo;								//indica se esta estrutura esta a ser utilizada. Para testar antes de tentar aceder à thread
-	HANDLE hThreadAgua;								//handle thread agua
+	BOOL* jogadorAtivo;								//indica se está estrutura esta a ser utilizada
+	HANDLE hThreadAgua;								//handle thread de fluxo de água
 	int(*tabuleiro)[20][20];						//ponteiro para o tabuleiro referente na memória partilhada
 	int posX, posY;									//posição da água
 	unsigned int dirAgua;							//direção da água	// 0 > cima , 1 > direita, 2 > baixo, 3 > esquerda
 	int sequencia[6];								//sequencia de tubos
-	InfoPipesTabuleiro pipes;						//pipes utilizados por este tabueleiro
-	int numParagensDisponiveis;
-	BOOL correrAgua;
-	DadosPontuacao pontuacao;
+	InfoPipesTabuleiro pipes;						//pipes utilizados por este tabuleiro
+	int numParagensDisponiveis;						//número de pausas que o jogador pode fazer
+	BOOL correrAgua;								//controlador da thread de fluxo de água
+	DadosPontuacao pontuacao;						//dados sobre pontuação do jogador
 }DadosTabuleiro;
 
-typedef struct {									//estrutura para passar as threads
+typedef struct {									//estrutura de dados principal
 	MemPartilhada* memPar;							//ponteiro para a memoria partilhada
 	DadosTabuleiro tabuleiro1, tabuleiro2;			//guarda a estrutura onde se encontram os dados do tabuleiro
 	HANDLE hSemEscrita;								//semaforo que controla as escritas
@@ -142,18 +142,17 @@ typedef struct {									//estrutura para passar as threads
 	int id;											//id do produtor
 	int parafluxo;									//para thread fluxo agua por determinado tempo
 	DWORD tempoInicioAgua;							//tempo até água começar a fluir
-	float velocidadeAgua;
+	float velocidadeAgua;							//multiplicador da velocidade da agua, por nível
 	BOOL iniciado;									//True -  jogo foi iniciado, False - não
 	BOOL modoRandom;								//TRUE -> modo de sequencia random //FALSE -> modo de sequencia definida
 
-	HANDLE hMutexNamedPipe;
-	HANDLE hEventoNamedPipe;
-	HANDLE hThreadLer;
-	HANDLE hThreadEscrever;
-	int numClientes;
-	TCHAR mensagem[MAX];
-	HANDLE hPipeOut;
-	int multi;
+	HANDLE hMutexNamedPipe;							//mutex sobre a mensagem a enviar pelo pipe
+	HANDLE hEventoNamedPipe;						//evento que aciona a escrita nos pipes
+	HANDLE hThreadLer;								//thread de leitura de pipes
+	HANDLE hThreadEscrever;							//thread de escrita nos pipes
+	TCHAR mensagem[MAX];							//mensagem a ser escrita nos pipes
+	HANDLE hPipeOut;								//pipe em que a thread de escrita escreve
+	int multi;										//quantidade de jogadores no modo multiplayer
 }DadosThread;
 
 typedef struct {

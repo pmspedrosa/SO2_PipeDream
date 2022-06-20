@@ -285,11 +285,8 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		}
 		else if (_tcscmp(arrayComandos[0], SUSPENDE) == 0) {
 			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG5), dados->hWnd, DlgProc2);
-			/*dados->hMessageBox = MessageBox(dados->hWnd, _T("Jogo Suspenso"), _T("INFORMAÇÂO"),
-				MB_ICONINFORMATION);*/
 		}
 		else if (_tcscmp(arrayComandos[0], RETOMA) == 0) {
-			/*PostMessage(dados->hMessageBox, WM_COMMAND, MAKEWPARAM(IDOK, BN_CLICKED), 0);*/
 			_tcscpy_s(dados->info, MAX, _T("JOGO RETOMADO"));
 			InvalidateRect(dados->hWnd, NULL, TRUE);
 			//EndDialog(GetParent(dados->hWnd), 0);

@@ -66,26 +66,25 @@ typedef struct {
 }PipeDados;
 
 typedef struct {
-	PipeDados hPipe;
-	HANDLE hEventoNamedPipe;
-	HANDLE hMutex;
-	HANDLE hMutexBitmap;
-	HANDLE hThreadLer;
-	HANDLE hThreadEscrever;
-	int terminar;
-	TCHAR mensagem[MAX];
-	int tabuleiro[20][20];
-	int tamX, tamY;
-	int celulaAtivaX, celulaAtivaY;
-	HWND hWnd;
-	int seq[6];
-	BOOL jogoCorrer;
-	BOOL texturas;
-	TCHAR info[MAX];
-	HANDLE hMessageBox;
-	int vitorias;
-	BOOL pause;
-	BOOL multi;
+	PipeDados hPipe;								//informação sobre o pipe de escrita
+	HANDLE hEventoNamedPipe;						//evento que aciona a escrita no pipe
+	HANDLE hMutex;									//mutex sobre a mensagem a enviar pelo pipe
+	HANDLE hMutexBitmap;							//mutex sobre o acesso aos bitmaps
+	HANDLE hThreadLer;								//thread de leitura do pipe
+	HANDLE hThreadEscrever;							//thread de escrita no pipe
+	int terminar;									//indica se programa deve terminar
+	TCHAR mensagem[MAX];							//mensagem a ser escrita no pipe
+	int tabuleiro[20][20];							//tabuleiro
+	int tamX, tamY;									//dimensões do tabuleiro
+	int celulaAtivaX, celulaAtivaY;					//célula ativa (sobre a qual ativar a pausa)
+	HWND hWnd;										//handle para a janela
+	int seq[6];										//sequencia de tubos
+	BOOL jogoCorrer;								//indica se o jogo está a correr
+	BOOL texturas;									//indica o pacote de texturas a usar
+	TCHAR info[MAX];								//string de informação
+	int vitorias;									//número de vitórias
+	BOOL pause;										//indica se o jogo está em pausa
+	BOOL multi;										//indica se está a jogar no modo multiplayer
 }DadosThreadPipe;
 
 

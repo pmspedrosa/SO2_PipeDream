@@ -1068,7 +1068,6 @@ DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeVal
 
 BOOL initNamedPipes(DadosThread* dados) {
 	dados->terminar = 0;
-	dados->numClientes = 0;
 
 
 	dados->hMutexNamedPipe = CreateMutex(NULL, FALSE, MUTEX_NPIPE_SV); //Criação do mutex
