@@ -18,6 +18,9 @@
     <ClCompile Include="servidor.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="README.txt">
@@ -26,6 +29,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="servidor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

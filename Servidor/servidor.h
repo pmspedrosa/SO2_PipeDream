@@ -36,11 +36,13 @@
 #define TAM_H_OMISSAO 10										//tamanho horizontal default
 #define TAM_V_OMISSAO 7											//tamanho vertical default
 #define TEMPO_AGUA_OMISSAO 10L									//tempo inicio jogo default - 10 segundos
-#define TIMER_FLUIR 2											//tempo fluir água
+#define TIMER_FLUIR 3											//tempo fluir água
+#define AUMENTO_VELOCIDADE 0.8f
+#define NUM_PARAGENS 3											//numero de pausas que um jogador pode fazer (hover)
 #define MAX 256									
 #define TAM_BUFFER 10											//tamanho buffer
 #define NUM_SV 1												//numero de servidor ativos possiveis
-#define NPIPES 2												//Numero de pipes		
+#define NPIPES 2												//Numero de pipes
 
 /*direções*/
 #define CIMA 0
@@ -56,7 +58,22 @@
 #define INICIAR _T("INICIAR")									//iniciar jogo
 #define PAUSA _T("PAUSA")										//pausar jogo
 #define RETOMAR _T("RETOMAR")									//retomar jogo
+#define PONTUACAO _T("PONTUACAO")								//mostrar pontuacoes
 
+#define LCLICK _T("LCLICK")
+#define RCLICK _T("RCLICK")
+#define HOVER _T("HOVER")
+#define RETOMAHOVER _T("RETOMAHOVER")
+#define SAIRCLI _T("SAIRCLI")
+#define JOGOSINGLEP _T("JOGOSINGLEP")
+#define JOGOMULTIP _T("JOGOMULTIP")
+#define JOGOMULTIPCANCEL _T("JOGOMULTIPCANCEL")
+#define INICIAJOGO _T("INICIAJOGO")									//Inicia Jogo
+#define PROXNIVEL _T("PROXNIVEL")
+
+
+
+#define EVENT_OVERLAP _T("EVENT_OVERLAP")
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -73,23 +90,6 @@ typedef struct {
 	//handle maybe do cliente
 }Msg;
 
-typedef struct {
-	HANDLE hPipe;									// handle do pipe
-	BOOL activo;									//representa se a instancia do named pipe está ou nao ativa, se ja tem um cliente ou nao
-}PipeDados;
-
-typedef struct {
-	PipeDados hPipe[NPIPES];
-	HANDLE hMutex;
-	HANDLE hEventoNamedPipe;
-	HANDLE hThread[2];
-	int numClientes;
-	int terminar;
-	TCHAR mensagem[MAX];
-	//handle cliente a enviar a msg?
-}DadosThreadPipe;
-
-
 ////////////////////////////////////////////////////////////////////////////////
 
 
@@ -100,20 +100,44 @@ typedef struct {									//estrutura que vai criar cada celula do buffer circula
 }CelulaBuffer;
 
 typedef struct {
+	BOOL jogadorAtivo;								//indica se esta estrutura é de um jogador que existe.
+	int tabuleiro[20][20];							//tabuleiro
+}MemPartilhadaTabuleiro;
+
+typedef struct {
 	unsigned int nP;								//numero de produtores
 	unsigned int posE;								//posicao de escrita
 	unsigned int posL;								//posicao de leitura
-	int tabuleiro1[20][20];							//tabuleiro jogador 1
-	int tabuleiro2[20][20];							//tabuleiro jogador 2
+	MemPartilhadaTabuleiro dadosTabuleiro1;			//dados do tabuleiro 1
+	MemPartilhadaTabuleiro dadosTabuleiro2;			//dados do tabuleiro 2
 	unsigned int tamX, tamY;						//tam tabuleiro
 	CelulaBuffer buffer[TAM_BUFFER];				//array buffer circular de estruturas CelulaBuffer
 	TCHAR estado[MAX];								//string que indica o estado do programa
 }MemPartilhada;
 
+
 typedef struct {
+	OVERLAPPED overlap;								//OVERLAPPED para leitura por parte do servidor
+	HANDLE hPipeOut;								//pipe para comunição // servidor -> cliente
+	HANDLE hPipeIn;									//pipe para comunição // cliente -> servidor
+}InfoPipesTabuleiro;
+
+typedef struct {
+	TCHAR nome[MAX];
+	int vitorias;
+}DadosPontuacao;
+
+typedef struct {
+	BOOL* jogadorAtivo;								//indica se esta estrutura esta a ser utilizada. Para testar antes de tentar aceder à thread
+	HANDLE hThreadAgua;								//handle thread agua
 	int(*tabuleiro)[20][20];						//ponteiro para o tabuleiro referente na memória partilhada
 	int posX, posY;									//posição da água
 	unsigned int dirAgua;							//direção da água	// 0 > cima , 1 > direita, 2 > baixo, 3 > esquerda
+	int sequencia[6];								//sequencia de tubos
+	InfoPipesTabuleiro pipes;						//pipes utilizados por este tabueleiro
+	int numParagensDisponiveis;
+	BOOL correrAgua;
+	DadosPontuacao pontuacao;
 }DadosTabuleiro;
 
 typedef struct {									//estrutura para passar as threads
@@ -127,15 +151,31 @@ typedef struct {									//estrutura para passar as threads
 	HANDLE hMapFile;								//map file
 	HANDLE hEventUpdateTabuleiro;					//evento que indica aos monitores que houve alterações nos tabuleiros
 	HANDLE hEventTerminar;							//evento para informar monitores (e clientes na meta 2) que devem terminar
-	HANDLE hThreadAgua;								//handle thread agua
 	int posfX, posfY;								//posição peça final da água
 	int terminar;									//flag para indicar a thread para terminar -> 1 para sair, 0 caso contrario
 	int id;											//id do produtor
 	int parafluxo;									//para thread fluxo agua por determinado tempo
 	DWORD tempoInicioAgua;							//tempo até água começar a fluir
+	float velocidadeAgua;
 	BOOL iniciado;									//True -  jogo foi iniciado, False - não
+	BOOL modoRandom;								//TRUE -> modo de sequencia random //FALSE -> modo de sequencia definida
 
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	//PipeDados hPipe[NPIPES];
+	HANDLE hMutexNamedPipe;
+	HANDLE hEventoNamedPipe;
+	HANDLE hThreadLer;
+	HANDLE hThreadEscrever;
+	int numClientes;
+	TCHAR mensagem[MAX];
+	HANDLE hPipeOut;
 }DadosThread;
+
+typedef struct {
+	DadosThread* dados;
+	DadosTabuleiro* dadosTabuleiro;
+}DadosThreadAgua;
 
 TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam);
 
@@ -152,5 +192,9 @@ DWORD WINAPI ThreadAgua(LPVOID param);
 BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV);
 
 DWORD carregaValorConfig(TCHAR valorString[], HKEY hChaveRegistry, TCHAR nomeValorRegistry[], unsigned int valorOmissao, unsigned int* varGuardar, unsigned int min, unsigned int max);
+
+void prepararInicioDeJogo(DadosThread* dados);
+
+void alteraSequencia(DadosThread* dados, DadosTabuleiro* tabuleiro);
 
 #endif

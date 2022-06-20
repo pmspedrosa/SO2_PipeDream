@@ -1,50 +1,129 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <tchar.h>
-#include "cliente.h"
-#define TAM_BITMAP 150
-#define NUM_BITMAPS 14
-
-
-Msg msg;
-TCHAR mensagem[MAX];
-TCHAR cmd[MAX];
+#include "Cliente.h"
+#include "resource.h"
 
 LRESULT CALLBACK TrataEventos(HWND, UINT, WPARAM, LPARAM);
+BOOL CALLBACK DlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM LParam);
+BOOL CALLBACK DlgProc2(HWND dlg, UINT msg, WPARAM wParam, LPARAM LParam);
+TCHAR szProgName[] = TEXT("PipeDream2022");
 
-TCHAR szProgName[] = TEXT("Base2022");
+BOOL CALLBACK DlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
+	DATA* pData = (DATA*)GetWindowLongPtr(GetParent(hWnd), 0);
+	switch (msg) {
+	case WM_INITDIALOG:
+		SetDlgItemText(hWnd, IDC_EDIT1, pData->nome);
+		return TRUE;
+	case WM_COMMAND:
+		switch (wParam) {
+		case IDOK:
+			GetDlgItemText(hWnd, IDC_EDIT1, pData->nome, 80);
+			EndDialog(hWnd, IDOK);
+			return TRUE;
+		case IDCANCEL:
+			EndDialog(hWnd, IDCANCEL);
+			return TRUE;
+		default:
+			return TRUE;
+		}
+	case WM_CLOSE:
+		EndDialog(hWnd, (INT_PTR)0);
+		return TRUE;
+	}
+	return FALSE;
+}
 
+BOOL CALLBACK DlgProc2(HWND hWnd, UINT msg, WPARAM wParam, LPARAM LParam) {
+	switch (msg) {
+	case WM_INITDIALOG:
+		return TRUE;
+	case WM_COMMAND:
+		switch (wParam) {
+		case IDOK:
+			EndDialog(hWnd, IDOK);
+			return TRUE;
+		case IDCANCEL:
+			EndDialog(hWnd, IDCANCEL);
+			return TRUE;
+		default:
+			return TRUE;
+		}
+	case WM_CLOSE:
+		EndDialog(hWnd, (INT_PTR)0);
+		return TRUE;
+	}
+	return FALSE;
+}
 
-
-TCHAR comandosParaString(Msg msg) {
-	TCHAR str[MAX] = _T("");
-	TCHAR tk[MAX] = _T(" ");
-
-	_tcscat_s(str, MAX, msg.cmd);
-	if (msg.numargs > 0) {
-		for (int i = 0; i < msg.numargs; i++)
+void clearTabuleiro(DadosThreadPipe* dados) {
+	for (int x = 0; x < 20; x++) {
+		for (int y = 0; y < 20; y++)
 		{
-			_tcscat_s(str, MAX, tk);
-			_tcscat_s(str, MAX, msg.args[i]);
+			dados->tabuleiro[x][y] = 0;
 		}
 	}
+}
 
-	return str;
+TCHAR** divideString(TCHAR* comando, const TCHAR* delim, unsigned int* tam) {
+	TCHAR* proxToken = NULL, ** temp, ** arrayCmd = NULL;
+	TCHAR* token = _tcstok_s(comando, delim, &proxToken);
+
+	if (comando == NULL || _tcslen(comando) == 0) {						//verifica se string está vazia
+		_ftprintf(stderr, TEXT("[ERRO] String comando vazia!"));
+		return NULL;
+	}
+
+	*tam = 0;
+
+	while (token != NULL) {
+		//realocar a memória para integrar mais um argumento
+		//realloc retorna um ponteiro para a nova memoria alocada, ou NULL quando falha
+		temp = realloc(arrayCmd, sizeof(TCHAR*) * (*tam + 1));
+
+		if (temp == NULL) {
+			_ftprintf(stderr, TEXT("[ERRO] Falha ao alocar memoria!"));
+			return NULL;
+		}
+		arrayCmd = temp;												//apontar para a nova memoria alocada				
+		arrayCmd[(*tam)++] = token;
+
+		token = _tcstok_s(NULL, delim, &proxToken);						//copia o proximo token para a "token"
+	}
+	return arrayCmd;
 }
 
 
+int atoicmd(TCHAR** cmd, int i) {
+	int atoi;
+	if (_tcscmp(cmd[i], _T("0")) != 0) {		//verifica se valor não é igual a '0' pois atoi devolve 0 quando é erro
+		atoi = _tstoi(cmd[i]);
+		if (atoi == 0) {
+			_tprintf(_T("Valor passado como argumento não é aceite\n"));
+			return -1000;		
+		}
+		return atoi;
+	}
+	else
+		return 0;
+}
 
+
+/*****************************************/
+/***************ThreadLer*****************/
+/*****************************************/
 DWORD WINAPI ThreadLer(LPVOID param) {						
-	//fica sempre á escuta de ler coisas vindas do named pipe
-	//escreve diretamente no ecrã
 	DadosThreadPipe* dados = (DadosThreadPipe*)param;
-	TCHAR buf[MAX];
+	TCHAR buf[MAX], ** arrayComandos = NULL;
 	DWORD n;
+	unsigned int nrArgs = 0;
+	const TCHAR delim[2] = _T(" ");
+	TCHAR a[MAX];
+	HANDLE hPipe;
 
 	OutputDebugString(TEXT("[Cliente] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), NOME_PIPE_SERVIDOR);
 
-	//espera que exista um named pipe para ler do mesmo
-	//bloqueia aqui
+	//bloqueia à espera que exista um named pipe para ler do mesmo
 	if (!WaitNamedPipe(NOME_PIPE_SERVIDOR, NMPWAIT_WAIT_FOREVER)) {
 		OutputDebugString(TEXT("[ERRO] Ligar ao pipe '%s'! (WaitNamedPipe)\n"), NOME_PIPE_SERVIDOR);
 		exit(-1);
@@ -52,7 +131,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 	OutputDebugString(TEXT("[Cliente] Ligação ao pipe do servidor... (CreateFile)\n"));
 
-	HANDLE hPipe = CreateFile(NOME_PIPE_SERVIDOR, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	hPipe = CreateFile(NOME_PIPE_SERVIDOR, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if (hPipe == NULL) {
 		OutputDebugString(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), NOME_PIPE_SERVIDOR);
@@ -61,66 +140,152 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 	OutputDebugString(TEXT("[Cliente] Liguei-me...\n"));
 
+
 	while (dados->terminar == 0) {
 		//le as mensagens enviadas pelo cliente
 		BOOL ret = ReadFile(hPipe, buf, sizeof(buf), &n, NULL);
-		buf[n / sizeof(TCHAR)] = '\0';
+		if (n == 0) {
+			continue;
+		}
+
+		buf[n / sizeof(TCHAR) - 1] = '\0';
 
 		if (!ret || !n) {
 			OutputDebugString(TEXT("[Cliente] %d %d... (ReadFile)\n"), ret, n);
 			break;
 		}
 
-		OutputDebugString(TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
-		_tcscpy_s(mensagem, MAX, buf);
+		_stprintf_s(a, MAX, TEXT("[Cliente] Recebi %d bytes: '%s'... (ReadFile)\n"), n, buf);
+		OutputDebugString(a);
+		
+		arrayComandos = divideString(buf, delim, &nrArgs);			//divisão da string para um array com o comando e args
+
+
+		if (_tcscmp(arrayComandos[0], INICIAJOGO) == 0) {	//msg: iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
+			if (nrArgs >= 8) {
+				unsigned int initx, inity, pecai, fimx, fimy, pecaf, tamX, tamY;
+				
+				dados->tamX = atoicmd(arrayComandos, 1);
+				dados->tamY = atoicmd(arrayComandos, 2);
+
+				clearTabuleiro(dados);
+
+				initx = atoicmd(arrayComandos, 3);
+				inity = atoicmd(arrayComandos, 4);
+				pecai = atoicmd(arrayComandos, 5);
+				fimx = atoicmd(arrayComandos, 6);
+				fimy = atoicmd(arrayComandos, 7);
+				pecaf = atoicmd(arrayComandos,8);
+
+				dados->tabuleiro[initx][inity] = pecai;
+				dados->tabuleiro[fimx][fimy] = pecaf;
+
+				dados->jogoCorrer = TRUE;
+
+				InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
+			}
+		}else if (_tcscmp(arrayComandos[0], JOGOMULTIPCANCEL) == 0) {
+			//TODO
+		}
+		else if (_tcscmp(arrayComandos[0], INFO) == 0) {		//msg: info msgcominformação
+			_tcscpy_s(dados->info, MAX, arrayComandos[1]);
+			InvalidateRect(dados->hWnd, NULL, TRUE);       
+
+		}
+		else if (_tcscmp(arrayComandos[0], PECA) == 0) {		//msg: peca x y tipo_de_peca
+			if (nrArgs >= 3) {	//x,y,tipopeça
+				unsigned int x, y, t;
+				x = atoicmd(arrayComandos, 1);
+				y = atoicmd(arrayComandos, 2);
+				t = atoicmd(arrayComandos, 3);
+
+				WaitForSingleObject(dados->hMutex, INFINITE);
+				dados->tabuleiro[x][y] = t;
+				ReleaseMutex(dados->hMutex);
+				InvalidateRect(dados->hWnd, NULL, TRUE);       
+			}
+		}
+		else if (_tcscmp(arrayComandos[0], SEQ) == 0) {			//msg: seq tipopeça1 tipopeça2 ...
+			if (nrArgs >= 6) {
+				for (int i = 1; i < 7; i++)
+				{
+					int t = 0;
+					t = atoicmd(arrayComandos, i);
+
+					WaitForSingleObject(dados->hMutex, INFINITE);
+					dados->seq[i-1] = t;
+					ReleaseMutex(dados->hMutex);
+					InvalidateRect(dados->hWnd, NULL, TRUE);      
+				}	
+			}
+		}
+		else if (_tcscmp(arrayComandos[0], GANHOU) == 0) {
+			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG3), dados->hWnd, DlgProc2);
+
+			//talvez limpar mapa
+		}
+		else if (_tcscmp(arrayComandos[0], PERDEU) == 0) {
+			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG4), dados->hWnd, DlgProc2);
+			//talvez limpar mapa
+		}
+		else if (_tcscmp(arrayComandos[0], SUSPENDE) == 0) {
+			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG5), dados->hWnd, DlgProc2);
+			/*dados->hMessageBox = MessageBox(dados->hWnd, _T("Jogo Suspenso"), _T("INFORMAÇÂO"),
+				MB_ICONINFORMATION);*/
+		}
+		else if (_tcscmp(arrayComandos[0], RETOMA) == 0) {
+			/*PostMessage(dados->hMessageBox, WM_COMMAND, MAKEWPARAM(IDOK, BN_CLICKED), 0);*/
+			_tcscpy_s(dados->info, MAX, _T("JOGO RETOMADO"));
+			InvalidateRect(dados->hWnd, NULL, TRUE);
+			//EndDialog(GetParent(dados->hWnd), 0);
+			//desativa a textbox e continua o jogo
+
+		}
+		else if (_tcscmp(arrayComandos[0], SAIR) == 0) {
+			_stprintf_s(a, MAX, TEXT("[Cliente] sairrrrrrrrrrrrrrrrr\n"));
+			OutputDebugString(a);
+			dados->terminar = 1;
+			PostQuitMessage(0);
+			OutputDebugString(a);
+
+			//fechar tudoooo
+		}
 
 	}
 
-	CloseHandle(hPipe);
-	Sleep(200);
 
 	return 0;
-
 }
 
+
+/*****************************************/
+/************ThreadEscrever***************/
+/*****************************************/
 
 DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informações para o servidor através do named pipe
 	DadosThreadPipe* dados = (DadosThreadPipe*)param;
 	DWORD n;
-	int i;
-
 
 	do {
-		//sistema de mensagens
-
-		/*para->água parada
-		pi-> impossivel colocar peça no local indicado
-		pc-> peça colocada com sucesso
-		perdeu -> perdeu
-		ganhou -> ganhou
-		barr -> barreira adicionada
-		...
-		*/
 
 		//fica bloqueado à espera do evento
 		WaitForSingleObject(dados->hEventoNamedPipe, INFINITE);
 
-		TCHAR buf[MAX] = _T("asdilvbna");
-		_tcscpy_s(cmd, MAX,buf);
-		
-
 		WaitForSingleObject(dados->hMutex, INFINITE);
 		if (dados->hPipe.activo) {
-			if (!WriteFile(dados->hPipe.hPipe, cmd, _tcslen(cmd) * sizeof(TCHAR), &n, NULL))
+			if (!WriteFile(dados->hPipe.hPipe, dados->mensagem, sizeof(dados->mensagem), &n, NULL))
 				OutputDebugString(TEXT("[ERRO] Escrever no pipe! (WriteFile)\n"));
-			else
-				OutputDebugString(TEXT("[ESCRITOR] Enviei %d bytes ao cliente ... (WriteFile)\n"), n);
+			else {
+				TCHAR a[MAX];
+				_stprintf_s(a, MAX, _T("Enviei %d bytes ao cliente\n %s"), n, dados->mensagem);
+				OutputDebugString(a);
+
+			}
 		}
 		ReleaseMutex(dados->hMutex);
-		Sleep(2000);
+		ResetEvent(dados->hEventoNamedPipe);
 
 	} while (dados->terminar == 0);
-	CloseHandle(dados->hThread);
 	return 0;
 }
 
@@ -128,20 +293,27 @@ DWORD WINAPI ThreadEscrever(LPVOID param) {								//thread escritura de informa
 BOOL initNamedPipes(DadosThreadPipe* dados) {
 	HANDLE hPipe, hThread;
 	dados->terminar = 0;
+	TCHAR nomeMutex[MAX];
 
-	dados->hMutex = CreateMutex(NULL, FALSE, MUTEX_NPIPE_CLI); //Criação do mutex
+	_stprintf_s(nomeMutex, MAX, _T("MUTEX_NPIPE_CLI%d\0"), GetProcessId(GetCurrentProcess()));
+	OutputDebugString(nomeMutex);
+
+	dados->hMutex = CreateMutex(NULL, FALSE, nomeMutex); //Criação do mutex
 	if (dados->hMutex == NULL) {
 		OutputDebugString(TEXT("[Erro] ao criar mutex!\n"));
 		return FALSE;
 	}
 
-	hPipe = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 1, MAX * sizeof(TCHAR),MAX * sizeof(TCHAR), 1000, NULL);
+	//hPipe = CreateNamedPipe(NOME_PIPE_CLIENTE, PIPE_ACCESS_OUTBOUND, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 3, MAX * sizeof(TCHAR),MAX * sizeof(TCHAR), 1000, NULL);
+	
+	
+	hPipe = CreateFile(NOME_PIPE_CLIENTE, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hPipe == INVALID_HANDLE_VALUE) {
-		OutputDebugString(TEXT("[ERRO] Criar Named Pipe! (CreateNamedPipe)"));
+		OutputDebugString(TEXT("[ERRO] Ligar ao Pipe! (CreateFile)"));
 		CloseHandle(dados->hMutex);
 		return FALSE;
 	}
-
+	
 	WaitForSingleObject(dados->hMutex, INFINITE);
 	dados->hPipe.hPipe = hPipe;
 	dados->hPipe.activo = FALSE;
@@ -149,19 +321,21 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 
 	_tprintf(TEXT("[CLIENTE] Esperar ligação de um servidor... (ConnectNamedPipe)\n"));
 	//o cliente espera até ter um servidor conectado a esta instância
+	/*
 	if (!ConnectNamedPipe(dados->hPipe.hPipe, NULL)) {
 		OutputDebugString(TEXT("[ERRO] Ligação ao servidor! (ConnectNamedPipe\n"));
 		CloseHandle(dados->hMutex);
 		DisconnectNamedPipe(dados->hPipe.hPipe);
 		return FALSE;
 	}
+	*/
 	//_tprintf(TEXT(" Ligação ao servidor com sucesso! (ConnectNamedPipe\n"));
 	OutputDebugString(TEXT(" Ligação ao servidor com sucesso! (ConnectNamedPipe\n"));
 	WaitForSingleObject(dados->hMutex, INFINITE);
 	dados->hPipe.activo = TRUE;
 	ReleaseMutex(dados->hMutex);
 
-	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, EVENT_NAMEDPIPE_SV);
+	dados->hEventoNamedPipe = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (dados->hEventoNamedPipe == NULL) {
 		OutputDebugString(_T("Erro: CreateEvent NamedPipe(%d)\n"), GetLastError());
 		CloseHandle(dados->hMutex);
@@ -173,19 +347,14 @@ BOOL initNamedPipes(DadosThreadPipe* dados) {
 
 
 
-
-
-
-
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow) {
 	HWND hWnd;		// hWnd � o handler da janela, gerado mais abaixo por CreateWindow()
 	MSG lpMsg;		// MSG � uma estrutura definida no Windows para as mensagens
 	WNDCLASSEX wcApp;	// WNDCLASSEX � uma estrutura cujos membros servem para 
 			  // definir as caracter�sticas da classe da janela
+	DATA dados = { _T("Jogador1") };
 
-	DadosThreadPipe dadosPipes;
-
-	//utilizar a teentativa de abrir o evento como forma de saber se o servidor está ativo
+	//verificar se existe sv ativo
 	HANDLE hEventUpdateTabuleiro = OpenEvent(EVENT_MODIFY_STATE | SYNCHRONIZE, FALSE, EVENT_TABULEIRO);
 
 	if (hEventUpdateTabuleiro == NULL) {
@@ -194,40 +363,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 		return 0;
 	}
 
-	dadosPipes.terminar = 0;
-
-	HANDLE hThreadLer = CreateThread(NULL, 0, ThreadLer, &dadosPipes, 0, NULL);
-	if (hThreadLer == NULL) {
-		OutputDebugString(TEXT("[Erro] ao criar thread!\n"));
-		return -1;
-	}
-
-
-	if (!initNamedPipes(&dadosPipes)) {
-		OutputDebugString(_T("Erro ao criar named Pipes do Cliente.\n"));
-		CloseHandle(hThreadLer);
-		exit(1);
-	}
-
-	//criacao da thread
-	HANDLE hThreadEscrever = CreateThread(NULL, 0, ThreadEscrever, &dadosPipes, 0, NULL);
-	if (hThreadEscrever == NULL) {
-		OutputDebugString(TEXT("[Erro] ao criar thread!\n"));
-		//closehandle
-		return -1;
-	}
-	
-	
-
-	//dadosPipes.hThread = hThreadEscrever;
-	
-
-
-
-	// ============================================================================
-	// 1. Defini��o das caracter�sticas da janela "wcApp" 
-	//    (Valores dos elementos da estrutura "wcApp" do tipo WNDCLASSEX)
-	// ============================================================================
 	wcApp.cbSize = sizeof(WNDCLASSEX);      // Tamanho da estrutura WNDCLASSEX
 	wcApp.hInstance = hInst;		         // Inst�ncia da janela actualmente exibida 
 								   // ("hInst" � par�metro de WinMain e vem 
@@ -248,26 +383,18 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	wcApp.hCursor = LoadCursor(NULL, IDC_ARROW);	// "hCursor" = handler do cursor (rato) 
 							  // "NULL" = Forma definida no Windows
 							  // "IDC_ARROW" Aspecto "seta" 
-	wcApp.lpszMenuName = NULL;			// Classe do menu que a janela pode ter
+	wcApp.lpszMenuName = MAKEINTRESOURCE(IDR_MENU1);;			// Classe do menu que a janela pode ter
 							  // (NULL = n�o tem menu)
 	wcApp.cbClsExtra = 0;				// Livre, para uso particular
-	wcApp.cbWndExtra = 0;				// Livre, para uso particular
+	wcApp.cbWndExtra = sizeof(DATA*);				// Livre, para uso particular
 	wcApp.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
-	// "hbrBackground" = handler para "brush" de pintura do fundo da janela. Devolvido por
-	// "GetStockObject".Neste caso o fundo ser� branco
 
-	// ============================================================================
-	// 2. Registar a classe "wcApp" no Windows
-	// ============================================================================
 	if (!RegisterClassEx(&wcApp))
 		return(0);
 
-	// ============================================================================
-	// 3. Criar a janela
-	// ============================================================================
 	hWnd = CreateWindow(
 		szProgName,			// Nome da janela (programa) definido acima
-		TEXT("Exemplo de Janela Principal em C"),// Texto que figura na barra do t�tulo
+		TEXT("Jogo dos Tubos"),// Texto que figura na barra do t�tulo
 		WS_OVERLAPPEDWINDOW,	// Estilo da janela (WS_OVERLAPPED= normal)
 		CW_USEDEFAULT,		// Posi��o x pixels (default=� direita da �ltima)
 		CW_USEDEFAULT,		// Posi��o y pixels (default=abaixo da �ltima)
@@ -283,33 +410,14 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	  // ============================================================================
 	  // 4. Mostrar a janela
 	  // ============================================================================
+
+	SetWindowLongPtr(hWnd, 0, (LONG_PTR)&dados);
+	
 	ShowWindow(hWnd, nCmdShow);	// "hWnd"= handler da janela, devolvido por 
 					  // "CreateWindow"; "nCmdShow"= modo de exibi��o (p.e. 
 					  // normal/modal); � passado como par�metro de WinMain()
 	UpdateWindow(hWnd);		// Refrescar a janela (Windows envia � janela uma 
 					  // mensagem para pintar, mostrar dados, (refrescar)� 
-	// ============================================================================
-	// 5. Loop de Mensagens
-	// ============================================================================
-	// O Windows envia mensagens �s janelas (programas). Estas mensagens ficam numa fila de
-	// espera at� que GetMessage(...) possa ler "a mensagem seguinte"	
-	// Par�metros de "getMessage":
-	// 1)"&lpMsg"=Endere�o de uma estrutura do tipo MSG ("MSG lpMsg" ja foi declarada no  
-	//   in�cio de WinMain()):
-	//			HWND hwnd		handler da janela a que se destina a mensagem
-	//			UINT message		Identificador da mensagem
-	//			WPARAM wParam		Par�metro, p.e. c�digo da tecla premida
-	//			LPARAM lParam		Par�metro, p.e. se ALT tamb�m estava premida
-	//			DWORD time		Hora a que a mensagem foi enviada pelo Windows
-	//			POINT pt		Localiza��o do mouse (x, y) 
-	// 2)handle da window para a qual se pretendem receber mensagens (=NULL se se pretendem
-	//   receber as mensagens para todas as
-	// janelas pertencentes � thread actual)
-	// 3)C�digo limite inferior das mensagens que se pretendem receber
-	// 4)C�digo limite superior das mensagens que se pretendem receber
-
-	// NOTA: GetMessage() devolve 0 quando for recebida a mensagem de fecho da janela,
-	// 	  terminando ent�o o loop de recep��o de mensagens, e o programa 
 
 	while (GetMessage(&lpMsg, NULL, 0, 0)) {
 		TranslateMessage(&lpMsg);	// Pr�-processamento da mensagem (p.e. obter c�digo 
@@ -318,34 +426,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 					   // aguarda at� que a possa reenviar � fun��o de 
 					   // tratamento da janela, CALLBACK TrataEventos (abaixo)
 	}
-
-	// ============================================================================
-	// 6. Fim do programa
-	// ============================================================================
 	return((int)lpMsg.wParam);	// Retorna sempre o par�metro wParam da estrutura lpMsg
 }
-
-// ============================================================================
-// FUN��O DE PROCESSAMENTO DA JANELA
-// Esta fun��o pode ter um nome qualquer: Apenas � neces�rio que na inicializa��o da
-// estrutura "wcApp", feita no in�cio de // WinMain(), se identifique essa fun��o. Neste
-// caso "wcApp.lpfnWndProc = WndProc"
-//
-// WndProc recebe as mensagens enviadas pelo Windows (depois de lidas e pr�-processadas
-// no loop "while" da fun��o WinMain()
-// Par�metros:
-//		hWnd	O handler da janela, obtido no CreateWindow()
-//		messg	Ponteiro para a estrutura mensagem (ver estrutura em 5. Loop...
-//		wParam	O par�metro wParam da estrutura messg (a mensagem)
-//		lParam	O par�metro lParam desta mesma estrutura
-//
-// NOTA:Estes par�metros est�o aqui acess�veis o que simplifica o acesso aos seus valores
-//
-// A fun��o EndProc � sempre do tipo "switch..." com "cases" que descriminam a mensagem
-// recebida e a tratar.
-// Estas mensagens s�o identificadas por constantes (p.e. 
-// WM_DESTROY, WM_CHAR, WM_KEYDOWN, WM_PAINT...) definidas em windows.h
-// ============================================================================
 
 typedef struct PosChar {
 	DWORD xPos, yPos;
@@ -357,92 +439,189 @@ typedef struct BitmapInfo {
 	HDC bmpDC;
 }BitmapInfo;
 
-void loadImages(BOOL set, BitmapInfo bitmap[], HWND hWnd) {
+void loadImages(HANDLE mutexBitmap ,BOOL texturas, BitmapInfo bitmap[], HWND hWnd) {
 	HBITMAP hBmp;
 	HDC hdc = GetDC(hWnd);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe6_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	WaitForSingleObject(mutexBitmap, INFINITE);
+
+	if (texturas){
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe6_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[0].bmp);
+		bitmap[0].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[0].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe5_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[1].bmp);
+		bitmap[1].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[1].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe4_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[2].bmp);
+		bitmap[2].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[2].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe3_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[3].bmp);
+		bitmap[3].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[3].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe2_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[4].bmp);
+		bitmap[4].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[4].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe1_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[5].bmp);
+		bitmap[5].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[5].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[6].bmp);
+		bitmap[6].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[6].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe1.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[7].bmp);
+		bitmap[7].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[7].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe2.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[8].bmp);
+		bitmap[8].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[8].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe3.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[9].bmp);
+		bitmap[9].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[9].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe4.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[10].bmp);
+		bitmap[10].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[10].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe5.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[11].bmp);
+		bitmap[11].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[11].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe6.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[12].bmp);
+		bitmap[12].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[12].bmpDC, hBmp);
+
+		hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_moderno\\pipe7.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+		GetObject(hBmp, sizeof(BITMAP), &bitmap[13].bmp);
+		bitmap[13].bmpDC = CreateCompatibleDC(hdc);
+		SelectObject(bitmap[13].bmpDC, hBmp);
+
+		ReleaseMutex(mutexBitmap);
+		return;
+	}
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe6_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[0].bmp);
 	bitmap[0].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[0].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe5_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe5_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[1].bmp);
 	bitmap[1].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[1].bmpDC, hBmp);
-	
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe4_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe4_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[2].bmp);
 	bitmap[2].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[2].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe3_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe3_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[3].bmp);
 	bitmap[3].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[3].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe2_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe2_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[4].bmp);
 	bitmap[4].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[4].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe1_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe1_agua.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[5].bmp);
 	bitmap[5].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[5].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[6].bmp);
 	bitmap[6].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[6].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe1.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe1.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[7].bmp);
 	bitmap[7].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[7].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe2.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe2.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[8].bmp);
 	bitmap[8].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[8].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe3.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe3.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[9].bmp);
 	bitmap[9].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[9].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe4.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe4.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[10].bmp);
 	bitmap[10].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[10].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe5.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe5.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[11].bmp);
 	bitmap[11].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[11].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe6.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe6.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[12].bmp);
 	bitmap[12].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[12].bmpDC, hBmp);
 
-	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\pipe0.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
+
+	hBmp = (HBITMAP)LoadImage(NULL, _T("..\\Imagens\\texture_pack_retro\\pipe7.bmp"), IMAGE_BITMAP, TAM_BITMAP, TAM_BITMAP, LR_LOADFROMFILE);
 	GetObject(hBmp, sizeof(BITMAP), &bitmap[13].bmp);
 	bitmap[13].bmpDC = CreateCompatibleDC(hdc);
 	SelectObject(bitmap[13].bmpDC, hBmp);
+
+	ReleaseMutex(mutexBitmap);
 }
 
-int getPaddings(int tamX, int tamY, RECT* rect, int* paddingX, int* paddingY) {			
-	// Recebe dimensoes do tabuleiro, o rect do ecrã e ponteiros para as variáveis que guardaram os paddings
+int getPaddings(int tamX, int tamY, RECT* rect, int* paddingX, int* paddingY, int* larguraSeq, int* paddingSeq) {			
+	// Recebe dimensoes do tabuleiro, o rect do ecrã e ponteiros para as variáveis que guardaram os paddings 
+	// Recebe também ponteiro para variaveis que guardam o padding vertical da barra de sequencia e a largura da barra de sequencia (largura da barra indica o tamanho de celula da barra de sequencia)
 	// Devolve o tamanho de célula
 
+	*larguraSeq = rect->right / 5;								//largura máxima de barra de sequencia é 1/5 do ecrâ
+	int tempPaddingSeq = (rect->bottom-ALTURA_INFO) / 6;						//altura maxima de cada celula (uma vez que há 6 celulas na sequencia)
+
+
+	if (*larguraSeq >= tempPaddingSeq) {							// se tamanho maximo de celula em largura >= tamanho maximo de celula em altura 
+		*larguraSeq = tempPaddingSeq;								// tamanho de celula = altura máxima
+		tempPaddingSeq = 0;											// uma vez que o tamanho de celula é ditado pela altura, a barra vai ocupar a altura inteira do ecrã
+	}
+	else {															// se tamanho maximo de celula em largura < tamanho maximo de celula em altura
+																	// tamanho de celula = largura maxima (logo não é preciso mudar o valor de *larguraSeq)
+		tempPaddingSeq = (rect->bottom - (6 * (*larguraSeq))) / 2;	// padding é igual a metade da diferenca entre a altura disponivel e a altura necessaria para mostrar a barra de sequencia (6 celulas)
+	}
+	if (paddingSeq != NULL){
+		*paddingSeq = tempPaddingSeq;
+	}
+
 	int tamCelula;
-	*paddingX = rect->right / tamX;
-	*paddingY = rect->bottom / tamY;
+	*paddingX = (rect->right - *larguraSeq) / tamX;
+	*paddingY = (rect->bottom - ALTURA_INFO) / tamY;
 
 	if (*paddingX >= *paddingY) {
 		tamCelula = *paddingY;
-		*paddingX = (rect->right - tamCelula * tamX) / 2;
+		*paddingX = ((rect->right - *larguraSeq) - (tamCelula * tamX)) / 2;
 		*paddingY = 0;
 	}
 	else {
@@ -454,53 +633,42 @@ int getPaddings(int tamX, int tamY, RECT* rect, int* paddingX, int* paddingY) {
 	return tamCelula;
 }
 
-void imprimirTabuleiro(HWND hWnd, int tabuleiro[20][20], int tamX, int tamY, BitmapInfo bitmap[]) {
+void atualizarDisplay(HWND hWnd, DadosThreadPipe* dados, BitmapInfo bitmap[]) {
 	RECT rect;
 	HDC hdc = GetDC(hWnd);
 	GetClientRect(hWnd, &rect);
-	int paddingX, paddingY;
-	int tamCelula = getPaddings(tamX, tamY, &rect, &paddingX, &paddingY);
+	int paddingX, paddingY, paddingSeq, larguraSeq;
+	int tamCelula = getPaddings(dados->tamX, dados->tamY, &rect, &paddingX, &paddingY, &larguraSeq, &paddingSeq);
 
 	BITMAP currBitmap;
 
 
 	FillRect(hdc, &rect, CreateSolidBrush(RGB(100, 100, 100)));
-	for (int x = 0; x < tamX; x++){
-		for (int y = 0; y < tamY; y++){	
-			currBitmap = bitmap[tabuleiro[x][y] + 6].bmp;
-			StretchBlt(hdc, (tamCelula * x) + paddingX, (tamCelula * y) + paddingY, tamCelula, tamCelula, bitmap[tabuleiro[x][y] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
-			rect.left = (tamCelula * x) + paddingX;
-			rect.top = (tamCelula * y) + paddingY;
-			rect.bottom = rect.top + tamCelula;
-			rect.right = rect.left + tamCelula;
+	
+	WaitForSingleObject(dados->hMutexBitmap, INFINITE);
+	//BARRA DE SEQUENCIA
+	for (int i = 0; i < 6; i++) {
+		currBitmap = bitmap[dados->seq[i] + 6].bmp;
+		StretchBlt(hdc, 0, (larguraSeq * i) + paddingSeq + ALTURA_INFO, larguraSeq, larguraSeq, bitmap[dados->seq[i] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
+	}
+	
+	//TABULEIRO
+	for (int x = 0; x < dados->tamX; x++){
+		for (int y = 0; y < dados->tamY; y++){
+			currBitmap = bitmap[dados->tabuleiro[x][y] + 6].bmp;
+			StretchBlt(hdc, (tamCelula * x) + paddingX + larguraSeq, (tamCelula * y) + paddingY + ALTURA_INFO, tamCelula, tamCelula, bitmap[dados->tabuleiro[x][y] + 6].bmpDC, 0, 0, currBitmap.bmWidth, currBitmap.bmHeight, SRCCOPY);
 		}
 	}
+	ReleaseMutex(dados->hMutexBitmap);
+
+	//PRINT INFO
+	SetTextColor(hdc, RGB(0, 0, 0));
+	SetBkMode(hdc, TRANSPARENT);
+	rect.left = 0;
+	rect.top = 0;
+	DrawText(hdc, &dados->info, -1, &rect, DT_SINGLELINE, DT_NOCLIP);
 }
 
-void processaClique(HWND hWnd, int tamX, int tamY, int posCliqueX, int posCliqueY) {
-	RECT rect;
-	HDC hdc = GetDC(hWnd);
-	GetClientRect(hWnd, &rect);
-	int paddingX, paddingY;
-	int tamCelula = getPaddings(tamX, tamY, &rect, &paddingX, &paddingY);
-
-	if (posCliqueX < paddingX || posCliqueY < paddingY)
-		return;
-	if (posCliqueX > (tamX * tamCelula) + paddingX || posCliqueY > (tamY * tamCelula) + paddingY){
-		return;
-	}
-	int coordX, coordY;
-	coordX = (posCliqueX - paddingX) / tamCelula;
-	coordY = (posCliqueY - paddingY) / tamCelula;
-
-	//DEBUG START
-	TCHAR a[512];
-	_stprintf_s(a, 512, _T("TAM_CELULA = %d ,Clique %d, %d, Celula %d, %d\n"), tamCelula, posCliqueX, posCliqueY, coordX, coordY);
-	OutputDebugString(a);
-	//DEBUG END
-
-	//aqui chama a função para enviar mensagem ao servidor, para avisar do clique
-}
 
 BOOL iniciaDetecaoHover(HWND hWnd) {
 	TRACKMOUSEEVENT tme;
@@ -512,44 +680,75 @@ BOOL iniciaDetecaoHover(HWND hWnd) {
 	return TrackMouseEvent(&tme);
 }
 
-void processaHover(HWND hWnd, int tamX, int tamY, int posHoverX, int posHoverY, BOOL* pause) {
+void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, int tipo) {
+	//tipo -> 1 = clique esq;2 = clique dir;3 = mouse hover
 	RECT rect;
 	HDC hdc = GetDC(hWnd);
 	GetClientRect(hWnd, &rect);
-	int paddingX, paddingY;
-	int tamCelula = getPaddings(tamX, tamY, &rect, &paddingX, &paddingY);
+	int paddingX, paddingY, larguraSeq;
+	//WaitForSingleObject(dados->hMutex, INFINITE);
+	int tamCelula = getPaddings(dados->tamX, dados->tamY, &rect, &paddingX, &paddingY, &larguraSeq, NULL);
 
-	if (posHoverX < paddingX || posHoverY < paddingY)
+	if (posX < paddingX + larguraSeq || posY < paddingY + ALTURA_INFO)
 		return;
-	if (posHoverX > (tamX * tamCelula) + paddingX || posHoverY > (tamY * tamCelula) + paddingY) {
+	if (posX > (dados->tamX * tamCelula) + paddingX + larguraSeq || posY > (dados->tamY * tamCelula) + paddingY + ALTURA_INFO) {
 		return;
 	}
+	//ReleaseMutex(dados->hMutex);
+
 	int coordX, coordY;
-	coordX = (posHoverX - paddingX) / tamCelula;
-	coordY = (posHoverY - paddingY) / tamCelula;
+	coordX = (posX - paddingX - larguraSeq) / tamCelula;
+	coordY = (posY - paddingY - ALTURA_INFO) / tamCelula;
+
+	if (coordX >= dados->tamX || coordY>=dados->tamY){
+		return;
+	}
 
 	//DEBUG START
 	TCHAR a[512];
-	_stprintf_s(a, 512, _T("Hovered célula %d, %d\n"), coordX, coordY);
+	_stprintf_s(a, 512, _T("Evento na célula %d, %d\n"), coordX, coordY);
 	OutputDebugString(a);
-	//DEBUG END
 
-	int celulaAtivaX = 0, celulaAtivaY = 0;		//apenas aqui para referência futura. estes dados farão parte de uma estrutura que guarde também o tabuleiro e as suas dimensoes
-	if (coordX == celulaAtivaX && coordY == celulaAtivaY){
-		OutputDebugString(_T("Hover na Célula Ativa\n"));
-		
-		//chama função para enviar mensagem ao servidor a avisar do evento hover
-
-		*pause = TRUE;
-		// não deve ser feito aqui, mas sim na thread de leitura de pipes, apos a rececao de mensagem de pausa
-	}
-	else {			//se não for a célula correta, recomeça a deteção de hover
-		if (iniciaDetecaoHover(hWnd)) {
-			OutputDebugString(_T("INICIOU DETEÇÂO HOVER\n"));
+	switch (tipo)
+	{
+	case 1:
+		WaitForSingleObject(dados->hMutex, INFINITE);
+		_stprintf_s(a, MAX, _T("LCLICK %d %d \n"), coordX, coordY);
+		_tcscpy_s(dados->mensagem, MAX, a);
+		ReleaseMutex(dados->hMutex);
+		SetEvent(dados->hEventoNamedPipe);
+		break;
+	case 2:
+		WaitForSingleObject(dados->hMutex, INFINITE);
+		_stprintf_s(a, MAX, _T("RCLICK %d %d \n"), coordX, coordY);
+		_tcscpy_s(dados->mensagem, MAX, a);
+		ReleaseMutex(dados->hMutex);
+		SetEvent(dados->hEventoNamedPipe);
+		break;
+	case 3:
+		OutputDebugString(_T("Hover\n"));
+		if (coordX == dados->celulaAtivaX && coordY == dados->celulaAtivaY) {
+			OutputDebugString(_T("Hover na Célula Ativa\n"));
+			//chama função para enviar mensagem ao servidor a avisar do evento hover
+			WaitForSingleObject(dados->hMutex, INFINITE);
+			_tcscpy_s(dados->mensagem, MAX, _T("HOVER"));
+			ReleaseMutex(dados->hMutex);
+			SetEvent(dados->hEventoNamedPipe);
+			// a receção de uma resposta por parte do servidor deve iniciar um evento de deteção de que mexeu o rato, para parar o hover
+			// não deve ser feito aqui, mas sim na thread de leitura de pipes
 		}
-		else {
-			OutputDebugString(_T("NÃO CONSEGUIU INICIAR DETEÇÂO HOVER\n"));
+		else {			//se não for a célula correta, recomeça a deteção de hover
+			if (iniciaDetecaoHover(hWnd)) {
+				OutputDebugString(_T("INICIOU DETEÇÂO HOVER\n"));
+			}
+			else {
+				OutputDebugString(_T("NÃO CONSEGUIU INICIAR DETEÇÂO HOVER\n"));
+			}
+			ReleaseMutex(dados->hMutex);
 		}
+		break;
+	default:
+		ReleaseMutex(dados->hMutex);
 	}
 }
 void screamPosition(int x, int y) {
@@ -560,12 +759,13 @@ void screamPosition(int x, int y) {
 	//DEBUG END
 }
 
+
+
 LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam) {
 	RECT rect;
 	PAINTSTRUCT ps;
 	HDC hdc;
 	static TCHAR lastChar = '?';
-	static TCHAR c;
 	static PosChar posicoes[1000];
 	static DWORD count = 0;
 	static HBITMAP hBmp[7];
@@ -576,42 +776,89 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	static int xpto = 0;
 	static int limDir;
 	static HDC memDC = NULL;
-	static int tabuleiro[20][20];
-	static int tamX = 10, tamY = 7;
+	static DadosThreadPipe dados;
+	HANDLE hThreadLer, hThreadEscrever;
+	DATA* dadosDentroJogo = (LONG_PTR)GetWindowLongPtr(hWnd, 0);
+	TCHAR a[MAX];
+
 
 	static BOOL pause = FALSE;
 
 	switch (messg) {
 	case WM_CREATE:
-		loadImages(TRUE, bitmap, hWnd);
+		dados.terminar = 0;
+		dados.hWnd = hWnd;
 
-		//CARREGAR MAPA PRE-DEFINIDO PARA TESTE
-		for (int x = 0; x < 20; x++){
-			for (int y = 0; y < 20; y++)
-			{
-				tabuleiro[x][y] = 0;
-			}
+		hThreadLer = CreateThread(NULL, 0, ThreadLer, &dados, 0, NULL);
+		if (hThreadLer == NULL) {
+			OutputDebugString(TEXT("[Erro] ao criar thread!\n"));
+			return -1;
 		}
-		tabuleiro[0][2] = -1;
-		tabuleiro[1][2] = 1;
-		tabuleiro[2][2] = 1;
-		tabuleiro[3][2] = 1;
-		tabuleiro[4][2] = 4;
-		tabuleiro[4][3] = 2;
-		tabuleiro[4][4] = 5;
-		tabuleiro[3][4] = 3;
-		tabuleiro[3][5] = 2;
-		tabuleiro[3][6] = 6;
-		tabuleiro[4][6] = 1;
-		tabuleiro[5][6] = 1;
-		tabuleiro[6][6] = 1;
-		tabuleiro[7][6] = 1;
-		tabuleiro[8][6] = 5;
-		tabuleiro[8][5] = 3;
-		tabuleiro[9][5] = 1;
+		dados.hThreadLer = hThreadLer;
+
+
+		if (!initNamedPipes(&dados)) {
+			OutputDebugString(_T("Erro ao criar named Pipes do Cliente.\n"));
+			CloseHandle(hThreadLer);
+			exit(1);
+		}
+
+		//criacao da thread
+		hThreadEscrever = CreateThread(NULL, 0, ThreadEscrever, &dados, 0, NULL);
+		if (hThreadEscrever == NULL) {
+			OutputDebugString(TEXT("[Erro] ao criar thread!\n"));
+			//closehandle
+			return -1;
+		}
+		dados.hThreadEscrever = hThreadEscrever;
+
+		TCHAR nomeMutexBitmap[MAX];
+
+		_stprintf_s(nomeMutexBitmap, MAX, _T("MUTEX_BITMAP%d\0"), GetProcessId(GetCurrentProcess()));
+		MUTEX_BITMAP;
+		dados.hMutexBitmap = CreateMutex(NULL, FALSE, nomeMutexBitmap);
+
+
+		loadImages(dados.hMutexBitmap, dados.texturas, bitmap, hWnd);
+
+		////CARREGAR MAPA PRE-DEFINIDO PARA TESTE
+		clearTabuleiro(&dados);
+		//dados.tabuleiro[3][2] = 7;
+		/*dados.tabuleiro[0][2] = -1;
+		dados.tabuleiro[1][2] = 1;
+		dados.tabuleiro[2][2] = 1;
+		dados.tabuleiro[3][2] = 1;
+		dados.tabuleiro[4][2] = 4;
+		dados.tabuleiro[4][3] = 2;
+		dados.tabuleiro[4][4] = 5;
+		dados.tabuleiro[3][4] = 3;
+		dados.tabuleiro[3][5] = 2;
+		dados.tabuleiro[3][6] = 6;
+		dados.tabuleiro[4][6] = 1;
+		dados.tabuleiro[5][6] = 1;
+		dados.tabuleiro[6][6] = 1;
+		dados.tabuleiro[7][6] = 1;
+		dados.tabuleiro[8][6] = 5;
+		dados.tabuleiro[8][5] = 3;
+		dados.tabuleiro[9][5] = 1;
 		
-		tabuleiro[9][6] = 3;
-		tabuleiro[0][0] = 5;
+		dados.tabuleiro[9][6] = 3;
+		dados.tabuleiro[0][0] = 5;*/
+
+		dados.tamX = 1;
+		dados.tamY = 1;
+
+		for (int i = 0; i < 6; i++)
+			dados.seq[i] = i+2;
+
+		dados.celulaAtivaX = 0;
+		dados.celulaAtivaY = 0;
+
+		dados.jogoCorrer = FALSE;
+
+		_stprintf_s(&dados.mensagem, MAX, _T("Isto é uma mensagem pré-definida, apenas para teste\0"));
+
+
 
 		//GetObject(hBmp, sizeof(bmp), &bmp);
 		hdc = GetDC(hWnd);
@@ -620,69 +867,125 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		break;
 	case WM_CLOSE:		// Close da janela	
 		if (MessageBox(hWnd, _T("Queres mesmo sair?"), _T("SAIR"),
-			MB_ICONQUESTION | MB_YESNO | MB_HELP) == IDYES)
+			MB_ICONQUESTION | MB_YESNO) == IDYES)
 		{
+			//mandar mensagem ao sv a dizer que cliente saiu
+			//escrever a msg
+			WaitForSingleObject(dados.hMutex, INFINITE);
+				_stprintf_s(a, MAX, _T("SAIRCLI 1"));
+				_tcscpy_s(dados.mensagem, MAX, a);
+			ReleaseMutex(dados.hMutex);
+			SetEvent(dados.hEventoNamedPipe);
+			/*CloseHandle(dados.hThreadEscrever);
+			CloseHandle(dados.hThreadLer);*/
 			DestroyWindow(hWnd);
 		}
 		break;
-	case WM_HELP:		//Janela de Ajuda
-		MessageBox(hWnd, _T("Janela de Ajuda"), _T("SAIR"), MB_OK);
-		break;
 
 	case WM_LBUTTONDOWN:	//apanhar evento que escuta tecla rato	
-		processaClique(hWnd, tamX, tamY, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
-		//InvalidateRect(hWnd, NULL, TRUE);		//Chama WM_PAINT
-		
-		// APENAS PARA TESTE. SERÁ REMOVIDO DAQUI E CHAMADO QUANDO RECEBER INFORMAÇÃO DO SERVIDOR DE QUE SE INICIOU O JOGO
-		iniciaDetecaoHover(hWnd);
-		
-		break;
-	case WM_MOUSEHOVER:
-		processaHover(hWnd, tamX, tamY, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), &pause);
-		break;
-	case WM_PAINT:
-		
-		hdc = BeginPaint(hWnd, &ps);
-
-		imprimirTabuleiro(hWnd, tabuleiro, tamX, tamY, bitmap);
-
-		EndPaint(hWnd, &ps);
+		if (dados.jogoCorrer){
+			processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 1);
+		}
 		break;
 	case WM_RBUTTONDOWN:
-		/*xPos = GET_X_LPARAM(lParam);
-		yPos = GET_Y_LPARAM(lParam);
-		hdc = GetDC(hWnd);		//a função GetDC recupera um identificador para um contexto de dispositivo (DC) ...
-		GetClientRect(hWnd, &rect);
-		SetTextColor(hdc, RGB(0, 0, 0));
-		SetBkMode(hdc, TRANSPARENT);
-		rect.left = xPos;
-		rect.top = yPos;
-		DrawText(hdc, &mensagem, _tcslen(mensagem), &rect, DT_SINGLELINE | DT_NOCLIP);
-		ReleaseDC(hWnd, hdc);*/
+		if (dados.jogoCorrer) {
+			processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 2);
+		}
+		break;
+	case WM_MOUSEHOVER:
+		if (dados.jogoCorrer && !dados.pause) {
+			processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 3);
+		}
+		break;
+	case WM_PAINT:
+		//Mostra no ecrã as informações do jogo
+		hdc = BeginPaint(hWnd, &ps);
+		atualizarDisplay(hWnd, &dados, bitmap);
+		EndPaint(hWnd, &ps);
 		break;
 	case WM_MOUSEMOVE:
 		//Trocar esta variavel pela que estará na estrutura de dados (estrutura que tem o tabuleiro, etc)
-		if (pause){
+		if (dados.pause){
 			//PARA TESTE
 			//Trocar isto pela funcao de enviar mensagem ao servidor
 			screamPosition(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
-			pause = FALSE;		//Isto será feito pela thread de leitura do pipe, apos a rececao da mensagem de fim de pausa
+			dados.pause = FALSE;		//Isto será feito pela thread de leitura do pipe, apos a rececao da mensagem de fim de pausa
 		}
 		//OutputDebugString(_T("WM_MOUSEMOVE\n"));
 		break;
 	case WM_CHAR:	//apanhar  teclado
-		c = (wchar_t)wParam;
+		//PARA TESTE
+		if (wParam == _T('d')){
+			iniciaDetecaoHover(hWnd);
+		}
+		if (wParam == _T('s')){
+			dados.jogoCorrer = TRUE;
+		}
+		if (wParam == _T('p')){
+			WaitForSingleObject(dados.hMutex, INFINITE);
+			_stprintf_s(a, MAX, _T("PROXNIVEL"));
+			_tcscpy_s(dados.mensagem, MAX, a);
+			ReleaseMutex(dados.hMutex);
+			SetEvent(dados.hEventoNamedPipe);
+		}
 		break;
 
 	case WM_DESTROY:	//Destruir janela
+		sair(&dados);
 		PostQuitMessage(0);
 	case WM_ERASEBKGND: //Sent when the window background must be erased (for example, when a window is resized). 
 		return 1;
+	case WM_COMMAND: //menu
+		switch (wParam)
+		{
+		case ID_MENU_NOME:
+			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG1), hWnd, DlgProc);
+			break;
+		case ID_MENU_SINGLEPLAYER:
+			WaitForSingleObject(dados.hMutex, INFINITE);
+			_stprintf_s(a, MAX, _T("JOGOSINGLEP %s"), dadosDentroJogo->nome);
+			_tcscpy_s(dados.mensagem, MAX, a);
+			ReleaseMutex(dados.hMutex);
+			SetEvent(dados.hEventoNamedPipe);
+			break;
+		case ID_MENU_MULTIPLAYER:
+			WaitForSingleObject(dados.hMutex, INFINITE);
+			_stprintf_s(a, MAX, _T("JOGOMULTIP %s"), dadosDentroJogo->nome);
+			_tcscpy_s(dados.mensagem, MAX, a);
+			ReleaseMutex(dados.hMutex);
+			SetEvent(dados.hEventoNamedPipe);
+			//ativar Dialog2
+			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG2), dados.hWnd, DlgProc2);
+			//OutputDebugString(dados.dialogEspera);
+			break;
+		case ID_MENU_CANCELMULTIPLAYER:
+			WaitForSingleObject(dados.hMutex, INFINITE);
+			_tcscpy_s(dados.mensagem, MAX, JOGOMULTIPCANCEL);
+			ReleaseMutex(dados.hMutex);
+			SetEvent(dados.hEventoNamedPipe);
+			break;
+		case ID_MENU_ALTERATEXTURA:
+			dados.texturas = (!dados.texturas);
+			loadImages(dados.hMutexBitmap, dados.texturas, bitmap, hWnd);
+			InvalidateRect(hWnd, NULL, TRUE);
+			break;
+		default:
+			break;
+		}
 	default:
-		// Neste exemplo, para qualquer outra mensagem (p.e. "minimizar","maximizar","restaurar")
-		// n�o � efectuado nenhum processamento, apenas se segue o "default" do Windows
 		return(DefWindowProc(hWnd, messg, wParam, lParam));
 		break;  // break tecnicamente desnecess�rio por causa do return
 	}
 	return(0);
+}
+
+
+int sair(DadosThreadPipe* dados) {
+	CloseHandle(dados->hMutex);
+	CloseHandle(dados->hMutexBitmap);
+	CloseHandle(dados->hEventoNamedPipe);
+	CloseHandle(dados->hThreadEscrever);
+	CloseHandle(dados->hThreadLer);
+	DisconnectNamedPipe(dados->hPipe.hPipe);
+	
 }
