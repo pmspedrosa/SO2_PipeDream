@@ -202,7 +202,8 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 		}
 		else if (_tcscmp(arrayComandos[0], PECA) == 0) {		//msg: peca x y tipo_de_peca
 			if (nrArgs >= 3) {	//x,y,tipopeça
-				unsigned int x, y, t;
+				unsigned int x, y;
+				int t;
 				x = atoicmd(arrayComandos, 1);
 				y = atoicmd(arrayComandos, 2);
 				t = atoicmd(arrayComandos, 3);

@@ -272,47 +272,49 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOMULTIP) == 0) {
-		/*	if (dados->iniciado == FALSE) {//if jogo ainda não se encontra em curso
-				if (true)
-				{
-
-				}
+			if (dados->iniciado == FALSE) {//if jogo ainda não se encontra em curso
 				_stprintf_s(sourceTabuleiro->pontuacao.nome, MAX, arrayComandos[1]);
-				dados->velocidadeAgua = TIMER_FLUIR;
 				sourceTabuleiro->pontuacao.vitorias = 0;
-				sourceTabuleiro->correrAgua = TRUE;
-				ResumeThread(sourceTabuleiro->hThreadAgua);
-				dados->iniciado = TRUE;
-				//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
-				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
-				_stprintf_s(a, MAX, _T("INICIAJOGO %d %d %d %d %d %d %d %d\n"), dados->memPar->tamX, dados->memPar->tamY, sourceTabuleiro->posX, sourceTabuleiro->posY, (*sourceTabuleiro->tabuleiro)[sourceTabuleiro->posX][sourceTabuleiro->posY], dados->posfX, dados->posfY, (*sourceTabuleiro->tabuleiro)[dados->posfX][dados->posfY]);
-				ReleaseMutex(dados->hMutexTabuleiro);
-				escreveNamedPipe(dados, a, sourceTabuleiro);
+				if (multi > 0){			//existe um jogador em espera
+					dados->velocidadeAgua = TIMER_FLUIR;
+					dados->iniciado = TRUE;
+					dados->tabuleiro1.correrAgua = TRUE;
+					dados->tabuleiro2.correrAgua = TRUE;
+
+					DadosThreadAgua dadosThreadAguaTab1;
+					dadosThreadAguaTab1.dados = dados;
+					dadosThreadAguaTab1.dadosTabuleiro = &dados->tabuleiro1;
+					dados->tabuleiro1.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosThreadAguaTab1, CREATE_SUSPENDED, NULL);
+					if (dados->tabuleiro1.hThreadAgua == NULL) {
+						_tprintf(_T("NAO CONSEGUI CRIAR NOVA THREAD\n\n"));
+						exit(-1);
+					}
+					DadosThreadAgua dadosThreadAguaTab2;
+					dadosThreadAguaTab2.dados = dados;
+					dadosThreadAguaTab2.dadosTabuleiro = &dados->tabuleiro2;
+					dados->tabuleiro2.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosThreadAguaTab2, CREATE_SUSPENDED, NULL);
+					//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
+					if (sourceTabuleiro->hThreadAgua == NULL) {
+						_tprintf(_T("NAO CONSEGUI CRIAR NOVA THREAD\n\n"));
+						exit(-1);
+					}
+					ResumeThread(dados->tabuleiro1.hThreadAgua);
+					ResumeThread(dados->tabuleiro2.hThreadAgua);
+
+					WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
+					_stprintf_s(a, MAX, _T("INICIAJOGO %d %d %d %d %d %d %d %d\n"), dados->memPar->tamX, dados->memPar->tamY, sourceTabuleiro->posX, sourceTabuleiro->posY, (*sourceTabuleiro->tabuleiro)[sourceTabuleiro->posX][sourceTabuleiro->posY], dados->posfX, dados->posfY, (*sourceTabuleiro->tabuleiro)[dados->posfX][dados->posfY]);
+					ReleaseMutex(dados->hMutexTabuleiro);
+					escreveNamedPipe(dados, a, &dados->tabuleiro1);
+					Sleep(100);
+					escreveNamedPipe(dados, a, &dados->tabuleiro2);
+				}
+				else {
+					multi++;
+				}
 			}
 			else {
 				escreveNamedPipe(dados, _T("INFO JogoEmCurso\n"), sourceTabuleiro);
 			}
-			
-			
-			// variavel com a quantidade de jogadores a querer jogar multiplayer
-			if (multi > 0) {	//existe um jogador em espera
-				//iniciar jogo multiplayer...
-				//ResumeThread(dados.tabuleiro1.hThreadAgua);
-				//_stprintf_s(a, MAX, _T("JOGOMULTIP INICIA\n"));
-				//escreveNamedPipe(dados, a);
-			}
-			else {
-				//verificar se cliente2 está ativo
-				//if (dados->tabuleiro2.jogadorAtivo == FALSE)
-				//	  esperar que um cliente se ligue
-				//    _stprintf_s(a, MAX, _T("JOGOMULTIP ESPERA\n"));
-				//	  escreveNamedPipe(dados, a);
-				//else
-				//	  mandar informação de que existe um jogador a tentar jogar multiplayer
-
-			}
-*/
-
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOMULTIPCANCEL) == 0) {
 			multi--;
