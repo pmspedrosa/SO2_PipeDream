@@ -201,7 +201,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
 				BOOL colocou = verificaColocarPeca(dados, x, y, t, sourceTabuleiro);
 				ReleaseMutex(dados->hMutexTabuleiro);
-
+				SetEvent(dados->hEventUpdateTabuleiro);
 
 				if (colocou == TRUE) {
 					_stprintf_s(a, MAX, _T("PECA %d %d %d\n"), x, y, t);
