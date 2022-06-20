@@ -181,6 +181,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				dados->tabuleiro[fimx][fimy] = pecaf;
 
 				dados->jogoCorrer = TRUE;
+				iniciaDetecaoHover(dados->hWnd);
 
 				InvalidateRect(dados->hWnd, NULL, TRUE);        //Chama WM_PAINT
 			}
@@ -240,6 +241,17 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			//EndDialog(GetParent(dados->hWnd), 0);
 			//desativa a textbox e continua o jogo
 
+		}
+		else if (_tcscmp(arrayComandos[0], HOVER) == 0) {
+			_stprintf_s(a, MAX, TEXT("[Cliente] hover == pausa\n"));
+			OutputDebugString(a);
+			dados->pause = TRUE;
+		}
+		else if (_tcscmp(arrayComandos[0], FIM_HOVER) == 0) {
+			_stprintf_s(a, MAX, TEXT("[Cliente] hover == pausa\n"));
+			OutputDebugString(a);
+			iniciaDetecaoHover(dados->hWnd);
+			dados->pause = FALSE;
 		}
 		else if (_tcscmp(arrayComandos[0], SAIR) == 0) {
 			_stprintf_s(a, MAX, TEXT("[Cliente] sairrrrrrrrrrrrrrrrr\n"));
@@ -910,6 +922,11 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 			//Trocar isto pela funcao de enviar mensagem ao servidor
 			screamPosition(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 			dados.pause = FALSE;		//Isto será feito pela thread de leitura do pipe, apos a rececao da mensagem de fim de pausa
+			WaitForSingleObject(dados.hMutex, INFINITE);
+			_stprintf_s(a, MAX, _T("RETOMAHOVER"));
+			_tcscpy_s(dados.mensagem, MAX, a);
+			ReleaseMutex(dados.hMutex);
+			SetEvent(dados.hEventoNamedPipe);
 		}
 		//OutputDebugString(_T("WM_MOUSEMOVE\n"));
 		break;
@@ -918,12 +935,16 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		if (wParam == _T('d')){
 			iniciaDetecaoHover(hWnd);
 		}
-		if (wParam == _T('s')){
-			dados.jogoCorrer = TRUE;
-		}
 		if (wParam == _T('p')){
 			WaitForSingleObject(dados.hMutex, INFINITE);
 			_stprintf_s(a, MAX, _T("PROXNIVEL"));
+			_tcscpy_s(dados.mensagem, MAX, a);
+			ReleaseMutex(dados.hMutex);
+			SetEvent(dados.hEventoNamedPipe);
+		}
+		if (wParam == _T('m')) {
+			WaitForSingleObject(dados.hMutex, INFINITE);
+			_stprintf_s(a, MAX, _T("RETOMAHOVER"));
 			_tcscpy_s(dados.mensagem, MAX, a);
 			ReleaseMutex(dados.hMutex);
 			SetEvent(dados.hEventoNamedPipe);

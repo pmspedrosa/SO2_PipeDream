@@ -143,14 +143,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 		sourceTabuleiro = leDePipesOverlapped(dados, &n, &buf);
 
-		if (!n) {
-			_tprintf(TEXT("[SV] n == 0... (ReadFile)\n"));
-			//continue;
-		}
-
-		if (sourceTabuleiro == NULL) {
-			_tprintf(TEXT("[SV] sourceTabuleiro NULL... %d (ReadFile)\n"), n);
-			Sleep(1000);
+		if (sourceTabuleiro == NULL && !n) {
 			continue;
 		}
 
@@ -201,7 +194,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
 				BOOL colocou = verificaColocarPeca(dados, x, y, t, sourceTabuleiro);
 				ReleaseMutex(dados->hMutexTabuleiro);
-
+				SetEvent(dados->hEventUpdateTabuleiro);
 
 				if (colocou == TRUE) {
 					_stprintf_s(a, MAX, _T("PECA %d %d %d\n"), x, y, t);
@@ -228,12 +221,19 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			if (sourceTabuleiro->numParagensDisponiveis > 0) {
 				sourceTabuleiro->numParagensDisponiveis--;
 				SuspendThread(sourceTabuleiro->hThreadAgua);
+				_stprintf_s(a, MAX, _T("HOVER\n"));
+				escreveNamedPipe(dados, a, sourceTabuleiro);
+				Sleep(200);
 				_stprintf_s(a, MAX, _T("INFO AguaParada\n"));
 				escreveNamedPipe(dados, a, sourceTabuleiro);
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], RETOMAHOVER) == 0) {
+			_tprintf(_T("\n\n\RETOMA HOVER!!!\n\n"));
 			ResumeThread(sourceTabuleiro->hThreadAgua);
+			_stprintf_s(a, MAX, _T("FIM_HOVER\n"));
+			escreveNamedPipe(dados, a, sourceTabuleiro);
+			Sleep(200);
 			_stprintf_s(a, MAX, _T("INFO RetomaAgua\n"));
 			escreveNamedPipe(dados, a, sourceTabuleiro);
 		}
@@ -256,7 +256,28 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOMULTIP) == 0) {
-			_stprintf_s(sourceTabuleiro->pontuacao.nome, MAX, arrayComandos[1]);
+		/*	if (dados->iniciado == FALSE) {//if jogo ainda não se encontra em curso
+				if (true)
+				{
+
+				}
+				_stprintf_s(sourceTabuleiro->pontuacao.nome, MAX, arrayComandos[1]);
+				dados->velocidadeAgua = TIMER_FLUIR;
+				sourceTabuleiro->pontuacao.vitorias = 0;
+				sourceTabuleiro->correrAgua = TRUE;
+				ResumeThread(sourceTabuleiro->hThreadAgua);
+				dados->iniciado = TRUE;
+				//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
+				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
+				_stprintf_s(a, MAX, _T("INICIAJOGO %d %d %d %d %d %d %d %d\n"), dados->memPar->tamX, dados->memPar->tamY, sourceTabuleiro->posX, sourceTabuleiro->posY, (*sourceTabuleiro->tabuleiro)[sourceTabuleiro->posX][sourceTabuleiro->posY], dados->posfX, dados->posfY, (*sourceTabuleiro->tabuleiro)[dados->posfX][dados->posfY]);
+				ReleaseMutex(dados->hMutexTabuleiro);
+				escreveNamedPipe(dados, a, sourceTabuleiro);
+			}
+			else {
+				escreveNamedPipe(dados, _T("INFO JogoEmCurso\n"), sourceTabuleiro);
+			}
+			
+			
 			// variavel com a quantidade de jogadores a querer jogar multiplayer
 			if (multi > 0) {	//existe um jogador em espera
 				//iniciar jogo multiplayer...
@@ -274,7 +295,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				//	  mandar informação de que existe um jogador a tentar jogar multiplayer
 
 			}
-
+*/
 
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOMULTIPCANCEL) == 0) {
