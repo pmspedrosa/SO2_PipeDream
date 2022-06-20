@@ -50,8 +50,7 @@ DadosTabuleiro* leDePipesOverlapped(DadosThread *dados, int *n, TCHAR buf[MAX]) 
 
 	if (ReadFile(dados->tabuleiro1.pipes.hPipeIn, buf, MAX * sizeof(TCHAR), n, &(dados->tabuleiro1.pipes.overlap)) != FALSE) {					//se TRUE, significa que conseguiu ler imediatamente, sem assinalar o evento de OVERLAP
 		_tprintf(TEXT("[SV] LI LOGO PIPE 1: %d %s\n"), *n, buf);
-		return &dados->tabuleiro1;																											//retorna-se logo, indicando qual o tabuleiro que enviou mensagem
-		
+		return &dados->tabuleiro1;																											//retorna-se logo, indicando qual o tabuleiro que enviou mensagems
 	}
 
 	isPipe1Pending = GetLastError() == ERROR_IO_PENDING;																							//ERROR_IO_PENDING significa que o vai ativar o evento OVERLAP quando receber dados
@@ -104,7 +103,6 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 	DadosThread* dados = (DadosThread*)param;
 	TCHAR buf[MAX], ** arrayComandos = NULL;
 	DWORD n;
-	int multi=0;
 	unsigned int nrArgs = 0;
 	const TCHAR delim[2] = _T(" ");
 	OVERLAPPED o1 = { 0 };
@@ -225,6 +223,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			escreveNamedPipe(dados, a, sourceTabuleiro);
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOSINGLEP) == 0) {
+			dados->multi = 0;
 			if (dados->iniciado == FALSE) {//if jogo ainda não se encontra em curso
 				_stprintf_s(sourceTabuleiro->pontuacao.nome, MAX, arrayComandos[1]);
 				dados->velocidadeAgua = TIMER_FLUIR;
@@ -255,7 +254,8 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			if (dados->iniciado == FALSE) {//if jogo ainda não se encontra em curso
 				_stprintf_s(sourceTabuleiro->pontuacao.nome, MAX, arrayComandos[1]);
 				sourceTabuleiro->pontuacao.vitorias = 0;
-				if (multi > 0){			//existe um jogador em espera
+				if (dados->multi > 0){			//existe um jogador em espera
+					dados->multi++;
 					dados->velocidadeAgua = TIMER_FLUIR;
 					dados->iniciado = TRUE;
 					dados->tabuleiro1.correrAgua = TRUE;
@@ -289,7 +289,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 					escreveNamedPipe(dados, a, &dados->tabuleiro2);
 				}
 				else {
-					multi++;
+					dados->multi++;
 				}
 			}
 			else {
@@ -297,7 +297,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOMULTIPCANCEL) == 0) {
-			multi--;
+			dados->multi--;
 		}
 		else if (_tcscmp(arrayComandos[0], PROXNIVEL) == 0) {
 			if (dados->iniciado == TRUE) {//if jogo se encontra em curso
@@ -831,6 +831,7 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 	DadosThreadAgua* paramStruct = (DadosThreadAgua*)param;
 	DadosThread* dados = paramStruct->dados;
 	DadosTabuleiro* dadosTabuleiro = paramStruct->dadosTabuleiro;
+	TCHAR a[MAX];
 
 	SetEvent(dados->hEventUpdateTabuleiro);														//assinala evento de atualização do tabuleiro
 	_tprintf(_T("(ThreadAgua) Sleep %d"), dados->tempoInicioAgua * 1000);			
@@ -847,13 +848,27 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 						dados->velocidadeAgua *= AUMENTO_VELOCIDADE;
 						escreveNamedPipe(dados, _T("GANHOU 10\n"), dadosTabuleiro);
 						Sleep(200);
-						TCHAR a[MAX];
 						_stprintf_s(a, MAX, _T("PECA %d %d %d\n"), dadosTabuleiro->posX, dadosTabuleiro->posY, (*dadosTabuleiro->tabuleiro)[dadosTabuleiro->posX][dadosTabuleiro->posY]);
 						escreveNamedPipe(dados, a, dadosTabuleiro);
 						SetEvent(dados->hEventUpdateTabuleiro);
 						ReleaseMutex(dados->hMutexTabuleiro);
 						dadosTabuleiro->correrAgua = FALSE;
-						//dados->iniciado = FALSE;
+						
+						if (dados->multi > 1) {
+							if (dados->tabuleiro1.hThreadAgua == dadosTabuleiro->hThreadAgua) {
+								//tabuleiro 1 ganhou
+								dados->tabuleiro2.correrAgua = FALSE;
+								_stprintf_s(a, MAX, _T("PERDEU 1\n"));
+								escreveNamedPipe(dados, a, &dados->tabuleiro2);
+							}else if (dados->tabuleiro2.hThreadAgua == dadosTabuleiro->hThreadAgua) {
+								//tabuleiro 2 ganhou
+								dados->tabuleiro1.correrAgua = FALSE;
+								_stprintf_s(a, MAX, _T("PERDEU 1\n"));
+								escreveNamedPipe(dados, a, &dados->tabuleiro1);
+							}
+						}
+
+
 						break;
 					}
 					else {
@@ -878,6 +893,20 @@ DWORD WINAPI ThreadAgua(LPVOID param) {
 					_tprintf(_T("(ThreadAgua) FluirAgua -> FALSE"));
 					dadosTabuleiro->correrAgua = FALSE;
 					dados->iniciado = FALSE;
+					if (dados->multi > 1) {
+						if (dados->tabuleiro1.hThreadAgua == dadosTabuleiro->hThreadAgua) {
+							//tabuleiro 1 ganhou
+							dados->tabuleiro2.correrAgua = FALSE;
+							_stprintf_s(a, MAX, _T("GANHOU 1\n"));
+							escreveNamedPipe(dados, a, &dados->tabuleiro2);
+						}
+						else if (dados->tabuleiro2.hThreadAgua == dadosTabuleiro->hThreadAgua) {
+							//tabuleiro 2 ganhou
+							dados->tabuleiro1.correrAgua = FALSE;
+							_stprintf_s(a, MAX, _T("GANHOU 1\n"));
+							escreveNamedPipe(dados, a, &dados->tabuleiro1);
+						}
+					}
 					break;
 				}
 			}
@@ -915,6 +944,8 @@ BOOL initMemAndSync(DadosThread* dados, unsigned int tamH, unsigned int tamV) {
 	dados->memPar->posE = 0;
 	dados->memPar->posL = 0;
 	dados->parafluxo = 0;
+	dados->multi = 0;
+
 
 	dados->memPar->tamX = tamH;
 	dados->memPar->tamY = tamV;
