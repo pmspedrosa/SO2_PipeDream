@@ -230,6 +230,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], GANHOU) == 0) {
+			dados->vitorias++;
 			if (MessageBox(dados->hWnd, _T("Ganhou!!! Clique OK para avancar para o proximo Nivel."), _T("Ganhou"),
 				MB_ICONQUESTION | MB_OK) == IDOK)
 			{
@@ -948,6 +949,10 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	case WM_COMMAND: //menu
 		switch (wParam)
 		{
+		case ID_JOGADOR_PONTUACAO:
+			_stprintf_s(a, MAX, _T("Nome: %s\nVitorias: %d"), dadosDentroJogo->nome, dados.vitorias);
+			MessageBox(dados.hWnd,a, _T("Pontuacao"),MB_ICONQUESTION);
+				break;
 		case ID_MENU_NOME:
 			DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG1), hWnd, DlgProc);
 			break;
@@ -955,6 +960,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 			WaitForSingleObject(dados.hMutex, INFINITE);
 			_stprintf_s(a, MAX, _T("JOGOSINGLEP %s"), dadosDentroJogo->nome);
 			_tcscpy_s(dados.mensagem, MAX, a);
+			dados.vitorias = 0;
 			ReleaseMutex(dados.hMutex);
 			SetEvent(dados.hEventoNamedPipe);
 			break;

@@ -80,6 +80,7 @@ typedef struct {
 	BOOL texturas;
 	TCHAR info[MAX];
 	HANDLE hMessageBox;
+	int vitorias;
 }DadosThreadPipe;
 
 
