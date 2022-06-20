@@ -131,14 +131,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 
 		sourceTabuleiro = leDePipesOverlapped(dados, &n, &buf);
 
-		if (!n) {
-			_tprintf(TEXT("[SV] n == 0... (ReadFile)\n"));
-			//continue;
-		}
-
-		if (sourceTabuleiro == NULL) {
-			_tprintf(TEXT("[SV] sourceTabuleiro NULL... %d (ReadFile)\n"), n);
-			Sleep(1000);
+		if (sourceTabuleiro == NULL && !n) {
 			continue;
 		}
 
@@ -189,7 +182,7 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 				WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
 				BOOL colocou = verificaColocarPeca(dados, x, y, t, sourceTabuleiro);	//verifica se é possivelcolocar peca
 				ReleaseMutex(dados->hMutexTabuleiro);
-
+				SetEvent(dados->hEventUpdateTabuleiro);
 
 				if (colocou == TRUE) {
 					_stprintf_s(a, MAX, _T("PECA %d %d %d\n"), x, y, t);
@@ -215,12 +208,19 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			if (sourceTabuleiro->numParagensDisponiveis > 0) {
 				sourceTabuleiro->numParagensDisponiveis--;
 				SuspendThread(sourceTabuleiro->hThreadAgua);
+				_stprintf_s(a, MAX, _T("HOVER\n"));
+				escreveNamedPipe(dados, a, sourceTabuleiro);
+				Sleep(200);
 				_stprintf_s(a, MAX, _T("INFO AguaParada\n"));
 				escreveNamedPipe(dados, a, sourceTabuleiro);
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], RETOMAHOVER) == 0) {
+			_tprintf(_T("\n\n\RETOMA HOVER!!!\n\n"));
 			ResumeThread(sourceTabuleiro->hThreadAgua);
+			_stprintf_s(a, MAX, _T("FIM_HOVER\n"));
+			escreveNamedPipe(dados, a, sourceTabuleiro);
+			Sleep(200);
 			_stprintf_s(a, MAX, _T("INFO RetomaAgua\n"));
 			escreveNamedPipe(dados, a, sourceTabuleiro);
 		}
@@ -252,26 +252,49 @@ DWORD WINAPI ThreadLer(LPVOID param) {
 			}
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOMULTIP) == 0) {
-			_stprintf_s(sourceTabuleiro->pontuacao.nome, MAX, arrayComandos[1]);
-			// variavel com a quantidade de jogadores a querer jogar multiplayer
-			if (multi > 0) {	//existe um jogador em espera
-				//iniciar jogo multiplayer...
-				//ResumeThread(dados.tabuleiro1.hThreadAgua);
-				//_stprintf_s(a, MAX, _T("JOGOMULTIP INICIA\n"));
-				//escreveNamedPipe(dados, a);
+			if (dados->iniciado == FALSE) {//if jogo ainda não se encontra em curso
+				_stprintf_s(sourceTabuleiro->pontuacao.nome, MAX, arrayComandos[1]);
+				sourceTabuleiro->pontuacao.vitorias = 0;
+				if (multi > 0){			//existe um jogador em espera
+					dados->velocidadeAgua = TIMER_FLUIR;
+					dados->iniciado = TRUE;
+					dados->tabuleiro1.correrAgua = TRUE;
+					dados->tabuleiro2.correrAgua = TRUE;
+
+					DadosThreadAgua dadosThreadAguaTab1;
+					dadosThreadAguaTab1.dados = dados;
+					dadosThreadAguaTab1.dadosTabuleiro = &dados->tabuleiro1;
+					dados->tabuleiro1.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosThreadAguaTab1, CREATE_SUSPENDED, NULL);
+					if (dados->tabuleiro1.hThreadAgua == NULL) {
+						_tprintf(_T("NAO CONSEGUI CRIAR NOVA THREAD\n\n"));
+						exit(-1);
+					}
+					DadosThreadAgua dadosThreadAguaTab2;
+					dadosThreadAguaTab2.dados = dados;
+					dadosThreadAguaTab2.dadosTabuleiro = &dados->tabuleiro2;
+					dados->tabuleiro2.hThreadAgua = CreateThread(NULL, 0, ThreadAgua, &dadosThreadAguaTab2, CREATE_SUSPENDED, NULL);
+					//iniciajogo peçainicialx pecainicialy tipopeçainicial peçafinalx pecafinaly tipopeçafinal
+					if (sourceTabuleiro->hThreadAgua == NULL) {
+						_tprintf(_T("NAO CONSEGUI CRIAR NOVA THREAD\n\n"));
+						exit(-1);
+					}
+					ResumeThread(dados->tabuleiro1.hThreadAgua);
+					ResumeThread(dados->tabuleiro2.hThreadAgua);
+
+					WaitForSingleObject(dados->hMutexTabuleiro, INFINITE);
+					_stprintf_s(a, MAX, _T("INICIAJOGO %d %d %d %d %d %d %d %d\n"), dados->memPar->tamX, dados->memPar->tamY, sourceTabuleiro->posX, sourceTabuleiro->posY, (*sourceTabuleiro->tabuleiro)[sourceTabuleiro->posX][sourceTabuleiro->posY], dados->posfX, dados->posfY, (*sourceTabuleiro->tabuleiro)[dados->posfX][dados->posfY]);
+					ReleaseMutex(dados->hMutexTabuleiro);
+					escreveNamedPipe(dados, a, &dados->tabuleiro1);
+					Sleep(100);
+					escreveNamedPipe(dados, a, &dados->tabuleiro2);
+				}
+				else {
+					multi++;
+				}
 			}
 			else {
-				//verificar se cliente2 está ativo
-				//if (dados->tabuleiro2.jogadorAtivo == FALSE)
-				//	  esperar que um cliente se ligue
-				//    _stprintf_s(a, MAX, _T("JOGOMULTIP ESPERA\n"));
-				//	  escreveNamedPipe(dados, a);
-				//else
-				//	  mandar informação de que existe um jogador a tentar jogar multiplayer
-
+				escreveNamedPipe(dados, _T("INFO JogoEmCurso\n"), sourceTabuleiro);
 			}
-
-
 		}
 		else if (_tcscmp(arrayComandos[0], JOGOMULTIPCANCEL) == 0) {
 			multi--;
