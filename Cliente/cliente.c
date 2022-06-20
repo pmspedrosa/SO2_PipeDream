@@ -680,11 +680,8 @@ BOOL iniciaDetecaoHover(HWND hWnd) {
 	return TrackMouseEvent(&tme);
 }
 
-
-
 void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, int tipo) {
 	//tipo -> 1 = clique esq;2 = clique dir;3 = mouse hover
-
 	RECT rect;
 	HDC hdc = GetDC(hWnd);
 	GetClientRect(hWnd, &rect);
@@ -754,6 +751,13 @@ void processaEventoRato(HWND hWnd, DadosThreadPipe* dados, int posX, int posY, i
 		ReleaseMutex(dados->hMutex);
 	}
 }
+void screamPosition(int x, int y) {
+	//DEBUG START
+	TCHAR a[512];
+	_stprintf_s(a, 512, _T("MouseMove %d, %d\n"), x, y);
+	OutputDebugString(a);
+	//DEBUG END
+}
 
 
 
@@ -777,6 +781,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	DATA* dadosDentroJogo = (LONG_PTR)GetWindowLongPtr(hWnd, 0);
 	TCHAR a[MAX];
 
+
+	static BOOL pause = FALSE;
 
 	switch (messg) {
 	case WM_CREATE:
@@ -887,7 +893,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		}
 		break;
 	case WM_MOUSEHOVER:
-		if (dados.jogoCorrer) {
+		if (dados.jogoCorrer && !dados.pause) {
 			processaEventoRato(hWnd, &dados, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 3);
 		}
 		break;
@@ -896,6 +902,16 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		hdc = BeginPaint(hWnd, &ps);
 		atualizarDisplay(hWnd, &dados, bitmap);
 		EndPaint(hWnd, &ps);
+		break;
+	case WM_MOUSEMOVE:
+		//Trocar esta variavel pela que estará na estrutura de dados (estrutura que tem o tabuleiro, etc)
+		if (dados.pause){
+			//PARA TESTE
+			//Trocar isto pela funcao de enviar mensagem ao servidor
+			screamPosition(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+			dados.pause = FALSE;		//Isto será feito pela thread de leitura do pipe, apos a rececao da mensagem de fim de pausa
+		}
+		//OutputDebugString(_T("WM_MOUSEMOVE\n"));
 		break;
 	case WM_CHAR:	//apanhar  teclado
 		//PARA TESTE
